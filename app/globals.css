@@ -1,26 +1,341 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-accent: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Navy now reads as "elevated surface" (900/800/700) rather than page
+     background — 950 stays dark on purpose, it's the text color sitting on
+     top of gold buttons/badges and needs to stay dark regardless of theme. */
+  --color-navy-950: #05060f;
+  --color-navy-900: #ffffff;
+  --color-navy-800: #f1e6ce;
+  --color-navy-700: #e8dcc0;
+  --color-navy-600: #ddd0ae;
+  --color-navy-500: #d2c39a;
+
+  /* Page canvas + recessed control surfaces — new for the bright theme. */
+  --color-ivory-50: #fbf6ea;
+  --color-ivory-100: #f5ecd6;
+
+  --color-gold-100: #fdf3d8;
+  --color-gold-200: #f6e3ab;
+  --color-gold-300: #f0d17e;
+  --color-gold-400: #e8bf5c;
+  --color-gold-500: #d4af37;
+  --color-gold-600: #b8892a;
+  --color-gold-700: #8f6a1f;
+
+  /* Darker gold family reserved for *text* (labels, links, nav, badges) —
+     the gold-* scale above stays bright for borders/buttons/glows, which
+     still reads fine on a light page, but gold text that light would
+     vanish against cream. */
+  --color-amber-500: #a67420;
+  --color-amber-600: #96691b;
+  --color-amber-700: #7a5313;
+  --color-amber-800: #5c3d0d;
+
+  --color-flame-400: #ffc36b;
+  --color-flame-500: #ff9d42;
+  --color-flame-600: #ff7a2e;
+
+  --color-crimson-500: #b3273f;
+  --color-crimson-600: #8f1c30;
+
+  /* ink now runs dark-on-cream instead of light-on-navy. */
+  --color-ink-100: #2a2013;
+  --color-ink-300: #5c4d33;
+  --color-ink-500: #7d6c4d;
+
+  --shadow-gold-glow: 0 0 40px -8px rgba(212, 175, 55, 0.55);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background: var(--color-ivory-50);
+  color: var(--color-ink-100);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Every surface here is light by design (there's no dark theme toggle) —
+   telling the browser that lets it render its own native chrome (the
+   <select> dropdown popup, scrollbars, etc.) in light colors automatically
+   instead of an OS-default dark popup that ignored our CSS. */
+:root {
+  color-scheme: light;
+}
+
+/* Belt-and-braces for the select popup specifically: color-scheme covers
+   most browsers, but Firefox in particular still needs option backgrounds
+   set explicitly or it falls back to white-on-black regardless. */
+select {
+  color-scheme: light;
+}
+select option {
+  background-color: var(--color-navy-800);
+  color: var(--color-ink-100);
+}
+
+::selection {
+  background: rgba(212, 175, 55, 0.35);
+  color: var(--color-ink-100);
+}
+
+/* ---------- Scrollbar, divine gold on navy ---------- */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-navy-900);
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--color-gold-600), var(--color-gold-500));
+  border-radius: 999px;
+}
+
+/* ---------- Shared keyframes ---------- */
+@keyframes ember-rise {
+  0% {
+    transform: translateY(0) translateX(0) scale(var(--s, 1));
+    opacity: 0;
+  }
+  8% {
+    opacity: var(--o, 0.9);
+  }
+  90% {
+    opacity: var(--o, 0.9);
+  }
+  100% {
+    transform: translateY(-120vh) translateX(var(--dx, 20px)) scale(calc(var(--s, 1) * 0.4));
+    opacity: 0;
+  }
+}
+
+@keyframes slow-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes slow-spin-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes soft-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes shimmer-sweep {
+  0% {
+    transform: translateX(-130%) skewX(-15deg);
+  }
+  100% {
+    transform: translateX(230%) skewX(-15deg);
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes golden-text-glow {
+  0%,
+  100% {
+    text-shadow:
+      0 0 8px rgba(212, 175, 55, 0.35),
+      0 0 18px rgba(212, 175, 55, 0.15);
+  }
+  50% {
+    text-shadow:
+      0 0 16px rgba(255, 214, 130, 0.75),
+      0 0 34px rgba(212, 175, 55, 0.45),
+      0 0 52px rgba(212, 175, 55, 0.2);
+  }
+}
+
+.animate-golden-glow {
+  animation: golden-text-glow 3.2s ease-in-out infinite;
+}
+
+/* The separator in the live clock — a slow fade rather than a hard blink,
+   which reads as "running" without pulling the eye every second in a screen
+   people work in all day. */
+@keyframes clock-colon {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+.animate-clock-colon {
+  animation: clock-colon 2s ease-in-out infinite;
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(255, 157, 66, 0.9));
+  }
+  45% {
+    opacity: 0.85;
+    filter: drop-shadow(0 0 3px rgba(255, 157, 66, 0.6));
+  }
+  55% {
+    opacity: 1;
+    filter: drop-shadow(0 0 9px rgba(255, 157, 66, 1));
+  }
+}
+
+.animate-slow-spin {
+  animation: slow-spin 60s linear infinite;
+}
+.animate-slow-spin-reverse {
+  animation: slow-spin-reverse 80s linear infinite;
+}
+.animate-soft-pulse {
+  animation: soft-pulse 4s ease-in-out infinite;
+}
+.animate-twinkle {
+  animation: twinkle var(--dur, 3s) ease-in-out infinite;
+}
+.animate-flicker {
+  animation: flicker 2.2s ease-in-out infinite;
+}
+
+/* ---------- DivineInput: floating label ---------- */
+/*
+ * Driven entirely by `:placeholder-shown`, with no JavaScript state at all.
+ *
+ * Every previous attempt tracked "does this field have content" in React —
+ * first from the `value` prop (which react-hook-form's uncontrolled inputs
+ * never set), then from the DOM node, then with a keyframe-based hack to
+ * detect Chrome autofill. Each one fixed the case in front of it and missed
+ * the next: autofill in particular can populate a field without firing an
+ * input event React sees, so the label sat on top of the value.
+ *
+ * The browser already knows whether a field is empty and exposes it as
+ * `:placeholder-shown`. Reading that instead means autofill, browser-restored
+ * values, programmatic `reset()`, and ordinary typing are all handled by the
+ * same rule — nothing to keep in sync. The input carries `placeholder=" "` so
+ * the pseudo-class has something to match on.
+ *
+ * Date/time inputs never match `:placeholder-shown` (they render native
+ * segment UI rather than a placeholder), so their label stays floated
+ * automatically — which is exactly the behaviour those types need, and one
+ * less special case to maintain.
+ */
+.divine-label {
+  position: absolute;
+  left: 0;
+  top: -18px;
+  z-index: 10;
+  font-size: 11px;
+  letter-spacing: 0.025em;
+  color: var(--color-amber-600);
+  pointer-events: none;
+  transition:
+    top 0.2s ease,
+    font-size 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Empty and unfocused — drop the label back down into the field. */
+.divine-input:placeholder-shown:not(:focus) + .divine-label {
+  top: 0;
+  font-size: 15px;
+  letter-spacing: normal;
+  color: var(--color-ink-500);
+}
+
+/*
+ * ...except when the browser autofilled it. Chrome paints the autofilled
+ * value on screen but withholds it from the page until the user interacts
+ * with the document, so the field still matches `:placeholder-shown` while
+ * visibly containing text — the rule above would drop the label right on top
+ * of it. `:-webkit-autofill` is the only signal that reflects the state the
+ * user can actually see.
+ *
+ * Two separate rules on purpose: a browser that doesn't recognise one of
+ * these pseudo-classes throws out the entire rule it appears in, and a
+ * combined selector would take the supported half down with it. The repeated
+ * class raises specificity above the drop rule deliberately, rather than
+ * leaving the outcome to source order for a minifier to rearrange.
+ */
+.divine-input.divine-input:-webkit-autofill:not(:focus) + .divine-label {
+  top: -18px;
+  font-size: 11px;
+  letter-spacing: 0.025em;
+  color: var(--color-amber-600);
+}
+.divine-input.divine-input:autofill:not(:focus) + .divine-label {
+  top: -18px;
+  font-size: 11px;
+  letter-spacing: 0.025em;
+  color: var(--color-amber-600);
+}
+
+/* ---------- Chrome/Edge autofill ---------- */
+/* Autofilled fields ignore background-color entirely — only a huge inset
+   box-shadow of the real theme color reliably paints over the browser's
+   forced white/yellow fill. Text color needs the same -webkit-text-fill-color
+   override, or it renders black-on-dark and disappears. */
+.divine-input:-webkit-autofill,
+.divine-input:-webkit-autofill:hover,
+.divine-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #2a2013; /* ink-100 */
+  caret-color: #2a2013;
+  -webkit-box-shadow: 0 0 0 1000px #f5ecd6 inset; /* ivory-100 */
+  box-shadow: 0 0 0 1000px #f5ecd6 inset;
+  /* Stops Chrome's own flash-to-yellow transition from ever being visible. */
+  transition:
+    background-color 999999s ease-in-out 0s,
+    color 999999s ease-in-out 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
