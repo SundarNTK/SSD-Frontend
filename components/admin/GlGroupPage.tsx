@@ -1,0 +1,321 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
+import FormDrawer from "./FormDrawer";
+import DivineInput from "../divine/DivineInput";
+import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
+import DivineButton from "../divine/DivineButton";
+import { api, unwrap, type ApiEnvelope } from "../../lib/api";
+import { useApiResource } from "../../lib/useApiResource";
+import { MODULES, usePermissions } from "../../lib/permissions";
+import { toast } from "../../lib/toastStore";
+
+type Ref = { _id: string; name: string };
+
+export type GlGroup = {
+  _id: string;
+  level: 1 | 2 | 3;
+  name: string;
+  description: string;
+  status: number;
+  level1?: Ref | null;
+  level2?: Ref | null;
+};
+
+const schema = z.object({
+  level1: z.string().optional(),
+  level2: z.string().optional(),
+  name: z.string().trim().min(1, "Name is required").max(150),
+  description: z.string().trim().max(300),
+  status: z.number(),
+});
+
+type FormValues = z.infer<typeof schema>;
+
+const PAGE_SIZE = 20;
+const STATUS_OPTIONS = [
+  { value: "1", label: "Active" },
+  { value: "0", label: "Inactive" },
+];
+const TABS: { level: 1 | 2 | 3; label: string }[] = [
+  { level: 1, label: "Level 1" },
+  { level: 2, label: "Level 2" },
+  { level: 3, label: "Level 3" },
+];
+
+/**
+ * One collection, three tabs — matches how the backend stores this
+ * (models/gl-groups: a single GlGroup schema distinguished by `level`).
+ * Each tab's table always shows every row at that level; the "Select
+ * Level 1"/"Select Level 2" dropdowns only appear inside the Add modal,
+ * to pick a parent, never to filter the table itself.
+ */
+export default function GlGroupPage() {
+  const { can } = usePermissions();
+  const canCreate = can(MODULES.glGroups, "fullAccess");
+  const canEdit = can(MODULES.glGroups, "edit");
+
+  const [activeLevel, setActiveLevel] = useState<1 | 2 | 3>(1);
+  const { items, total, list, create, update } = useApiResource<GlGroup>(api, "/masters/gl-groups");
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState<GlGroup | null>(null);
+
+  const [level1Options, setLevel1Options] = useState<ListboxOption[]>([]);
+  const [level2Options, setLevel2Options] = useState<ListboxOption[]>([]);
+
+  useEffect(() => {
+    setPage(1);
+    setSearch("");
+    setStatusFilter("");
+  }, [activeLevel]);
+
+  useEffect(() => {
+    list.run({
+      level: activeLevel,
+      page,
+      pageSize: PAGE_SIZE,
+      search: search || undefined,
+      status: statusFilter || undefined,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLevel, page, search, statusFilter]);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    control,
+    formState: { errors },
+  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  const selectedLevel1 = watch("level1");
+
+  async function loadLevel1Options() {
+    const res = await api.get<ApiEnvelope<{ items: GlGroup[] }>>("/masters/gl-groups", {
+      params: { level: 1, status: 1, pageSize: 100 },
+    });
+    setLevel1Options(unwrap(res).items.map((g) => ({ value: g._id, label: g.name })));
+  }
+
+  async function loadLevel2Options(level1Id: string) {
+    if (!level1Id) {
+      setLevel2Options([]);
+      return;
+    }
+    const res = await api.get<ApiEnvelope<{ items: GlGroup[] }>>("/masters/gl-groups", {
+      params: { level: 2, level1: level1Id, status: 1, pageSize: 100 },
+    });
+    setLevel2Options(unwrap(res).items.map((g) => ({ value: g._id, label: g.name })));
+  }
+
+  useEffect(() => {
+    if (activeLevel >= 2) loadLevel1Options();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLevel, drawerOpen]);
+
+  useEffect(() => {
+    if (activeLevel === 3) loadLevel2Options(selectedLevel1 || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLevel1, activeLevel]);
+
+  function openCreate() {
+    setEditing(null);
+    reset({ level1: "", level2: "", name: "", description: "", status: 1 });
+    create.setError(null);
+    setDrawerOpen(true);
+  }
+
+  function openEdit(group: GlGroup) {
+    setEditing(group);
+    reset({
+      level1: group.level1?._id ?? "",
+      level2: group.level2?._id ?? "",
+      name: group.name,
+      description: group.description,
+      status: group.status,
+    });
+    update.setError(null);
+    setDrawerOpen(true);
+  }
+
+  const submit = handleSubmit(async (values) => {
+    if (editing) {
+      const ok = await update.run(editing._id, {
+        name: values.name,
+        description: values.description,
+        status: values.status,
+      });
+      if (ok !== undefined) {
+        setDrawerOpen(false);
+        toast.updated(`Level ${editing.level} group updated successfully.`);
+      }
+      return;
+    }
+
+    const body: Record<string, unknown> = {
+      level: activeLevel,
+      name: values.name,
+      description: values.description,
+      status: values.status,
+    };
+    if (activeLevel >= 2) body.level1 = values.level1;
+    if (activeLevel === 3) body.level2 = values.level2;
+
+    const ok = await create.run(body);
+    if (ok !== undefined) {
+      setDrawerOpen(false);
+      toast.created(`Level ${activeLevel} group created successfully.`);
+    }
+  });
+
+  const columns: DataTableColumn<GlGroup>[] = [
+    ...(activeLevel >= 2
+      ? [{ key: "level1", label: "Level 1", render: (g: GlGroup) => <span className="text-ink-500">{g.level1?.name ?? "—"}</span> }]
+      : []),
+    ...(activeLevel === 3
+      ? [{ key: "level2", label: "Level 2", render: (g: GlGroup) => <span className="text-ink-500">{g.level2?.name ?? "—"}</span> }]
+      : []),
+    { key: "name", label: "Name", render: (g) => <span className="font-medium">{g.name}</span> },
+    { key: "status", label: "Status", render: (g) => <StatusPill status={g.status} /> },
+  ];
+
+  return (
+    <>
+      <div className="mb-5 space-y-1">
+        <h1 className="font-display text-[24px] text-ink-100">GL Group Master</h1>
+        <p className="text-[13px] text-ink-500">Manage GL Group hierarchy by Level 1, 2, 3.</p>
+      </div>
+
+      <div className="mb-5 flex overflow-hidden rounded-xl border border-gold-500/20">
+        {TABS.map((tab) => (
+          <button
+            key={tab.level}
+            onClick={() => setActiveLevel(tab.level)}
+            className={`flex-1 py-2.5 text-[13.5px] font-semibold transition-colors ${
+              activeLevel === tab.level
+                ? "bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 text-navy-950"
+                : "bg-white text-ink-300 hover:bg-ivory-100"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <DataTable
+        title=""
+        columns={columns}
+        rows={items}
+        rowKey={(g) => g._id}
+        loading={list.submitting}
+        search={search}
+        onSearchChange={(v) => {
+          setPage(1);
+          setSearch(v);
+        }}
+        searchPlaceholder={`Search Level ${activeLevel} groups…`}
+        statusFilter={statusFilter}
+        onStatusFilterChange={(v) => {
+          setPage(1);
+          setStatusFilter(v);
+        }}
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        onPageChange={setPage}
+        onCreate={canCreate ? openCreate : undefined}
+        createLabel={`Add Level ${activeLevel}`}
+        emptyMessage={`No Level ${activeLevel} groups yet.`}
+        rowActions={(g) =>
+          canEdit ? (
+            <button onClick={() => openEdit(g)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
+              Edit
+            </button>
+          ) : null
+        }
+      />
+
+      <FormDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title={editing ? `Edit Level ${editing.level}` : `Add Level ${activeLevel}`}
+        subtitle={editing ? editing.name : undefined}
+        error={create.error || update.error}
+        footer={
+          <div className="flex gap-3">
+            <DivineButton variant="ghost" type="button" onClick={() => setDrawerOpen(false)}>
+              Cancel
+            </DivineButton>
+            <DivineButton type="submit" form="gl-group-form" loading={create.submitting || update.submitting}>
+              Save
+            </DivineButton>
+          </div>
+        }
+      >
+        <form id="gl-group-form" onSubmit={submit} noValidate className="space-y-5">
+          {!editing && activeLevel >= 2 && (
+            <Controller
+              control={control}
+              name="level1"
+              render={({ field }) => (
+                <DivineListbox
+                  label="Level 1"
+                  value={field.value ?? ""}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    if (activeLevel === 3) setValue("level2", "");
+                  }}
+                  options={level1Options}
+                  placeholder="Select Level 1"
+                />
+              )}
+            />
+          )}
+          {!editing && activeLevel === 3 && (
+            <Controller
+              control={control}
+              name="level2"
+              render={({ field }) => (
+                <DivineListbox
+                  label="Level 2"
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  options={level2Options}
+                  placeholder={selectedLevel1 ? "Select Level 2" : "Select Level 1 first"}
+                />
+              )}
+            />
+          )}
+          <DivineInput
+            label={`Level ${editing?.level ?? activeLevel} Name`}
+            error={errors.name?.message}
+            {...register("name")}
+          />
+          <DivineInput label="Description" error={errors.description?.message} {...register("description")} />
+          <Controller
+            control={control}
+            name="status"
+            render={({ field }) => (
+              <DivineListbox
+                label="Status"
+                value={String(field.value)}
+                onChange={(v) => field.onChange(Number(v))}
+                options={STATUS_OPTIONS}
+              />
+            )}
+          />
+        </form>
+      </FormDrawer>
+    </>
+  );
+}

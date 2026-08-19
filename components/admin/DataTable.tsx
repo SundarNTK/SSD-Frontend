@@ -70,10 +70,12 @@ export default function DataTable<T>({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-[24px] text-ink-100">{title}</h1>
-          {subtitle && <p className="mt-1 text-[13px] text-ink-500">{subtitle}</p>}
-        </div>
+        {title && (
+          <div>
+            <h1 className="font-display text-[24px] text-ink-100">{title}</h1>
+            {subtitle && <p className="mt-1 text-[13px] text-ink-500">{subtitle}</p>}
+          </div>
+        )}
         {onCreate && (
           <button
             onClick={onCreate}
