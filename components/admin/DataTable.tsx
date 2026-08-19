@@ -90,7 +90,7 @@ export default function DataTable<T>({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={searchPlaceholder}
-          className="w-full max-w-xs rounded-xl border border-gold-500/20 bg-ivory-100 px-4 py-2.5 text-[13.5px] text-ink-100 outline-none placeholder:text-ink-500 focus:border-gold-400/60"
+          className="w-full max-w-xs rounded-xl border border-gold-500/20 bg-white px-4 py-2.5 text-[13.5px] text-ink-100 outline-none placeholder:text-ink-500 focus:border-gold-400/60"
         />
         <DivineListbox
           value={statusFilter}
