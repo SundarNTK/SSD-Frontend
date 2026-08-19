@@ -1,0 +1,59 @@
+"use client";
+
+import { motion } from "framer-motion";
+import type { ReactNode } from "react";
+
+/** Glass card with a hairline gold border and filigree corners — the vessel every auth form sits in. */
+export default function DivineCard({
+  children,
+  maxWidthClassName = "max-w-md",
+}: {
+  children: ReactNode;
+  /** Login/Forgot/Set-Password stay at the default single-column width; a form with paired-column rows (Register) opts into something wider. */
+  maxWidthClassName?: string;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 28, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
+      className={`relative w-full ${maxWidthClassName}`}
+    >
+      {/* outer glow — a slow breathing halo, not just a static outline */}
+      <div className="animate-soft-pulse absolute -inset-1 rounded-[28px] bg-gradient-to-br from-gold-400/50 via-gold-500/20 to-transparent blur-md" />
+
+      <div className="relative overflow-hidden rounded-[26px] border border-gold-500/25 bg-navy-900/70 shadow-[0_20px_70px_-20px_rgba(0,0,0,0.7)] backdrop-blur-xl">
+        {/* top hairline shimmer */}
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-300/80 to-transparent" />
+
+        {/* corner flourishes */}
+        <CornerFlourish className="left-3 top-3" />
+        <CornerFlourish className="right-3 top-3 -scale-x-100" />
+        <CornerFlourish className="bottom-3 left-3 -scale-y-100" />
+        <CornerFlourish className="bottom-3 right-3 -scale-x-100 -scale-y-100" />
+
+        <div className="relative px-8 py-10 sm:px-10">{children}</div>
+      </div>
+    </motion.div>
+  );
+}
+
+function CornerFlourish({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 40 40"
+      className={`pointer-events-none absolute h-8 w-8 text-amber-500/50 ${className}`}
+      aria-hidden="true"
+    >
+      <path
+        d="M2 20 C2 9 9 2 20 2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1"
+        strokeLinecap="round"
+      />
+      <circle cx="20" cy="2" r="1.4" fill="currentColor" />
+      <circle cx="2" cy="20" r="1.4" fill="currentColor" />
+    </svg>
+  );
+}
