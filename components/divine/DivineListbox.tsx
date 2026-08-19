@@ -55,9 +55,7 @@ export default function DivineListbox({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`group relative w-full rounded-xl border text-left transition-colors duration-300 ${
-          label ? "bg-ivory-100" : "bg-white"
-        } ${
+        className={`group relative w-full rounded-xl border bg-white text-left transition-colors duration-300 ${
           error
             ? "border-crimson-500/70"
             : open

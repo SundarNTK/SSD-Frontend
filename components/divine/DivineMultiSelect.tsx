@@ -58,7 +58,7 @@ export default function DivineMultiSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-labelledby={labelId}
-        className={`group relative w-full rounded-xl border bg-ivory-100 text-left transition-colors duration-300 ${
+        className={`group relative w-full rounded-xl border bg-white text-left transition-colors duration-300 ${
           error
             ? "border-crimson-500/70"
             : open
