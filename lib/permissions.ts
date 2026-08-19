@@ -10,6 +10,14 @@ export const MODULES = {
   customers: "customers",
   roles: "roles",
   emailTemplates: "email-templates",
+  printingGroups: "printing-groups",
+  deities: "deities",
+  gst: "gst",
+  glGroups: "gl-groups",
+  generalLedgers: "general-ledgers",
+  categories: "categories",
+  subCategories: "sub-categories",
+  items: "items",
 } as const;
 
 /**
