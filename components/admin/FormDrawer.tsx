@@ -10,6 +10,13 @@ type FormDrawerProps = {
   onClose: () => void;
   children: ReactNode;
   footer: ReactNode;
+  /**
+   * No longer rendered here — a submit failure pops the same red toast
+   * every create/update/delete success already uses (see useAsyncAction
+   * and ToastStack), so every master form shows errors the same way
+   * without an inline banner duplicating it. Kept optional so existing
+   * `error={create.error || update.error}` call sites don't need editing.
+   */
   error?: string | null;
   /** Defaults to max-w-lg — Item Master's larger form passes a wider class. */
   maxWidthClassName?: string;
@@ -32,7 +39,6 @@ export default function FormDrawer({
   onClose,
   children,
   footer,
-  error,
   maxWidthClassName = "max-w-lg",
 }: FormDrawerProps) {
   return (
@@ -75,14 +81,7 @@ export default function FormDrawer({
                 </button>
               </div>
 
-              <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
-                {error && (
-                  <p className="rounded-xl border border-crimson-500/40 bg-crimson-500/10 px-4 py-2.5 text-[12.5px] text-crimson-600">
-                    {error}
-                  </p>
-                )}
-                {children}
-              </div>
+              <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">{children}</div>
 
               <div className="border-t border-gold-500/10 px-6 py-4">{footer}</div>
             </motion.div>
