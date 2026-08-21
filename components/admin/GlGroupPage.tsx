@@ -260,38 +260,59 @@ export default function GlGroupPage() {
         }
       >
         <form id="gl-group-form" onSubmit={submit} noValidate className="space-y-5">
-          {!editing && activeLevel >= 2 && (
-            <Controller
-              control={control}
-              name="level1"
-              render={({ field }) => (
-                <DivineListbox
-                  label="Level 1"
-                  value={field.value ?? ""}
-                  onChange={(v) => {
-                    field.onChange(v);
-                    if (activeLevel === 3) setValue("level2", "");
-                  }}
-                  options={level1Options}
-                  placeholder="Select Level 1"
-                />
-              )}
-            />
-          )}
-          {!editing && activeLevel === 3 && (
-            <Controller
-              control={control}
-              name="level2"
-              render={({ field }) => (
-                <DivineListbox
-                  label="Level 2"
-                  value={field.value ?? ""}
-                  onChange={field.onChange}
-                  options={level2Options}
-                  placeholder={selectedLevel1 ? "Select Level 2" : "Select Level 1 first"}
-                />
-              )}
-            />
+          {activeLevel >= 2 &&
+            (editing ? (
+              <div className="w-full">
+                <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Level 1</p>
+                <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-2.5 text-[15px] text-ink-300">
+                  {editing.level1?.name ?? "—"}
+                </div>
+              </div>
+            ) : (
+              <Controller
+                control={control}
+                name="level1"
+                render={({ field }) => (
+                  <DivineListbox
+                    label="Level 1"
+                    value={field.value ?? ""}
+                    onChange={(v) => {
+                      field.onChange(v);
+                      if (activeLevel === 3) setValue("level2", "");
+                    }}
+                    options={level1Options}
+                    placeholder="Select Level 1"
+                  />
+                )}
+              />
+            ))}
+          {activeLevel === 3 &&
+            (editing ? (
+              <div className="w-full">
+                <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Level 2</p>
+                <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-2.5 text-[15px] text-ink-300">
+                  {editing.level2?.name ?? "—"}
+                </div>
+              </div>
+            ) : (
+              <Controller
+                control={control}
+                name="level2"
+                render={({ field }) => (
+                  <DivineListbox
+                    label="Level 2"
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    options={level2Options}
+                    placeholder={selectedLevel1 ? "Select Level 2" : "Select Level 1 first"}
+                  />
+                )}
+              />
+            ))}
+          {editing && activeLevel >= 2 && (
+            <p className="-mt-3 pl-1 text-[11.5px] text-ink-500">
+              The hierarchy can&rsquo;t be changed after creation — delete and recreate this group if it needs a different parent.
+            </p>
           )}
           <DivineInput
             label={`Level ${editing?.level ?? activeLevel} Name`}
