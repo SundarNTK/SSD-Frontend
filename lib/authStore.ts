@@ -85,7 +85,7 @@ export function endSession(reason: SessionEndReason = "signed-out"): void {
   }
 
   useAuthStore.getState().clearSession();
-  window.location.replace("/login");
+  window.location.replace("/admin/login");
 }
 
 /** Reads and consumes the reason, so it's announced once and not on every later visit. */
