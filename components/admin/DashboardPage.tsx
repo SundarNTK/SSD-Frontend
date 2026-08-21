@@ -3,12 +3,7 @@
 import { motion } from "framer-motion";
 import { useAuthStore } from "../../lib/authStore";
 import { BoxIcon, CartIcon, ChartIcon, GridIcon } from "../divine/icons";
-
-const USER_TYPE_LABEL: Record<string, string> = {
-  SUPER_ADMIN: "Super Admin",
-  ADMIN: "Admin",
-  CUSTOMER: "Customer",
-};
+import { USER_TYPE_LABEL } from "../../lib/userTypes";
 
 const UPCOMING = [
   { icon: <GridIcon />, title: "Masters", day: "Day 3–7", detail: "Printing Group, GST, GL, Category, Item, Service, Event, Nakshatra, Customer" },

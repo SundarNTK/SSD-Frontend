@@ -17,7 +17,7 @@ export const USER_TYPES = {
 export type UserType = (typeof USER_TYPES)[keyof typeof USER_TYPES];
 
 export const USER_TYPE_LABEL: Record<string, string> = {
-  [USER_TYPES.SUPER_ADMIN]: "Super Admin",
+  [USER_TYPES.SUPER_ADMIN]: "System Admin",
   [USER_TYPES.ADMIN_USER]: "Admin User",
   [USER_TYPES.CUSTOMER]: "Customer",
 };

@@ -51,7 +51,7 @@ export default function PermissionsPage() {
       authApi.get<ApiEnvelope<ModuleDef[]>>("/roles/modules"),
     ]);
 
-    // Locked roles (Super Admin, Customer) are left out entirely rather than
+    // Locked roles (System Admin, Customer) are left out entirely rather than
     // shown with a caveat. Their access is decided by account type, so every
     // checkbox on them is inert — offering the choice at all invites someone
     // to tick boxes, save, and reasonably conclude permissions are broken.
@@ -148,7 +148,7 @@ export default function PermissionsPage() {
 
       {roles.length === 0 && !load.submitting && (
         <p className="rounded-xl border border-gold-500/20 bg-gold-500/5 px-4 py-2.5 text-[12.5px] text-amber-600">
-          No configurable roles yet. Super Admin and Customer aren't listed here — their access is
+          No configurable roles yet. System Admin and Customer aren't listed here — their access is
           decided by account type, so module permissions don't apply to them. Create a role to begin.
         </p>
       )}

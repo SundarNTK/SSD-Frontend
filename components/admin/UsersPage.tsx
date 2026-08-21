@@ -241,8 +241,8 @@ export default function UsersPage() {
         emptyMessage="No admin users yet."
         rowActions={(u) => {
           // Mirrors the server's rules exactly: Customer accounts aren't
-          // edited from this screen, and only a Super Admin may touch a
-          // Super Admin account.
+          // edited from this screen, and only a System Admin may touch a
+          // System Admin account.
           if (u.userType === USER_TYPES.CUSTOMER || !canEdit) return null;
           if (u.userType === USER_TYPES.SUPER_ADMIN && !isSuperAdmin) return null;
           return (

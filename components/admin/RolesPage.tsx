@@ -26,7 +26,7 @@ export type Role = {
   createdAt: string;
   /**
    * Set by the server (a virtual on the Role model) for roles whose access
-   * is decided by account type rather than module permissions — Super Admin
+   * is decided by account type rather than module permissions — System Admin
    * and Customer. The API refuses to edit, delete, or re-permission them, so
    * the UI hides those controls. Deliberately not a name check here: the
    * list lives in one place on the backend and rides along on the record.
