@@ -7,7 +7,7 @@ import { z } from "zod";
 import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineInput from "../divine/DivineInput";
-import DivineMultiSelect from "../divine/DivineMultiSelect";
+import DivineListbox from "../divine/DivineListbox";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineImageUpload from "../divine/DivineImageUpload";
 import DivineToggle from "../divine/DivineToggle";
@@ -279,13 +279,12 @@ export default function UsersPage() {
             control={createForm.control}
             name="roleIds"
             render={({ field }) => (
-              <DivineMultiSelect
+              <DivineListbox
                 label="Roles"
-                values={field.value ?? []}
-                onChange={field.onChange}
+                value={field.value?.[0] ?? ""}
+                onChange={(v) => field.onChange(v ? [v] : [])}
                 options={roleOptions}
-                placeholder="No roles selected"
-                emptyMessage={canAssignRoles ? "No roles available to assign" : "You can't assign roles"}
+                placeholder={canAssignRoles ? "Select a role" : "You can't assign roles"}
               />
             )}
           />
@@ -339,13 +338,12 @@ export default function UsersPage() {
             control={editForm.control}
             name="roleIds"
             render={({ field }) => (
-              <DivineMultiSelect
+              <DivineListbox
                 label="Roles"
-                values={field.value ?? []}
-                onChange={field.onChange}
+                value={field.value?.[0] ?? ""}
+                onChange={(v) => field.onChange(v ? [v] : [])}
                 options={roleOptions}
-                placeholder="No roles selected"
-                emptyMessage={canAssignRoles ? "No roles available to assign" : "You can't assign roles"}
+                placeholder={canAssignRoles ? "Select a role" : "You can't assign roles"}
               />
             )}
           />
