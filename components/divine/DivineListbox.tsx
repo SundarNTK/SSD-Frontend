@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckIcon, ChevronIcon } from "./icons";
 
@@ -17,6 +18,11 @@ type DivineListboxProps = {
   className?: string;
 };
 
+type PanelPosition = { left: number; width: number; maxHeight: number; upward: boolean; top?: number; bottom?: number };
+
+const PANEL_MAX_HEIGHT = 256; // matches max-h-64 below
+const GAP = 8;
+
 /**
  * A native <select>'s dropdown popup is OS chrome — no border-radius,
  * backdrop-blur, or theme color reaches it in most browsers, so it always
@@ -24,6 +30,13 @@ type DivineListboxProps = {
  * the <select> itself. This renders the whole thing (trigger + panel) as
  * real DOM instead, styled like every other divine input, so the dropdown
  * finally matches the rest of the page.
+ *
+ * The panel renders through a portal at a fixed position rather than
+ * inline. Listboxes sit inside a FormDrawer's scrolling body, and an
+ * absolutely positioned panel there gets clipped by that scroll container
+ * once the trigger nears the bottom of the form — a portal escapes it, and
+ * flips the panel above the trigger when there isn't room below (same
+ * pattern as DivineDatePicker).
  */
 export default function DivineListbox({
   label,
@@ -35,8 +48,41 @@ export default function DivineListbox({
   className = "",
 }: DivineListboxProps) {
   const [open, setOpen] = useState(false);
+  const [panel, setPanel] = useState<PanelPosition | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const triggerId = useId();
   const selected = options.find((o) => o.value === value);
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+
+    const place = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const upward = spaceBelow < PANEL_MAX_HEIGHT + GAP && spaceAbove > spaceBelow;
+      const maxHeight = Math.min(PANEL_MAX_HEIGHT, (upward ? spaceAbove : spaceBelow) - GAP * 2);
+
+      setPanel({
+        left: rect.left,
+        width: rect.width,
+        maxHeight,
+        upward,
+        top: upward ? undefined : rect.bottom + GAP,
+        bottom: upward ? window.innerHeight - rect.top + GAP : undefined,
+      });
+    };
+
+    place();
+    window.addEventListener("resize", place);
+    // `true` captures scrolling inside the drawer, not just the window.
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -50,6 +96,7 @@ export default function DivineListbox({
   return (
     <div className={`relative ${className || "w-full"}`}>
       <button
+        ref={triggerRef}
         type="button"
         id={triggerId}
         onClick={() => setOpen((v) => !v)}
@@ -85,49 +132,53 @@ export default function DivineListbox({
         )}
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <>
-            <button
-              type="button"
-              aria-label="Close menu"
-              onClick={() => setOpen(false)}
-              className="fixed inset-0 z-40 cursor-default"
-            />
-            <motion.ul
-              role="listbox"
-              aria-labelledby={triggerId}
-              initial={{ opacity: 0, y: -6, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6, scale: 0.98 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-64 overflow-y-auto rounded-xl border border-gold-500/25 bg-navy-900/80 p-1.5 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl"
-            >
-              {options.length === 0 && <li className="px-3 py-2.5 text-[13px] text-ink-500">No options</li>}
-              {options.map((opt) => {
-                const isSelected = opt.value === value;
-                return (
-                  <li
-                    key={opt.value}
-                    role="option"
-                    aria-selected={isSelected}
-                    onClick={() => {
-                      onChange(opt.value);
-                      setOpen(false);
-                    }}
-                    className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-[13.5px] transition-colors ${
-                      isSelected ? "bg-gold-500/15 text-amber-700" : "text-ink-200 hover:bg-navy-800/80 hover:text-ink-100"
-                    }`}
-                  >
-                    <span className="truncate">{opt.label}</span>
-                    {isSelected && <CheckIcon />}
-                  </li>
-                );
-              })}
-            </motion.ul>
-          </>
-        )}
-      </AnimatePresence>
+      {createPortal(
+        <AnimatePresence>
+          {open && panel && (
+            <>
+              <button
+                type="button"
+                aria-label="Close menu"
+                onClick={() => setOpen(false)}
+                className="fixed inset-0 z-[60] cursor-default"
+              />
+              <motion.ul
+                role="listbox"
+                aria-labelledby={triggerId}
+                initial={{ opacity: 0, y: panel.upward ? 6 : -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: panel.upward ? 6 : -6, scale: 0.98 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                style={{ left: panel.left, width: panel.width, maxHeight: panel.maxHeight, top: panel.top, bottom: panel.bottom }}
+                className="fixed z-[61] overflow-y-auto rounded-xl border border-gold-500/25 bg-navy-900/80 p-1.5 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl"
+              >
+                {options.length === 0 && <li className="px-3 py-2.5 text-[13px] text-ink-500">No options</li>}
+                {options.map((opt) => {
+                  const isSelected = opt.value === value;
+                  return (
+                    <li
+                      key={opt.value}
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => {
+                        onChange(opt.value);
+                        setOpen(false);
+                      }}
+                      className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-[13.5px] transition-colors ${
+                        isSelected ? "bg-gold-500/15 text-amber-700" : "text-ink-200 hover:bg-navy-800/80 hover:text-ink-100"
+                      }`}
+                    >
+                      <span className="truncate">{opt.label}</span>
+                      {isSelected && <CheckIcon />}
+                    </li>
+                  );
+                })}
+              </motion.ul>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       {error && <p className="mt-1.5 pl-1 text-[12.5px] text-crimson-500">{error}</p>}
     </div>

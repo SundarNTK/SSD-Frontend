@@ -38,7 +38,7 @@ const DivineInput = forwardRef<HTMLInputElement, DivineInputProps>(
     return (
       <div className="w-full">
         <div
-          className={`group relative rounded-xl border bg-ivory-100 transition-colors duration-300 ${
+          className={`group relative rounded-xl border bg-white transition-colors duration-300 ${
             error
               ? "border-crimson-500/70"
               : focused

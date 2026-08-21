@@ -9,6 +9,7 @@ import FormDrawer from "./FormDrawer";
 import DivineInput from "../divine/DivineInput";
 import DivineListbox from "../divine/DivineListbox";
 import DivineDatePicker from "../divine/DivineDatePicker";
+import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
 import { MailIcon, PhoneIcon, UserIcon } from "../divine/icons";
 import { authApi } from "../../lib/api";
@@ -53,10 +54,6 @@ const GENDER_OPTIONS = [
   { value: "MALE", label: "Male" },
   { value: "FEMALE", label: "Female" },
   { value: "OTHER", label: "Other" },
-];
-const STATUS_OPTIONS = [
-  { value: "1", label: "Active" },
-  { value: "0", label: "Inactive" },
 ];
 
 /**
@@ -235,12 +232,7 @@ export default function CustomersPage() {
             control={control}
             name="status"
             render={({ field }) => (
-              <DivineListbox
-                label="Status"
-                value={String(field.value)}
-                onChange={(v) => field.onChange(Number(v))}
-                options={STATUS_OPTIONS}
-              />
+              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
             )}
           />
 

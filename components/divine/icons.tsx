@@ -75,6 +75,15 @@ export function TrashIcon() {
   );
 }
 
+export function PencilIcon() {
+  return (
+    <svg className="h-[16px] w-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M14.5 4.5l5 5L8 21H3v-5z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12.5 6.5l5 5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function GridIcon() {
   return (
     <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">

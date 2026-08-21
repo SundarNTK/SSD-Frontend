@@ -18,6 +18,10 @@ export const MODULES = {
   categories: "categories",
   subCategories: "sub-categories",
   items: "items",
+  services: "services",
+  events: "events",
+  nakshathirams: "nakshathirams",
+  paymentModes: "payment-modes",
 } as const;
 
 /**

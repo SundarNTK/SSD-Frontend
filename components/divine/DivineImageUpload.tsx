@@ -62,7 +62,7 @@ export default function DivineImageUpload({ label, value, onChange, hint, error 
     <div className="w-full">
       <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">{label}</p>
 
-      <div className="flex items-center gap-4 rounded-xl border border-gold-500/20 bg-ivory-100 p-3">
+      <div className="flex items-center gap-4 rounded-xl border border-gold-500/20 bg-white p-3">
         <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold-500/25 bg-navy-900">
           {shown ? (
             <img src={shown} alt="" className="h-full w-full object-cover" />

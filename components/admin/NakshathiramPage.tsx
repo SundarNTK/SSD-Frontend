@@ -8,7 +8,6 @@ import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
-import DivineColorPicker from "../divine/DivineColorPicker";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
 import { api } from "../../lib/api";
@@ -16,24 +15,26 @@ import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
 
-export type SubCategory = {
+export type Nakshathiram = {
   _id: string;
-  name: string;
-  tamilName: string;
   code: string;
   displayOrder: number;
-  color: string;
-  description: string;
+  name: string;
+  tamilName: string;
+  rasi: string;
+  tamilRasi: string;
+  mainFlag: boolean;
   status: number;
 };
 
 const schema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(100),
-  tamilName: z.string().trim(),
-  code: z.string().trim().min(1, "Code is required").max(30),
+  code: z.string().trim().min(1, "Code is required").max(20),
   displayOrder: z.number().int().min(0),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Enter a valid hex colour"),
-  description: z.string().trim().max(300),
+  name: z.string().trim().min(1, "Nakshathiram is required").max(100),
+  tamilName: z.string().trim().min(1, "Tamil name is required").max(100),
+  rasi: z.string().trim().min(1, "Rasi is required").max(100),
+  tamilRasi: z.string().trim().min(1, "Tamil Rasi is required").max(100),
+  mainFlag: z.boolean(),
   status: z.number(),
 });
 
@@ -41,18 +42,29 @@ type FormValues = z.infer<typeof schema>;
 
 const PAGE_SIZE = 20;
 
-export default function SubCategoryPage() {
+const DEFAULT_VALUES: FormValues = {
+  code: "",
+  displayOrder: 1,
+  name: "",
+  tamilName: "",
+  rasi: "",
+  tamilRasi: "",
+  mainFlag: false,
+  status: 1,
+};
+
+export default function NakshathiramPage() {
   const { can } = usePermissions();
-  const canCreate = can(MODULES.subCategories, "fullAccess");
-  const canEdit = can(MODULES.subCategories, "edit");
-  const { items, total, list, create, update, remove } = useApiResource<SubCategory>(api, "/masters/sub-categories");
+  const canCreate = can(MODULES.nakshathirams, "fullAccess");
+  const canEdit = can(MODULES.nakshathirams, "edit");
+  const { items, total, list, create, update, remove } = useApiResource<Nakshathiram>(api, "/masters/nakshathirams");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editing, setEditing] = useState<SubCategory | null>(null);
-  const [deleting, setDeleting] = useState<SubCategory | null>(null);
+  const [editing, setEditing] = useState<Nakshathiram | null>(null);
+  const [deleting, setDeleting] = useState<Nakshathiram | null>(null);
 
   useEffect(() => {
     list.run({ page, pageSize: PAGE_SIZE, search: search || undefined, status: statusFilter || undefined });
@@ -65,25 +77,26 @@ export default function SubCategoryPage() {
     reset,
     control,
     formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULT_VALUES });
 
   function openCreate() {
     setEditing(null);
-    reset({ name: "", tamilName: "", code: "", displayOrder: 0, color: "#942237", description: "", status: 1 });
+    reset(DEFAULT_VALUES);
     create.setError(null);
     setDrawerOpen(true);
   }
 
-  function openEdit(sub: SubCategory) {
-    setEditing(sub);
+  function openEdit(nakshathiram: Nakshathiram) {
+    setEditing(nakshathiram);
     reset({
-      name: sub.name,
-      tamilName: sub.tamilName,
-      code: sub.code,
-      displayOrder: sub.displayOrder,
-      color: sub.color,
-      description: sub.description,
-      status: sub.status,
+      code: nakshathiram.code,
+      displayOrder: nakshathiram.displayOrder,
+      name: nakshathiram.name,
+      tamilName: nakshathiram.tamilName,
+      rasi: nakshathiram.rasi,
+      tamilRasi: nakshathiram.tamilRasi,
+      mainFlag: nakshathiram.mainFlag,
+      status: nakshathiram.status,
     });
     update.setError(null);
     setDrawerOpen(true);
@@ -93,43 +106,36 @@ export default function SubCategoryPage() {
     const ok = editing ? await update.run(editing._id, values) : await create.run(values);
     if (ok !== undefined) {
       setDrawerOpen(false);
-      if (editing) toast.updated("Sub category updated successfully.");
-      else toast.created("Sub category created successfully.");
+      if (editing) toast.updated("Nakshathiram updated successfully.");
+      else toast.created("Nakshathiram created successfully.");
     }
   });
 
-  const columns: DataTableColumn<SubCategory>[] = [
-    {
-      key: "name",
-      label: "Name",
-      render: (s) => (
-        <span className="flex items-center gap-2.5">
-          <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-gold-500/20" style={{ backgroundColor: s.color }} />
-          <span className="font-medium">{s.name}</span>
-        </span>
-      ),
-    },
-    { key: "tamilName", label: "Tamil Name", render: (s) => <span className="text-ink-500">{s.tamilName || "—"}</span> },
-    { key: "code", label: "Code", render: (s) => <span className="tabular-nums text-amber-700">{s.code}</span> },
-    { key: "displayOrder", label: "Order", render: (s) => <span className="tabular-nums text-ink-500">{s.displayOrder}</span> },
-    { key: "status", label: "Status", render: (s) => <StatusPill status={s.status} /> },
+  const columns: DataTableColumn<Nakshathiram>[] = [
+    { key: "code", label: "Code", render: (n) => <span className="font-medium tabular-nums text-amber-700">{n.code}</span> },
+    { key: "displayOrder", label: "Order", render: (n) => <span className="tabular-nums">{n.displayOrder}</span> },
+    { key: "name", label: "Nakshathiram", render: (n) => n.name },
+    { key: "tamilName", label: "Tamil", render: (n) => <span className="text-ink-500">{n.tamilName}</span> },
+    { key: "rasi", label: "Rasi", render: (n) => n.rasi },
+    { key: "mainFlag", label: "Main Flag", render: (n) => <span className="text-ink-500">{n.mainFlag ? "Yes" : "No"}</span> },
+    { key: "status", label: "Status", render: (n) => <StatusPill status={n.status} /> },
   ];
 
   return (
     <>
       <DataTable
-        title="Sub Category Management"
-        subtitle="Finer-grained groupings under a category, picked per row in the Item master."
+        title="Nakshathiram Master"
+        subtitle="Birth stars and their Rasi mapping, used for devotee profiles and bookings."
         columns={columns}
         rows={items}
-        rowKey={(s) => s._id}
+        rowKey={(n) => n._id}
         loading={list.submitting}
         search={search}
         onSearchChange={(v) => {
           setPage(1);
           setSearch(v);
         }}
-        searchPlaceholder="Search sub categories…"
+        searchPlaceholder="Search by name or code…"
         statusFilter={statusFilter}
         onStatusFilterChange={(v) => {
           setPage(1);
@@ -140,17 +146,17 @@ export default function SubCategoryPage() {
         total={total}
         onPageChange={setPage}
         onCreate={canCreate ? openCreate : undefined}
-        createLabel="Add Sub Category"
-        emptyMessage="No sub categories yet — create the first one."
-        rowActions={(s) => (
+        createLabel="Add Nakshathiram"
+        emptyMessage="No nakshathirams yet — create the first one."
+        rowActions={(n) => (
           <div className="flex justify-end gap-3">
             {canEdit && (
-              <button onClick={() => openEdit(s)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
+              <button onClick={() => openEdit(n)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
                 Edit
               </button>
             )}
             {canCreate && (
-              <button onClick={() => setDeleting(s)} className="text-[12.5px] text-crimson-500 hover:underline">
+              <button onClick={() => setDeleting(n)} className="text-[12.5px] text-crimson-500 hover:underline">
                 Delete
               </button>
             )}
@@ -160,9 +166,9 @@ export default function SubCategoryPage() {
 
       <ConfirmDialog
         open={Boolean(deleting)}
-        title="Delete this sub category?"
+        title="Delete this nakshathiram?"
         message={deleting ? `"${deleting.name}" will be removed.` : ""}
-        confirmLabel="Delete sub category"
+        confirmLabel="Delete nakshathiram"
         tone="danger"
         error={remove.error}
         loading={remove.submitting}
@@ -175,7 +181,7 @@ export default function SubCategoryPage() {
           const ok = await remove.run(deleting._id);
           if (ok !== undefined) {
             setDeleting(null);
-            toast.deleted("Sub category deleted successfully.");
+            toast.deleted("Nakshathiram deleted successfully.");
           }
         }}
       />
@@ -183,27 +189,23 @@ export default function SubCategoryPage() {
       <FormDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        title={editing ? "Edit Sub Category" : "Add Sub Category"}
-        subtitle={editing ? editing.name : "Define a new sub category."}
+        title={editing ? "Edit Nakshathiram" : "Add Nakshathiram"}
+        subtitle={editing ? `${editing.name} · ${editing.code}` : "Define a new nakshathiram."}
         error={create.error || update.error}
         footer={
           <div className="flex gap-3">
             <DivineButton variant="ghost" type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton type="submit" form="sub-category-form" loading={create.submitting || update.submitting}>
+            <DivineButton type="submit" form="nakshathiram-form" loading={create.submitting || update.submitting}>
               {editing ? "Save changes" : "Save"}
             </DivineButton>
           </div>
         }
       >
-        <form id="sub-category-form" onSubmit={submit} noValidate className="space-y-5">
+        <form id="nakshathiram-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
-            <DivineInput label="Sub Category Name" error={errors.name?.message} {...register("name")} />
-            <DivineInput label="Tamil Name" error={errors.tamilName?.message} {...register("tamilName")} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <DivineInput label="Sub Category Code" error={errors.code?.message} {...register("code")} />
+            <DivineInput label="Code" error={errors.code?.message} {...register("code")} />
             <DivineInput
               label="Display Order"
               type="number"
@@ -211,12 +213,23 @@ export default function SubCategoryPage() {
               {...register("displayOrder", { valueAsNumber: true })}
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <DivineInput label="Nakshathiram" error={errors.name?.message} {...register("name")} />
+            <DivineInput label="Tamil" error={errors.tamilName?.message} {...register("tamilName")} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <DivineInput label="Rasi" error={errors.rasi?.message} {...register("rasi")} />
+            <DivineInput label="Tamil Rasi" error={errors.tamilRasi?.message} {...register("tamilRasi")} />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <Controller
               control={control}
-              name="color"
+              name="mainFlag"
               render={({ field }) => (
-                <DivineColorPicker label="Sub Category Colour" value={field.value} onChange={field.onChange} error={errors.color?.message} />
+                <DivineToggle label="Main Flag" checked={field.value} onChange={field.onChange} onLabel="Yes" offLabel="No" />
               )}
             />
             <Controller
@@ -227,7 +240,6 @@ export default function SubCategoryPage() {
               )}
             />
           </div>
-          <DivineInput label="Description" error={errors.description?.message} {...register("description")} />
         </form>
       </FormDrawer>
     </>

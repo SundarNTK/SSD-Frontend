@@ -8,9 +8,9 @@ import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
-import DivineListbox from "../divine/DivineListbox";
 import DivineColorPicker from "../divine/DivineColorPicker";
 import DivineImageUpload from "../divine/DivineImageUpload";
+import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
 import { resolveImageUrl } from "../../lib/imageUrl";
 import { api } from "../../lib/api";
@@ -43,10 +43,6 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 const PAGE_SIZE = 20;
-const STATUS_OPTIONS = [
-  { value: "1", label: "Active" },
-  { value: "0", label: "Inactive" },
-];
 
 export default function CategoryPage() {
   const { can } = usePermissions();
@@ -249,12 +245,7 @@ export default function CategoryPage() {
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineListbox
-                  label="Status"
-                  value={String(field.value)}
-                  onChange={(v) => field.onChange(Number(v))}
-                  options={STATUS_OPTIONS}
-                />
+                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
               )}
             />
           </div>

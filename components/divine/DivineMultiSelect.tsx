@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckIcon, ChevronIcon } from "./icons";
 import type { ListboxOption } from "./DivineListbox";
@@ -15,6 +16,11 @@ type DivineMultiSelectProps = {
   emptyMessage?: string;
 };
 
+type PanelPosition = { left: number; width: number; maxHeight: number; upward: boolean; top?: number; bottom?: number };
+
+const PANEL_MAX_HEIGHT = 224; // matches max-h-56 below
+const GAP = 8;
+
 /**
  * Multi-select in the same visual language as DivineListbox, for fields
  * where several values are legitimate at once (a user's roles today; item
@@ -22,6 +28,11 @@ type DivineMultiSelectProps = {
  *
  * The panel stays open while ticking — closing after each choice is the
  * usual mistake in multi-selects, and it forces a reopen per selection.
+ *
+ * Like DivineListbox, the panel renders through a portal at a fixed
+ * position and flips above the trigger when there isn't room below —
+ * inline absolute positioning gets clipped by the FormDrawer's scrolling
+ * body once the trigger nears the bottom of the form.
  */
 export default function DivineMultiSelect({
   label,
@@ -33,7 +44,39 @@ export default function DivineMultiSelect({
   emptyMessage = "No options available",
 }: DivineMultiSelectProps) {
   const [open, setOpen] = useState(false);
+  const [panel, setPanel] = useState<PanelPosition | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const labelId = useId();
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+
+    const place = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const upward = spaceBelow < PANEL_MAX_HEIGHT + GAP && spaceAbove > spaceBelow;
+      const maxHeight = Math.min(PANEL_MAX_HEIGHT, (upward ? spaceAbove : spaceBelow) - GAP * 2);
+
+      setPanel({
+        left: rect.left,
+        width: rect.width,
+        maxHeight,
+        upward,
+        top: upward ? undefined : rect.bottom + GAP,
+        bottom: upward ? window.innerHeight - rect.top + GAP : undefined,
+      });
+    };
+
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -53,6 +96,7 @@ export default function DivineMultiSelect({
   return (
     <div className="relative w-full">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
@@ -109,58 +153,62 @@ export default function DivineMultiSelect({
         </div>
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <>
-            <button
-              type="button"
-              aria-label="Close menu"
-              onClick={() => setOpen(false)}
-              className="fixed inset-0 z-40 cursor-default"
-            />
-            <motion.ul
-              role="listbox"
-              aria-multiselectable="true"
-              aria-labelledby={labelId}
-              initial={{ opacity: 0, y: -6, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6, scale: 0.98 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-56 overflow-y-auto rounded-xl border border-gold-500/25 bg-navy-900/85 p-1.5 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl"
-            >
-              {options.length === 0 && (
-                <li className="px-3 py-2.5 text-[13px] text-ink-500">{emptyMessage}</li>
-              )}
-              {options.map((opt) => {
-                const isSelected = values.includes(opt.value);
-                return (
-                  <li
-                    key={opt.value}
-                    role="option"
-                    aria-selected={isSelected}
-                    onClick={() => toggle(opt.value)}
-                    className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-[13.5px] transition-colors ${
-                      isSelected ? "bg-gold-500/15 text-amber-700" : "text-ink-200 hover:bg-navy-800/80 hover:text-ink-100"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2.5 truncate">
-                      <span
-                        aria-hidden="true"
-                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
-                          isSelected ? "border-gold-400 bg-gold-500/25" : "border-gold-500/30"
-                        }`}
-                      >
-                        {isSelected && <CheckIcon />}
+      {createPortal(
+        <AnimatePresence>
+          {open && panel && (
+            <>
+              <button
+                type="button"
+                aria-label="Close menu"
+                onClick={() => setOpen(false)}
+                className="fixed inset-0 z-[60] cursor-default"
+              />
+              <motion.ul
+                role="listbox"
+                aria-multiselectable="true"
+                aria-labelledby={labelId}
+                initial={{ opacity: 0, y: panel.upward ? 6 : -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: panel.upward ? 6 : -6, scale: 0.98 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                style={{ left: panel.left, width: panel.width, maxHeight: panel.maxHeight, top: panel.top, bottom: panel.bottom }}
+                className="fixed z-[61] overflow-y-auto rounded-xl border border-gold-500/25 bg-navy-900/85 p-1.5 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl"
+              >
+                {options.length === 0 && (
+                  <li className="px-3 py-2.5 text-[13px] text-ink-500">{emptyMessage}</li>
+                )}
+                {options.map((opt) => {
+                  const isSelected = values.includes(opt.value);
+                  return (
+                    <li
+                      key={opt.value}
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => toggle(opt.value)}
+                      className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-[13.5px] transition-colors ${
+                        isSelected ? "bg-gold-500/15 text-amber-700" : "text-ink-200 hover:bg-navy-800/80 hover:text-ink-100"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2.5 truncate">
+                        <span
+                          aria-hidden="true"
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                            isSelected ? "border-gold-400 bg-gold-500/25" : "border-gold-500/30"
+                          }`}
+                        >
+                          {isSelected && <CheckIcon />}
+                        </span>
+                        <span className="truncate">{opt.label}</span>
                       </span>
-                      <span className="truncate">{opt.label}</span>
-                    </span>
-                  </li>
-                );
-              })}
-            </motion.ul>
-          </>
-        )}
-      </AnimatePresence>
+                    </li>
+                  );
+                })}
+              </motion.ul>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       {error && <p className="mt-1.5 pl-1 text-[12.5px] text-crimson-500">{error}</p>}
     </div>

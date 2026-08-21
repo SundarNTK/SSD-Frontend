@@ -7,10 +7,10 @@ import { z } from "zod";
 import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineInput from "../divine/DivineInput";
-import DivineListbox from "../divine/DivineListbox";
 import DivineMultiSelect from "../divine/DivineMultiSelect";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineImageUpload from "../divine/DivineImageUpload";
+import DivineToggle from "../divine/DivineToggle";
 import { resolveImageUrl } from "../../lib/imageUrl";
 import DivineButton from "../divine/DivineButton";
 import { MailIcon, PhoneIcon, UserIcon } from "../divine/icons";
@@ -65,10 +65,6 @@ type CreateValues = z.infer<typeof createSchema>;
 type EditValues = z.infer<typeof editSchema>;
 
 const PAGE_SIZE = 20;
-const STATUS_OPTIONS = [
-  { value: "1", label: "Active" },
-  { value: "0", label: "Inactive" },
-];
 
 export default function UsersPage() {
   const { can, user: currentUser } = usePermissions();
@@ -297,12 +293,7 @@ export default function UsersPage() {
             control={createForm.control}
             name="status"
             render={({ field }) => (
-              <DivineListbox
-                label="Status"
-                value={String(field.value)}
-                onChange={(v) => field.onChange(Number(v))}
-                options={STATUS_OPTIONS}
-              />
+              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
             )}
           />
           <Controller
@@ -375,12 +366,7 @@ export default function UsersPage() {
             control={editForm.control}
             name="status"
             render={({ field }) => (
-              <DivineListbox
-                label="Status"
-                value={String(field.value)}
-                onChange={(v) => field.onChange(Number(v))}
-                options={STATUS_OPTIONS}
-              />
+              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
             )}
           />
         </form>

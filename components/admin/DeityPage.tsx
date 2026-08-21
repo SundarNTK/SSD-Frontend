@@ -9,6 +9,7 @@ import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
+import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
@@ -35,10 +36,6 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 const PAGE_SIZE = 20;
-const STATUS_OPTIONS = [
-  { value: "1", label: "Active" },
-  { value: "0", label: "Inactive" },
-];
 
 export default function DeityPage() {
   const { can } = usePermissions();
@@ -217,12 +214,7 @@ export default function DeityPage() {
             control={control}
             name="status"
             render={({ field }) => (
-              <DivineListbox
-                label="Status"
-                value={String(field.value)}
-                onChange={(v) => field.onChange(Number(v))}
-                options={STATUS_OPTIONS}
-              />
+              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
             )}
           />
         </form>
