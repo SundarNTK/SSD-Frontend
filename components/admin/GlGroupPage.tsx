@@ -7,6 +7,7 @@ import { z } from "zod";
 import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineInput from "../divine/DivineInput";
+import DivineTextarea from "../divine/DivineTextarea";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
@@ -249,11 +250,11 @@ export default function GlGroupPage() {
         subtitle={editing ? editing.name : undefined}
         error={create.error || update.error}
         footer={
-          <div className="flex gap-3">
-            <DivineButton variant="ghost" type="button" onClick={() => setDrawerOpen(false)}>
+          <div className="flex justify-end gap-3">
+            <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton type="submit" form="gl-group-form" loading={create.submitting || update.submitting}>
+            <DivineButton fullWidth={false} type="submit" form="gl-group-form" loading={create.submitting || update.submitting}>
               Save
             </DivineButton>
           </div>
@@ -319,7 +320,7 @@ export default function GlGroupPage() {
             error={errors.name?.message}
             {...register("name")}
           />
-          <DivineInput label="Description" error={errors.description?.message} {...register("description")} />
+          <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
           <Controller
             control={control}
             name="status"

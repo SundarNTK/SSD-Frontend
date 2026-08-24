@@ -183,11 +183,11 @@ export default function PaymentModePage() {
         subtitle="Update details for this payment mode."
         error={update.error}
         footer={
-          <div className="flex gap-3">
-            <DivineButton variant="ghost" type="button" onClick={() => setEditing(null)}>
+          <div className="flex justify-end gap-3">
+            <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setEditing(null)}>
               Cancel
             </DivineButton>
-            <DivineButton type="submit" form="payment-mode-form" loading={update.submitting}>
+            <DivineButton fullWidth={false} type="submit" form="payment-mode-form" loading={update.submitting}>
               Save changes
             </DivineButton>
           </div>

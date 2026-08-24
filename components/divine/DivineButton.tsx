@@ -3,6 +3,15 @@ import type { ButtonHTMLAttributes } from "react";
 type DivineButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   loading?: boolean;
   variant?: "primary" | "ghost";
+  /**
+   * Full-bleed by default — right for a standalone page CTA (Sign In,
+   * Reset Password). A Cancel/Save pair inside a modal footer is a
+   * different shape entirely: two buttons stretching to fill a row each
+   * reads as oversized and, worse, as *equally weighted* actions when one
+   * of them is destructive or primary and the other isn't. Pass `false`
+   * there for an intrinsically-sized button the footer can right-align.
+   */
+  fullWidth?: boolean;
 };
 
 /**
@@ -13,15 +22,22 @@ type DivineButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 export default function DivineButton({
   loading,
   variant = "primary",
+  fullWidth = true,
   children,
   className = "",
   disabled,
   ...rest
 }: DivineButtonProps) {
+  // Standalone page CTAs (Sign In, Reset Password) keep their original
+  // roomier size; a modal footer's Cancel/Save pair gets a visibly smaller
+  // button to match — that size difference is what makes fullWidth read as
+  // "the one big action on this screen" versus "one of two footer controls".
+  const sizing = fullWidth ? "px-5 py-3 text-[15px]" : "px-4 py-2 text-[13.5px]";
+
   if (variant === "ghost") {
     return (
       <button
-        className={`relative w-full rounded-xl border border-gold-500/30 bg-transparent px-5 py-3 font-accent text-sm tracking-wide text-amber-600 transition-[color,border-color,background-color,box-shadow] duration-300 hover:border-gold-400/60 hover:bg-gold-500/5 hover:shadow-[0_0_20px_-4px_rgba(212,175,55,0.55)] disabled:opacity-50 disabled:hover:shadow-none ${className}`}
+        className={`relative ${fullWidth ? "w-full" : "w-auto"} rounded-xl border border-gold-500/30 bg-transparent ${sizing} font-accent tracking-wide text-amber-600 transition-[color,border-color,background-color,box-shadow] duration-300 hover:border-gold-400/60 hover:bg-gold-500/5 hover:shadow-[0_0_20px_-4px_rgba(212,175,55,0.55)] disabled:opacity-50 disabled:hover:shadow-none ${className}`}
         disabled={disabled || loading}
         {...rest}
       >
@@ -32,7 +48,7 @@ export default function DivineButton({
 
   return (
     <button
-      className={`group relative w-full overflow-hidden rounded-xl bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 px-5 py-3 font-accent text-[15px] font-semibold tracking-wide text-navy-950 transition-[transform,box-shadow] duration-200 hover:scale-[1.015] hover:shadow-[0_0_22px_2px_rgba(212,175,55,0.75)] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100 disabled:hover:shadow-none ${className}`}
+      className={`group relative ${fullWidth ? "w-full" : "w-auto"} overflow-hidden rounded-xl bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 ${sizing} font-accent font-semibold tracking-wide text-navy-950 transition-[transform,box-shadow] duration-200 hover:scale-[1.015] hover:shadow-[0_0_22px_2px_rgba(212,175,55,0.75)] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100 disabled:hover:shadow-none ${className}`}
       disabled={disabled || loading}
       {...rest}
     >

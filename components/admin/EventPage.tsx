@@ -327,11 +327,11 @@ export default function EventPage() {
         error={create.error || update.error}
         maxWidthClassName="max-w-2xl"
         footer={
-          <div className="flex gap-3">
-            <DivineButton variant="ghost" type="button" onClick={() => setDrawerOpen(false)}>
+          <div className="flex justify-end gap-3">
+            <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton type="submit" form="event-form" loading={create.submitting || update.submitting}>
+            <DivineButton fullWidth={false} type="submit" form="event-form" loading={create.submitting || update.submitting}>
               {editing ? "Save changes" : "Save"}
             </DivineButton>
           </div>

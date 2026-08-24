@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckIcon, ChevronIcon } from "./icons";
+import { CheckIcon, ChevronIcon, SearchIcon } from "./icons";
 
 export type ListboxOption = { value: string; label: string };
 
@@ -20,8 +20,10 @@ type DivineListboxProps = {
 
 type PanelPosition = { left: number; width: number; maxHeight: number; upward: boolean; top?: number; bottom?: number };
 
-const PANEL_MAX_HEIGHT = 256; // matches max-h-64 below
+const PANEL_MAX_HEIGHT = 288; // matches max-h-72 below — a little taller than before to still show a few rows under the search bar
 const GAP = 8;
+/** Below this, scanning beats typing — the search bar would just be one more thing to click past. */
+const SEARCH_THRESHOLD = 7;
 
 /**
  * A native <select>'s dropdown popup is OS chrome — no border-radius,
@@ -30,6 +32,13 @@ const GAP = 8;
  * the <select> itself. This renders the whole thing (trigger + panel) as
  * real DOM instead, styled like every other divine input, so the dropdown
  * finally matches the rest of the page.
+ *
+ * Every list of any real length (GL Group's chart of accounts, Item's
+ * General Ledger picker, Category, ...) grows past what's comfortable to
+ * scan by eye, so any listbox with more than a handful of options gets a
+ * search box pinned to the top of the panel that filters by label as you
+ * type — the same behaviour everywhere a dropdown appears, not something
+ * each master had to opt into separately.
  *
  * The panel renders through a portal at a fixed position rather than
  * inline. Listboxes sit inside a FormDrawer's scrolling body, and an
@@ -48,10 +57,19 @@ export default function DivineListbox({
   className = "",
 }: DivineListboxProps) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [panel, setPanel] = useState<PanelPosition | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const triggerId = useId();
   const selected = options.find((o) => o.value === value);
+  const searchable = options.length > SEARCH_THRESHOLD;
+
+  const filtered = useMemo(() => {
+    if (!searchable || !query.trim()) return options;
+    const q = query.trim().toLowerCase();
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [options, query, searchable]);
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
@@ -92,6 +110,20 @@ export default function DivineListbox({
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [open]);
+
+  // Fresh search every time the panel opens, and the search box is what the
+  // person almost certainly wants to type into immediately.
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      if (searchable) requestAnimationFrame(() => searchRef.current?.focus());
+    }
+  }, [open, searchable]);
+
+  function pick(v: string) {
+    onChange(v);
+    setOpen(false);
+  }
 
   return (
     <div className={`relative ${className || "w-full"}`}>
@@ -142,38 +174,57 @@ export default function DivineListbox({
                 onClick={() => setOpen(false)}
                 className="fixed inset-0 z-[60] cursor-default"
               />
-              <motion.ul
-                role="listbox"
-                aria-labelledby={triggerId}
+              <motion.div
                 initial={{ opacity: 0, y: panel.upward ? 6 : -6, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: panel.upward ? 6 : -6, scale: 0.98 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
                 style={{ left: panel.left, width: panel.width, maxHeight: panel.maxHeight, top: panel.top, bottom: panel.bottom }}
-                className="fixed z-[61] overflow-y-auto rounded-xl border border-gold-500/25 bg-navy-900/80 p-1.5 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl"
+                className="fixed z-[61] flex flex-col overflow-hidden rounded-xl border border-gold-500/25 bg-navy-900/90 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl"
               >
-                {options.length === 0 && <li className="px-3 py-2.5 text-[13px] text-ink-500">No options</li>}
-                {options.map((opt) => {
-                  const isSelected = opt.value === value;
-                  return (
-                    <li
-                      key={opt.value}
-                      role="option"
-                      aria-selected={isSelected}
-                      onClick={() => {
-                        onChange(opt.value);
-                        setOpen(false);
+                {searchable && (
+                  <div className="flex shrink-0 items-center gap-2 border-b border-gold-500/15 px-3 py-2">
+                    <span className="text-ink-500">
+                      <SearchIcon />
+                    </span>
+                    <input
+                      ref={searchRef}
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && filtered.length === 1) pick(filtered[0].value);
                       }}
-                      className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-[13.5px] transition-colors ${
-                        isSelected ? "bg-gold-500/15 text-amber-700" : "text-ink-200 hover:bg-navy-800/80 hover:text-ink-100"
-                      }`}
-                    >
-                      <span className="truncate">{opt.label}</span>
-                      {isSelected && <CheckIcon />}
+                      placeholder="Search…"
+                      className="w-full bg-transparent font-body text-[13.5px] text-ink-100 outline-none placeholder:text-ink-500"
+                    />
+                  </div>
+                )}
+                <ul role="listbox" aria-labelledby={triggerId} className="min-h-0 flex-1 overflow-y-auto p-1.5">
+                  {filtered.length === 0 && (
+                    <li className="px-3 py-2.5 text-[13px] text-ink-500">
+                      {options.length === 0 ? "No options" : "No matches"}
                     </li>
-                  );
-                })}
-              </motion.ul>
+                  )}
+                  {filtered.map((opt) => {
+                    const isSelected = opt.value === value;
+                    return (
+                      <li
+                        key={opt.value}
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => pick(opt.value)}
+                        className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-[13.5px] transition-colors ${
+                          isSelected ? "bg-gold-500/15 text-amber-700" : "text-ink-200 hover:bg-navy-800/80 hover:text-ink-100"
+                        }`}
+                      >
+                        <span className="truncate">{opt.label}</span>
+                        {isSelected && <CheckIcon />}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </motion.div>
             </>
           )}
         </AnimatePresence>,

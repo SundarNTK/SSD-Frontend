@@ -8,6 +8,7 @@ import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
+import DivineTextarea from "../divine/DivineTextarea";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
@@ -291,11 +292,11 @@ export default function ItemPage() {
         error={create.error || update.error}
         maxWidthClassName="max-w-2xl"
         footer={
-          <div className="flex gap-3">
-            <DivineButton variant="ghost" type="button" onClick={() => setDrawerOpen(false)}>
+          <div className="flex justify-end gap-3">
+            <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton type="submit" form="item-form" loading={create.submitting || update.submitting}>
+            <DivineButton fullWidth={false} type="submit" form="item-form" loading={create.submitting || update.submitting}>
               {editing ? "Save changes" : "Save"}
             </DivineButton>
           </div>
@@ -333,7 +334,7 @@ export default function ItemPage() {
           </div>
           <p className="-mt-3 pl-1 text-[11.5px] text-ink-500">GST is derived from the selected GL account.</p>
 
-          <DivineInput label="Description" error={errors.description?.message} {...register("description")} />
+          <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
 
           <div className="grid grid-cols-2 gap-4">
             <Controller

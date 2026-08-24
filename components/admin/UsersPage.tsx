@@ -260,11 +260,11 @@ export default function UsersPage() {
         subtitle="Sends a set-password activation email — never set a password here directly."
         error={create.error}
         footer={
-          <div className="flex gap-3">
-            <DivineButton variant="ghost" type="button" onClick={() => setDrawerOpen(false)}>
+          <div className="flex justify-end gap-3">
+            <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton type="submit" form="user-create-form" loading={create.submitting}>
+            <DivineButton fullWidth={false} type="submit" form="user-create-form" loading={create.submitting}>
               Create &amp; Send Activation
             </DivineButton>
           </div>
@@ -319,11 +319,11 @@ export default function UsersPage() {
         subtitle={editing?.email}
         error={update.error}
         footer={
-          <div className="flex gap-3">
-            <DivineButton variant="ghost" type="button" onClick={() => setDrawerOpen(false)}>
+          <div className="flex justify-end gap-3">
+            <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton type="submit" form="user-edit-form" loading={update.submitting}>
+            <DivineButton fullWidth={false} type="submit" form="user-edit-form" loading={update.submitting}>
               Save changes
             </DivineButton>
           </div>

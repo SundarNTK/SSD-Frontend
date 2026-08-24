@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckIcon, ChevronIcon } from "./icons";
+import { CheckIcon, ChevronIcon, SearchIcon } from "./icons";
 import type { ListboxOption } from "./DivineListbox";
 
 type DivineMultiSelectProps = {
@@ -18,16 +18,23 @@ type DivineMultiSelectProps = {
 
 type PanelPosition = { left: number; width: number; maxHeight: number; upward: boolean; top?: number; bottom?: number };
 
-const PANEL_MAX_HEIGHT = 224; // matches max-h-56 below
+const PANEL_MAX_HEIGHT = 256; // matches max-h-64 below — a little taller than before to still show a few rows under the search bar
 const GAP = 8;
+/** Below this, scanning beats typing — the search bar would just be one more thing to click past. */
+const SEARCH_THRESHOLD = 7;
 
 /**
  * Multi-select in the same visual language as DivineListbox, for fields
  * where several values are legitimate at once (a user's roles today; item
- * categories and event tags later).
+ * categories and event tags later) — including the same search-to-filter
+ * behaviour once a list is long enough to be worth typing into instead of
+ * scanning by eye.
  *
  * The panel stays open while ticking — closing after each choice is the
- * usual mistake in multi-selects, and it forces a reopen per selection.
+ * usual mistake in multi-selects, and it forces a reopen per selection. The
+ * search query survives across picks for the same reason: someone searching
+ * "pooja" almost certainly wants to tick several matches in a row, not
+ * re-type the search after every one.
  *
  * Like DivineListbox, the panel renders through a portal at a fixed
  * position and flips above the trigger when there isn't room below —
@@ -44,9 +51,18 @@ export default function DivineMultiSelect({
   emptyMessage = "No options available",
 }: DivineMultiSelectProps) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [panel, setPanel] = useState<PanelPosition | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const labelId = useId();
+  const searchable = options.length > SEARCH_THRESHOLD;
+
+  const filtered = useMemo(() => {
+    if (!searchable || !query.trim()) return options;
+    const q = query.trim().toLowerCase();
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [options, query, searchable]);
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
@@ -86,6 +102,13 @@ export default function DivineMultiSelect({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      if (searchable) requestAnimationFrame(() => searchRef.current?.focus());
+    }
+  }, [open, searchable]);
 
   const selectedOptions = options.filter((o) => values.includes(o.value));
 
@@ -163,47 +186,68 @@ export default function DivineMultiSelect({
                 onClick={() => setOpen(false)}
                 className="fixed inset-0 z-[60] cursor-default"
               />
-              <motion.ul
-                role="listbox"
-                aria-multiselectable="true"
-                aria-labelledby={labelId}
+              <motion.div
                 initial={{ opacity: 0, y: panel.upward ? 6 : -6, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: panel.upward ? 6 : -6, scale: 0.98 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
                 style={{ left: panel.left, width: panel.width, maxHeight: panel.maxHeight, top: panel.top, bottom: panel.bottom }}
-                className="fixed z-[61] overflow-y-auto rounded-xl border border-gold-500/25 bg-navy-900/85 p-1.5 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl"
+                className="fixed z-[61] flex flex-col overflow-hidden rounded-xl border border-gold-500/25 bg-navy-900/85 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl"
               >
-                {options.length === 0 && (
-                  <li className="px-3 py-2.5 text-[13px] text-ink-500">{emptyMessage}</li>
+                {searchable && (
+                  <div className="flex shrink-0 items-center gap-2 border-b border-gold-500/15 px-3 py-2">
+                    <span className="text-ink-500">
+                      <SearchIcon />
+                    </span>
+                    <input
+                      ref={searchRef}
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search…"
+                      className="w-full bg-transparent font-body text-[13.5px] text-ink-100 outline-none placeholder:text-ink-500"
+                    />
+                  </div>
                 )}
-                {options.map((opt) => {
-                  const isSelected = values.includes(opt.value);
-                  return (
-                    <li
-                      key={opt.value}
-                      role="option"
-                      aria-selected={isSelected}
-                      onClick={() => toggle(opt.value)}
-                      className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-[13.5px] transition-colors ${
-                        isSelected ? "bg-gold-500/15 text-amber-700" : "text-ink-200 hover:bg-navy-800/80 hover:text-ink-100"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5 truncate">
-                        <span
-                          aria-hidden="true"
-                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
-                            isSelected ? "border-gold-400 bg-gold-500/25" : "border-gold-500/30"
-                          }`}
-                        >
-                          {isSelected && <CheckIcon />}
-                        </span>
-                        <span className="truncate">{opt.label}</span>
-                      </span>
+                <ul
+                  role="listbox"
+                  aria-multiselectable="true"
+                  aria-labelledby={labelId}
+                  className="min-h-0 flex-1 overflow-y-auto p-1.5"
+                >
+                  {filtered.length === 0 && (
+                    <li className="px-3 py-2.5 text-[13px] text-ink-500">
+                      {options.length === 0 ? emptyMessage : "No matches"}
                     </li>
-                  );
-                })}
-              </motion.ul>
+                  )}
+                  {filtered.map((opt) => {
+                    const isSelected = values.includes(opt.value);
+                    return (
+                      <li
+                        key={opt.value}
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => toggle(opt.value)}
+                        className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-[13.5px] transition-colors ${
+                          isSelected ? "bg-gold-500/15 text-amber-700" : "text-ink-200 hover:bg-navy-800/80 hover:text-ink-100"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2.5 truncate">
+                          <span
+                            aria-hidden="true"
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                              isSelected ? "border-gold-400 bg-gold-500/25" : "border-gold-500/30"
+                            }`}
+                          >
+                            {isSelected && <CheckIcon />}
+                          </span>
+                          <span className="truncate">{opt.label}</span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </motion.div>
             </>
           )}
         </AnimatePresence>,

@@ -67,15 +67,15 @@ export default function ConfirmDialog({
                 </p>
               )}
 
-              <div className="mt-6 flex gap-3">
-                <DivineButton variant="ghost" type="button" onClick={onCancel} disabled={loading}>
+              <div className="mt-6 flex justify-end gap-3">
+                <DivineButton variant="ghost" fullWidth={false} type="button" onClick={onCancel} disabled={loading}>
                   {cancelLabel}
                 </DivineButton>
                 <button
                   type="button"
                   onClick={onConfirm}
                   disabled={loading}
-                  className={`w-full rounded-xl px-5 py-3 font-accent text-[15px] font-semibold tracking-wide transition-[transform,box-shadow] hover:scale-[1.015] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100 disabled:hover:shadow-none ${
+                  className={`w-auto rounded-xl px-4 py-2 font-accent text-[13.5px] font-semibold tracking-wide transition-[transform,box-shadow] hover:scale-[1.015] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100 disabled:hover:shadow-none ${
                     tone === "danger"
                       ? "bg-gradient-to-b from-crimson-500 to-crimson-600 text-white hover:shadow-[0_0_20px_2px_rgba(179,39,63,0.7)]"
                       : "bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 text-navy-950 hover:shadow-[0_0_22px_2px_rgba(212,175,55,0.75)]"

@@ -9,6 +9,7 @@ import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
+import DivineTextarea from "../divine/DivineTextarea";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
 import { ShieldIcon } from "../divine/icons";
@@ -207,11 +208,11 @@ export default function RolesPage() {
         subtitle={editing ? editing.name : "Define a named permission bundle."}
         error={create.error || update.error}
         footer={
-          <div className="flex gap-3">
-            <DivineButton variant="ghost" type="button" onClick={() => setDrawerOpen(false)}>
+          <div className="flex justify-end gap-3">
+            <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton type="submit" form="role-form" loading={create.submitting || update.submitting}>
+            <DivineButton fullWidth={false} type="submit" form="role-form" loading={create.submitting || update.submitting}>
               {editing ? "Save changes" : "Create Role"}
             </DivineButton>
           </div>
@@ -219,7 +220,7 @@ export default function RolesPage() {
       >
         <form id="role-form" onSubmit={submit} noValidate className="space-y-5">
           <DivineInput label="Role name" error={errors.name?.message} {...register("name")} />
-          <DivineInput label="Description" error={errors.description?.message} {...register("description")} />
+          <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
           {/* Shown on create too — it defaults to Active, and an admin
               setting up a role ahead of time should be able to park it
               inactive rather than create it live and edit it straight after. */}

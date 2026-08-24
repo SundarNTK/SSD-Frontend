@@ -16,7 +16,7 @@ type DivineTextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "pl
  * service's description that need more than one line.
  */
 const DivineTextarea = forwardRef<HTMLTextAreaElement, DivineTextareaProps>(
-  ({ label, error, hint, id, className = "", rows = 3, ...rest }, ref) => {
+  ({ label, error, hint, id, className = "", rows = 4, ...rest }, ref) => {
     const [focused, setFocused] = useState(false);
     const autoId = useId();
     const inputId = id ?? autoId;
