@@ -48,7 +48,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
 const GENDER_OPTIONS = [
   { value: "", label: "Not specified" },
   { value: "MALE", label: "Male" },

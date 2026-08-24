@@ -38,7 +38,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
 const TABS: { level: 1 | 2 | 3; label: string }[] = [
   { level: 1, label: "Level 1" },
   { level: 2, label: "Level 2" },

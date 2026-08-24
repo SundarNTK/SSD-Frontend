@@ -43,7 +43,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
 
 export default function RolesPage() {
   const router = useRouter();

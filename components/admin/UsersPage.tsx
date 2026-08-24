@@ -64,7 +64,7 @@ const editSchema = z.object({
 type CreateValues = z.infer<typeof createSchema>;
 type EditValues = z.infer<typeof editSchema>;
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
 
 export default function UsersPage() {
   const { can, user: currentUser } = usePermissions();

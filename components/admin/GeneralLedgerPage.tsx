@@ -45,7 +45,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
 
 async function fetchGroupOptions(level: 1 | 2 | 3, level1?: string, level2?: string): Promise<ListboxOption[]> {
   const params: Record<string, string | number> = { level, status: 1, pageSize: 100 };
