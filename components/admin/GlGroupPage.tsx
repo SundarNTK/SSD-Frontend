@@ -38,7 +38,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 const TABS: { level: 1 | 2 | 3; label: string }[] = [
   { level: 1, label: "Level 1" },
   { level: 2, label: "Level 2" },
@@ -63,6 +63,7 @@ export default function GlGroupPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<GlGroup | null>(null);
 
@@ -79,12 +80,12 @@ export default function GlGroupPage() {
     list.run({
       level: activeLevel,
       page,
-      pageSize: PAGE_SIZE,
+      pageSize,
       search: search || undefined,
       status: statusFilter || undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeLevel, page, search, statusFilter]);
+  }, [activeLevel, page, pageSize, search, statusFilter]);
 
   const {
     register,
@@ -228,9 +229,13 @@ export default function GlGroupPage() {
           setStatusFilter(v);
         }}
         page={page}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         total={total}
         onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPage(1);
+          setPageSize(size);
+        }}
         onCreate={canCreate ? openCreate : undefined}
         createLabel={`Add Level ${activeLevel}`}
         emptyMessage={`No Level ${activeLevel} groups yet.`}

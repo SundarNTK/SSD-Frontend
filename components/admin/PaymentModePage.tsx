@@ -44,7 +44,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 
 export default function PaymentModePage() {
   const { can } = usePermissions();
@@ -54,13 +54,14 @@ export default function PaymentModePage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [editing, setEditing] = useState<PaymentMode | null>(null);
   const [viewing, setViewing] = useState<PaymentMode | null>(null);
 
   useEffect(() => {
-    list.run({ page, pageSize: PAGE_SIZE, search: search || undefined, status: statusFilter || undefined });
+    list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, search, statusFilter]);
+  }, [page, pageSize, search, statusFilter]);
 
   const {
     register,
@@ -117,9 +118,13 @@ export default function PaymentModePage() {
           setStatusFilter(v);
         }}
         page={page}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         total={total}
         onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPage(1);
+          setPageSize(size);
+        }}
         emptyMessage="No payment modes yet."
         rowActions={(m) => (
           <div className="flex justify-end gap-3">

@@ -10,6 +10,8 @@ const STATUS_OPTIONS = [
   { value: "0", label: "Inactive" },
 ];
 
+const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
 export type DataTableColumn<T> = {
   key: string;
   label: string;
@@ -33,6 +35,9 @@ type DataTableProps<T> = {
   pageSize: number;
   total: number;
   onPageChange: (page: number) => void;
+  /** Omit to keep pageSize fixed — every current master screen passes this. */
+  onPageSizeChange?: (size: number) => void;
+  pageSizeOptions?: number[];
   onCreate?: () => void;
   createLabel?: string;
   rowActions?: (row: T) => ReactNode;
@@ -60,6 +65,8 @@ export default function DataTable<T>({
   pageSize,
   total,
   onPageChange,
+  onPageSizeChange,
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
   onCreate,
   createLabel = "Create",
   rowActions,
@@ -143,26 +150,46 @@ export default function DataTable<T>({
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-[12.5px] text-ink-500">
+      {(total > 0 || onPageSizeChange) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 text-[12.5px] text-ink-500">
           <span>
             Page {page} of {totalPages} &middot; {total} total
           </span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => onPageChange(Math.max(1, page - 1))}
-              disabled={page <= 1}
-              className="rounded-lg border border-gold-500/20 px-3 py-1.5 disabled:opacity-40"
-            >
-              Prev
-            </button>
-            <button
-              onClick={() => onPageChange(Math.min(totalPages, page + 1))}
-              disabled={page >= totalPages}
-              className="rounded-lg border border-gold-500/20 px-3 py-1.5 disabled:opacity-40"
-            >
-              Next
-            </button>
+          <div className="flex flex-wrap items-center gap-3">
+            {totalPages > 1 && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onPageChange(Math.max(1, page - 1))}
+                  disabled={page <= 1}
+                  className="rounded-lg border border-gold-500/20 px-3 py-1.5 disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+                  disabled={page >= totalPages}
+                  className="rounded-lg border border-gold-500/20 px-3 py-1.5 disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+            {onPageSizeChange && (
+              <label className="flex items-center gap-1.5">
+                <span>Rows</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                  className="rounded-lg border border-gold-500/20 bg-white px-2 py-1.5 text-[12.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                >
+                  {pageSizeOptions.map((n) => (
+                    <option key={n} value={n}>
+                      {n} / page
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
         </div>
       )}

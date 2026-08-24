@@ -45,7 +45,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 
 async function fetchGroupOptions(level: 1 | 2 | 3, level1?: string, level2?: string): Promise<ListboxOption[]> {
   const params: Record<string, string | number> = { level, status: 1, pageSize: 100 };
@@ -69,6 +69,7 @@ export default function GeneralLedgerPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<GeneralLedger | null>(null);
   const [deleting, setDeleting] = useState<GeneralLedger | null>(null);
@@ -81,9 +82,9 @@ export default function GeneralLedgerPage() {
   }, []);
 
   useEffect(() => {
-    list.run({ page, pageSize: PAGE_SIZE, search: search || undefined, status: statusFilter || undefined });
+    list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, search, statusFilter]);
+  }, [page, pageSize, search, statusFilter]);
 
   const {
     register,
@@ -192,9 +193,13 @@ export default function GeneralLedgerPage() {
           setStatusFilter(v);
         }}
         page={page}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         total={total}
         onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPage(1);
+          setPageSize(size);
+        }}
         onCreate={canCreate ? openCreate : undefined}
         createLabel="Add GL Account"
         emptyMessage="No GL accounts yet — create the first one."

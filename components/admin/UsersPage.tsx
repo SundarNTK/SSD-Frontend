@@ -64,7 +64,7 @@ const editSchema = z.object({
 type CreateValues = z.infer<typeof createSchema>;
 type EditValues = z.infer<typeof editSchema>;
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 
 export default function UsersPage() {
   const { can, user: currentUser } = usePermissions();
@@ -80,6 +80,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
 
@@ -100,9 +101,9 @@ export default function UsersPage() {
   const roleOptions = roles.map((r) => ({ value: r._id, label: r.name }));
 
   useEffect(() => {
-    list.run({ page, pageSize: PAGE_SIZE, search: search || undefined, status: statusFilter || undefined });
+    list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, search, statusFilter]);
+  }, [page, pageSize, search, statusFilter]);
 
   const createForm = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
@@ -233,9 +234,13 @@ export default function UsersPage() {
           setStatusFilter(v);
         }}
         page={page}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         total={total}
         onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPage(1);
+          setPageSize(size);
+        }}
         onCreate={canCreate ? openCreate : undefined}
         createLabel="Create Admin User"
         emptyMessage="No admin users yet."
