@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useId, useState, type TextareaHTMLAttributes } from "react";
+import { forwardRef, useEffect, useId, useRef, useState, type TextareaHTMLAttributes } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 type DivineTextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "placeholder"> & {
@@ -9,17 +9,35 @@ type DivineTextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "pl
   hint?: string;
 };
 
+function resize(el: HTMLTextAreaElement | null) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
+
 /**
  * Multi-line counterpart to DivineInput — same floating-label mechanics
  * (the `.divine-input` / `.divine-label` CSS pair keys off a class, not the
  * element type, so it works unchanged on a textarea), for fields like a
  * service's description that need more than one line.
+ *
+ * Grows with its content instead of scrolling internally — `min-h` sets the
+ * floor (roughly the old `rows` height) and the effect below raises it to
+ * `scrollHeight` on every keystroke, so nothing hides behind a scrollbar.
+ * The effect (no dependency array, so it runs after every render) also
+ * catches react-hook-form's reset() populating the field programmatically,
+ * which never fires the input event our onInput handler listens for.
  */
 const DivineTextarea = forwardRef<HTMLTextAreaElement, DivineTextareaProps>(
-  ({ label, error, hint, id, className = "", rows = 4, ...rest }, ref) => {
+  ({ label, error, hint, id, className = "", rows = 4, ...rest }, forwardedRef) => {
     const [focused, setFocused] = useState(false);
     const autoId = useId();
     const inputId = id ?? autoId;
+    const localRef = useRef<HTMLTextAreaElement | null>(null);
+
+    useEffect(() => {
+      resize(localRef.current);
+    });
 
     return (
       <div className="w-full">
@@ -37,7 +55,11 @@ const DivineTextarea = forwardRef<HTMLTextAreaElement, DivineTextareaProps>(
               <textarea
                 {...rest}
                 id={inputId}
-                ref={ref}
+                ref={(el) => {
+                  localRef.current = el;
+                  if (typeof forwardedRef === "function") forwardedRef(el);
+                  else if (forwardedRef) forwardedRef.current = el;
+                }}
                 rows={rows}
                 placeholder=" "
                 onFocus={(e) => {
@@ -48,7 +70,11 @@ const DivineTextarea = forwardRef<HTMLTextAreaElement, DivineTextareaProps>(
                   setFocused(false);
                   rest.onBlur?.(e);
                 }}
-                className={`divine-input w-full resize-y bg-transparent font-body text-[15px] text-ink-100 outline-none placeholder:text-transparent ${className}`}
+                onInput={(e) => {
+                  resize(e.currentTarget);
+                  rest.onInput?.(e);
+                }}
+                className={`divine-input w-full min-h-[104px] resize-none overflow-hidden bg-transparent font-body text-[15px] text-ink-100 outline-none placeholder:text-transparent ${className}`}
               />
               <label htmlFor={inputId} className="divine-label font-body">
                 {label}

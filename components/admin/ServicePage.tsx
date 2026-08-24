@@ -437,7 +437,7 @@ export default function ServicePage() {
           />
           <p className="-mt-3 pl-1 text-[11.5px] text-ink-500">GST is derived from the selected GL account.</p>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Controller
               control={control}
               name="isFamilyMembersRequired"
@@ -445,45 +445,48 @@ export default function ServicePage() {
                 <DivineRadioGroup label="Family Members Required" value={field.value} onChange={field.onChange} />
               )}
             />
+            {isFamilyMembersRequired && (
+              <>
+                <DivineInput
+                  label="Minimum Family Members"
+                  type="number"
+                  error={errors.minFamilyMembers?.message}
+                  {...register("minFamilyMembers", { valueAsNumber: true })}
+                />
+                <DivineInput
+                  label="Maximum Family Members"
+                  type="number"
+                  error={errors.maxFamilyMembers?.message}
+                  {...register("maxFamilyMembers", { valueAsNumber: true })}
+                />
+              </>
+            )}
+          </div>
+
+          {isInventoryRequired && (
+            <div className="max-w-[200px]">
+              <DivineInput
+                label="Threshold"
+                type="number"
+                hint="Minimum stock level before low stock warning"
+                error={errors.thresholdCount?.message}
+                {...register("thresholdCount", { valueAsNumber: true })}
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
             <Controller
               control={control}
               name="sessionRequired"
               render={({ field }) => <DivineRadioGroup label="Session Required" value={field.value} onChange={field.onChange} />}
             />
-          </div>
-
-          {isFamilyMembersRequired && (
-            <div className="grid grid-cols-2 gap-4">
-              <DivineInput
-                label="Minimum Family Members"
-                type="number"
-                error={errors.minFamilyMembers?.message}
-                {...register("minFamilyMembers", { valueAsNumber: true })}
-              />
-              <DivineInput
-                label="Maximum Family Members"
-                type="number"
-                error={errors.maxFamilyMembers?.message}
-                {...register("maxFamilyMembers", { valueAsNumber: true })}
-              />
-            </div>
-          )}
-
-          <Controller
-            control={control}
-            name="isInventoryRequired"
-            render={({ field }) => <DivineRadioGroup label="Inventory Applicable" value={field.value} onChange={field.onChange} />}
-          />
-
-          {isInventoryRequired && (
-            <DivineInput
-              label="Threshold"
-              type="number"
-              hint="Minimum stock level before low stock warning"
-              error={errors.thresholdCount?.message}
-              {...register("thresholdCount", { valueAsNumber: true })}
+            <Controller
+              control={control}
+              name="isInventoryRequired"
+              render={({ field }) => <DivineRadioGroup label="Inventory Applicable" value={field.value} onChange={field.onChange} />}
             />
-          )}
+          </div>
 
           <div className="grid grid-cols-3 gap-4">
             <Controller
@@ -507,13 +510,15 @@ export default function ServicePage() {
             />
           </div>
 
-          <Controller
-            control={control}
-            name="status"
-            render={({ field }) => (
-              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
-            )}
-          />
+          <div className="pt-2">
+            <Controller
+              control={control}
+              name="status"
+              render={({ field }) => (
+                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+              )}
+            />
+          </div>
         </form>
       </FormDrawer>
     </>

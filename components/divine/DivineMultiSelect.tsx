@@ -18,7 +18,7 @@ type DivineMultiSelectProps = {
 
 type PanelPosition = { left: number; width: number; maxHeight: number; upward: boolean; top?: number; bottom?: number };
 
-const PANEL_MAX_HEIGHT = 256; // matches max-h-64 below — a little taller than before to still show a few rows under the search bar
+const PANEL_MAX_HEIGHT = 300; // room for the search bar, a few rows, and the Cancel/OK footer
 const GAP = 8;
 /** Below this, scanning beats typing — the search bar would just be one more thing to click past. */
 const SEARCH_THRESHOLD = 7;
@@ -36,6 +36,12 @@ const SEARCH_THRESHOLD = 7;
  * "pooja" almost certainly wants to tick several matches in a row, not
  * re-type the search after every one.
  *
+ * Ticks land in a local draft, not straight onto `values` — Cancel (or
+ * Escape, or clicking outside) discards the draft and leaves the committed
+ * selection untouched; OK is the only path that calls `onChange`. Without
+ * that staging step every tick was already "saved", so "Cancel" only ever
+ * closed the panel — it couldn't undo anything.
+ *
  * Like DivineListbox, the panel renders through a portal at a fixed
  * position and flips above the trigger when there isn't room below —
  * inline absolute positioning gets clipped by the FormDrawer's scrolling
@@ -52,6 +58,7 @@ export default function DivineMultiSelect({
 }: DivineMultiSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [draft, setDraft] = useState<string[]>(values);
   const [panel, setPanel] = useState<PanelPosition | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -105,15 +112,25 @@ export default function DivineMultiSelect({
 
   useEffect(() => {
     if (open) {
+      setDraft(values);
       setQuery("");
       if (searchable) requestAnimationFrame(() => searchRef.current?.focus());
     }
+    // `values` deliberately excluded — re-syncing the draft is only wanted
+    // at the moment the panel opens, not on every parent re-render while
+    // it's already open ticking away.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, searchable]);
 
   const selectedOptions = options.filter((o) => values.includes(o.value));
 
   function toggle(value: string) {
-    onChange(values.includes(value) ? values.filter((v) => v !== value) : [...values, value]);
+    setDraft((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
+  }
+
+  function applyDraft() {
+    onChange(draft);
+    setOpen(false);
   }
 
   return (
@@ -157,7 +174,7 @@ export default function DivineMultiSelect({
                       aria-label={`Remove ${o.label}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggle(o.value);
+                        onChange(values.filter((v) => v !== o.value));
                       }}
                       className="text-amber-500/70 transition-colors hover:text-crimson-500"
                     >
@@ -221,7 +238,7 @@ export default function DivineMultiSelect({
                     </li>
                   )}
                   {filtered.map((opt) => {
-                    const isSelected = values.includes(opt.value);
+                    const isSelected = draft.includes(opt.value);
                     return (
                       <li
                         key={opt.value}
@@ -247,6 +264,22 @@ export default function DivineMultiSelect({
                     );
                   })}
                 </ul>
+                <div className="flex shrink-0 items-center justify-end gap-2 border-t border-gold-500/15 px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="rounded-lg px-3 py-1.5 text-[12.5px] text-ink-300 transition-colors hover:text-ink-100"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={applyDraft}
+                    className="rounded-lg bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 px-3.5 py-1.5 text-[12.5px] font-semibold text-navy-950 transition-[transform,box-shadow] hover:scale-[1.02] hover:shadow-[0_0_16px_1px_rgba(212,175,55,0.6)]"
+                  >
+                    OK
+                  </button>
+                </div>
               </motion.div>
             </>
           )}
