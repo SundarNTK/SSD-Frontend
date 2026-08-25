@@ -17,7 +17,7 @@ export default function TempleClock() {
   const { hour, minute, second, dayPeriod, date } = getTempleTimeParts(now);
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-gold-500/15 bg-ivory-100 px-3 py-1.5 sm:px-3.5">
+    <div className="flex items-center gap-3 rounded-xl border border-gold-500/25 bg-white px-3 py-1.5 shadow-[0_1px_4px_rgba(0,0,0,0.06)] sm:px-3.5">
       <span className="relative flex h-1.5 w-1.5 shrink-0" aria-hidden="true">
         <span className="absolute inline-flex h-full w-full animate-soft-pulse rounded-full bg-gold-400" />
         <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-gold-300" />

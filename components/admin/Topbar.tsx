@@ -76,7 +76,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
    * (z-40+) so those still cover the header when open.
    */
   return (
-    <header className="relative z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-gold-500/15 bg-navy-900 px-4 shadow-[0_6px_20px_-8px_rgba(0,0,0,0.06)] sm:px-6">
+    <header className="relative z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-gold-500/15 bg-navy-900 px-4 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.14)] sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"

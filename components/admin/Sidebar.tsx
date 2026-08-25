@@ -145,7 +145,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           out-rank the topbar's `relative z-20` for that overlapping half to
           render on top instead of hiding underneath it. */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex h-full w-64 shrink-0 flex-col border-r border-gold-500/15 bg-navy-900 shadow-[6px_0_24px_-6px_rgba(0,0,0,0.08)] transition-[width,transform] duration-300 ease-out md:relative md:z-30 md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-full w-64 shrink-0 flex-col border-r border-gold-500/15 bg-navy-900 shadow-[8px_0_28px_-6px_rgba(0,0,0,0.16)] transition-[width,transform] duration-300 ease-out md:relative md:z-30 md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "md:w-20" : ""}`}
       >
