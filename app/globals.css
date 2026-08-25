@@ -94,11 +94,14 @@ select option {
   width: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-navy-900);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(var(--color-gold-600), var(--color-gold-500));
+  background: var(--color-navy-700);
   border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-navy-600);
 }
 
 /* ---------- Shared keyframes ---------- */

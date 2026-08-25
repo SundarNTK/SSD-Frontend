@@ -295,7 +295,7 @@ export default function ItemPage() {
         title={editing ? "Edit Item" : "Add Item"}
         subtitle={editing ? `${editing.name} · ${editing.code}` : "Define a new sellable item."}
         error={create.error || update.error}
-        maxWidthClassName="max-w-2xl"
+        maxWidthClassName="max-w-4xl"
         footer={
           <div className="flex justify-end gap-3">
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
@@ -308,13 +308,13 @@ export default function ItemPage() {
         }
       >
         <form id="item-form" onSubmit={submit} noValidate className="space-y-5">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <DivineInput label="Item Code" error={errors.code?.message} {...register("code")} />
             <DivineInput label="Item Name" error={errors.name?.message} {...register("name")} />
             <DivineInput label="Tamil Name" error={errors.tamilName?.message} {...register("tamilName")} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Controller
               control={control}
               name="generalLedger"
@@ -341,7 +341,7 @@ export default function ItemPage() {
 
           <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Controller
               control={control}
               name="isDeityMappingRequired"
@@ -374,6 +374,15 @@ export default function ItemPage() {
                 <PlusIcon /> Add Row
               </button>
             </div>
+            {fields.length > 0 && (
+              <div className="mb-1 hidden grid-cols-[1fr_1fr_70px_28px] gap-2 px-1 text-[11px] uppercase tracking-wide text-ink-500 sm:grid">
+                <span>Category</span>
+                <span>Sub Category</span>
+                <span>Order</span>
+                <span />
+              </div>
+            )}
+
             <div className="space-y-2">
               {fields.length === 0 && (
                 <p className="rounded-xl border border-gold-500/15 bg-ivory-100 px-3 py-2.5 text-[12.5px] text-ink-500">
@@ -381,7 +390,10 @@ export default function ItemPage() {
                 </p>
               )}
               {fields.map((row, index) => (
-                <div key={row.id} className="grid grid-cols-[1fr_1fr_70px_auto] items-start gap-2">
+                <div
+                  key={row.id}
+                  className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_1fr_70px_28px]"
+                >
                   <Controller
                     control={control}
                     name={`categoryDetails.${index}.category`}
@@ -408,33 +420,36 @@ export default function ItemPage() {
                       />
                     )}
                   />
-                  <input
-                    type="number"
-                    {...register(`categoryDetails.${index}.displayOrder`, { valueAsNumber: true })}
-                    className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
-                  />
+                  <div>
+                    <span className="mb-1 block text-[11px] uppercase tracking-wide text-ink-500 sm:hidden">Display Order</span>
+                    <input
+                      type="number"
+                      {...register(`categoryDetails.${index}.displayOrder`, { valueAsNumber: true })}
+                      className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => removeRow(index)}
                     aria-label="Remove row"
-                    className="mt-1 text-crimson-500 hover:text-crimson-600"
+                    className="text-crimson-500 hover:text-crimson-600 sm:mt-1"
                   >
-                    ×
+                    <span className="sm:hidden">Remove row</span>
+                    <span className="hidden sm:inline">×</span>
                   </button>
                 </div>
               ))}
             </div>
           </div>
 
-          <Controller
-            control={control}
-            name="isInventoryApplicable"
-            render={({ field }) => <DivineRadioGroup label="Inventory Applicable" value={field.value} onChange={field.onChange} />}
-          />
-
-          {isInventoryApplicable && (
-            <>
-              <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Controller
+              control={control}
+              name="isInventoryApplicable"
+              render={({ field }) => <DivineRadioGroup label="Inventory Applicable" value={field.value} onChange={field.onChange} />}
+            />
+            {isInventoryApplicable && (
+              <>
                 <Controller
                   control={control}
                   name="unitOfMeasure"
@@ -449,32 +464,35 @@ export default function ItemPage() {
                   error={errors.threshold?.message}
                   {...register("threshold", { valueAsNumber: true })}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <DivineInput
-                  label="Min Quantity"
-                  type="number"
-                  error={errors.minQuantity?.message}
-                  {...register("minQuantity", { valueAsNumber: true })}
-                />
-                <DivineInput
-                  label="Max Quantity"
-                  type="number"
-                  hint="0 - unlimited"
-                  error={errors.maxQuantity?.message}
-                  {...register("maxQuantity", { valueAsNumber: true })}
-                />
-              </div>
+              </>
+            )}
+          </div>
+
+          {isInventoryApplicable && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <DivineInput
+                label="Min Quantity"
+                type="number"
+                error={errors.minQuantity?.message}
+                {...register("minQuantity", { valueAsNumber: true })}
+              />
+              <DivineInput
+                label="Max Quantity"
+                type="number"
+                hint="0 - unlimited"
+                error={errors.maxQuantity?.message}
+                {...register("maxQuantity", { valueAsNumber: true })}
+              />
               <DivineInput
                 label="Quantity Reduction"
                 type="number"
                 error={errors.quantityReduction?.message}
                 {...register("quantityReduction", { valueAsNumber: true })}
               />
-            </>
+            </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Controller
               control={control}
               name="futureBookingCutOffDate"
@@ -489,7 +507,7 @@ export default function ItemPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Controller
               control={control}
               name="posAvailability"
@@ -502,13 +520,15 @@ export default function ItemPage() {
             />
           </div>
 
-          <Controller
-            control={control}
-            name="status"
-            render={({ field }) => (
-              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
-            )}
-          />
+          <div className="pt-2">
+            <Controller
+              control={control}
+              name="status"
+              render={({ field }) => (
+                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+              )}
+            />
+          </div>
         </form>
       </FormDrawer>
     </>
