@@ -455,15 +455,14 @@ export default function ServicePage() {
           />
           <p className="-mt-3 pl-1 text-[11.5px] text-ink-500">GST is derived from the selected GL account.</p>
 
-          <Controller
-            control={control}
-            name="isFamilyMembersRequired"
-            render={({ field }) => (
-              <DivineRadioGroup label="Family Members Required" value={field.value} onChange={field.onChange} />
-            )}
-          />
-
-          <div className="grid max-w-xs grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Controller
+              control={control}
+              name="isFamilyMembersRequired"
+              render={({ field }) => (
+                <DivineRadioGroup label="Family Members Required" value={field.value} onChange={field.onChange} />
+              )}
+            />
             <DivineInput
               label="Min Members"
               type="number"
@@ -478,19 +477,7 @@ export default function ServicePage() {
             />
           </div>
 
-          {isInventoryRequired && (
-            <div className="max-w-[200px]">
-              <DivineInput
-                label="Threshold"
-                type="number"
-                hint="Minimum stock level before low stock warning"
-                error={errors.thresholdCount?.message}
-                {...register("thresholdCount", { valueAsNumber: true })}
-              />
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Controller
               control={control}
               name="sessionRequired"
@@ -501,6 +488,15 @@ export default function ServicePage() {
               name="isInventoryRequired"
               render={({ field }) => <DivineRadioGroup label="Inventory Applicable" value={field.value} onChange={field.onChange} />}
             />
+            {isInventoryRequired && (
+              <DivineInput
+                label="Threshold"
+                type="number"
+                hint="Minimum stock level before low stock warning"
+                error={errors.thresholdCount?.message}
+                {...register("thresholdCount", { valueAsNumber: true })}
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
