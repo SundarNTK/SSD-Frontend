@@ -152,7 +152,10 @@ export default function DivineMultiSelect({
       >
         <div className="flex items-center gap-2 px-4 pt-5 pb-2">
           <div className="relative w-full">
-            <span id={labelId} className="pointer-events-none absolute -top-[18px] left-0 text-[11px] tracking-wide text-amber-600">
+            <span
+              id={labelId}
+              className="pointer-events-none absolute -top-[18px] left-0 right-0 truncate text-[11px] tracking-wide text-amber-600"
+            >
               {label}
             </span>
 

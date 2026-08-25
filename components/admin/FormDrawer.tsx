@@ -65,7 +65,7 @@ export default function FormDrawer({
               transition={{ duration: 0.18, ease: "easeOut" }}
               className={`pointer-events-auto flex max-h-[85vh] w-full ${maxWidthClassName} flex-col overflow-hidden rounded-2xl border border-gold-500/20 bg-navy-900 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]`}
             >
-              <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
+              <div className="flex items-start justify-between border-b border-gold-500/10 px-4 py-4 sm:px-6 sm:py-5">
                 <div>
                   <h2 className="font-display text-[19px] text-ink-100">{title}</h2>
                   {subtitle && <p className="mt-0.5 text-[12.5px] text-ink-500">{subtitle}</p>}
@@ -81,9 +81,9 @@ export default function FormDrawer({
                 </button>
               </div>
 
-              <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">{children}</div>
+              <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">{children}</div>
 
-              <div className="border-t border-gold-500/10 px-6 py-4">{footer}</div>
+              <div className="border-t border-gold-500/10 px-4 py-3 sm:px-6 sm:py-4">{footer}</div>
             </motion.div>
           </div>
         </>

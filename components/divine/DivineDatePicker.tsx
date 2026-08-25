@@ -153,7 +153,10 @@ export default function DivineDatePicker({
             <CalendarIcon />
           </span>
           <div className="relative w-full">
-            <span id={labelId} className="pointer-events-none absolute -top-[18px] left-0 text-[11px] tracking-wide text-amber-600">
+            <span
+              id={labelId}
+              className="pointer-events-none absolute -top-[18px] left-0 right-0 truncate text-[11px] tracking-wide text-amber-600"
+            >
               {label}
             </span>
             <span className={`block truncate font-body text-[15px] ${selected ? "text-ink-100" : "text-ink-500"}`}>

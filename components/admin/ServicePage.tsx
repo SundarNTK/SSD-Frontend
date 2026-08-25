@@ -299,7 +299,7 @@ export default function ServicePage() {
         title={editing ? "Edit Service" : "Add Service"}
         subtitle={editing ? `${editing.name} · ${editing.code}` : "Define a new bookable service."}
         error={create.error || update.error}
-        maxWidthClassName="max-w-2xl"
+        maxWidthClassName="max-w-4xl"
         footer={
           <div className="flex justify-end gap-3">
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
@@ -312,7 +312,7 @@ export default function ServicePage() {
         }
       >
         <form id="service-form" onSubmit={submit} noValidate className="space-y-5">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <DivineInput label="Service Code" error={errors.code?.message} {...register("code")} />
             <DivineInput label="Service Name" error={errors.name?.message} {...register("name")} />
             <DivineInput label="Tamil Name" error={errors.tamilName?.message} {...register("tamilName")} />
@@ -320,7 +320,7 @@ export default function ServicePage() {
 
           <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Controller
               control={control}
               name="isDeityMappingRequired"
@@ -359,7 +359,7 @@ export default function ServicePage() {
             </div>
 
             {fields.length > 0 && (
-              <div className="mb-1 grid grid-cols-[1fr_1fr_110px_90px_28px] gap-2 px-1 text-[11px] uppercase tracking-wide text-ink-500">
+              <div className="mb-1 hidden grid-cols-[1fr_1fr_110px_90px_28px] gap-2 px-1 text-[11px] uppercase tracking-wide text-ink-500 sm:grid">
                 <span>Category</span>
                 <span>Sub Category</span>
                 <span>Sale Price</span>
@@ -375,7 +375,10 @@ export default function ServicePage() {
                 </p>
               )}
               {fields.map((row, index) => (
-                <div key={row.id} className="grid grid-cols-[1fr_1fr_110px_90px_28px] items-start gap-2">
+                <div
+                  key={row.id}
+                  className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_1fr_110px_90px_28px]"
+                >
                   <Controller
                     control={control}
                     name={`categoryDetails.${index}.category`}
@@ -402,24 +405,31 @@ export default function ServicePage() {
                       />
                     )}
                   />
-                  <input
-                    type="number"
-                    step="0.01"
-                    {...register(`categoryDetails.${index}.salePrice`, { valueAsNumber: true })}
-                    className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
-                  />
-                  <input
-                    type="number"
-                    {...register(`categoryDetails.${index}.displayOrder`, { valueAsNumber: true })}
-                    className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
-                  />
+                  <div>
+                    <span className="mb-1 block text-[11px] uppercase tracking-wide text-ink-500 sm:hidden">Sale Price</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      {...register(`categoryDetails.${index}.salePrice`, { valueAsNumber: true })}
+                      className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                    />
+                  </div>
+                  <div>
+                    <span className="mb-1 block text-[11px] uppercase tracking-wide text-ink-500 sm:hidden">Display Order</span>
+                    <input
+                      type="number"
+                      {...register(`categoryDetails.${index}.displayOrder`, { valueAsNumber: true })}
+                      className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => removeRow(index)}
                     aria-label="Remove row"
-                    className="mt-1 text-crimson-500 hover:text-crimson-600"
+                    className="text-crimson-500 hover:text-crimson-600 sm:mt-1"
                   >
-                    ×
+                    <span className="sm:hidden">Remove row</span>
+                    <span className="hidden sm:inline">×</span>
                   </button>
                 </div>
               ))}
@@ -442,7 +452,7 @@ export default function ServicePage() {
           />
           <p className="-mt-3 pl-1 text-[11.5px] text-ink-500">GST is derived from the selected GL account.</p>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Controller
               control={control}
               name="isFamilyMembersRequired"
@@ -480,7 +490,7 @@ export default function ServicePage() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Controller
               control={control}
               name="sessionRequired"
@@ -493,7 +503,7 @@ export default function ServicePage() {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Controller
               control={control}
               name="bookingCutoffDate"
