@@ -157,7 +157,6 @@ export default function ServicePage() {
 
   const { fields, append, remove: removeRow } = useFieldArray({ control, name: "categoryDetails" });
   const isDeityMappingRequired = watch("isDeityMappingRequired");
-  const isFamilyMembersRequired = watch("isFamilyMembersRequired");
   const isInventoryRequired = watch("isInventoryRequired");
 
   function openCreate() {
@@ -464,22 +463,20 @@ export default function ServicePage() {
             )}
           />
 
-          {isFamilyMembersRequired && (
-            <div className="grid max-w-xs grid-cols-2 gap-4">
-              <DivineInput
-                label="Min Members"
-                type="number"
-                error={errors.minFamilyMembers?.message}
-                {...register("minFamilyMembers", { valueAsNumber: true })}
-              />
-              <DivineInput
-                label="Max Members"
-                type="number"
-                error={errors.maxFamilyMembers?.message}
-                {...register("maxFamilyMembers", { valueAsNumber: true })}
-              />
-            </div>
-          )}
+          <div className="grid max-w-xs grid-cols-2 gap-4">
+            <DivineInput
+              label="Min Members"
+              type="number"
+              error={errors.minFamilyMembers?.message}
+              {...register("minFamilyMembers", { valueAsNumber: true })}
+            />
+            <DivineInput
+              label="Max Members"
+              type="number"
+              error={errors.maxFamilyMembers?.message}
+              {...register("maxFamilyMembers", { valueAsNumber: true })}
+            />
+          </div>
 
           {isInventoryRequired && (
             <div className="max-w-[200px]">
