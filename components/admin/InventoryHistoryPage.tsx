@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DataTable, { type DataTableColumn } from "./DataTable";
+import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import { api } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { formatTempleDateTime } from "../../lib/datetime";
@@ -44,6 +45,12 @@ export const MOVEMENT_COLUMNS: DataTableColumn<InventoryMovement>[] = [
   { key: "user", label: "User", render: (m) => <span className="text-ink-500">{m.user}</span> },
 ];
 
+const TYPE_FILTER_OPTIONS: ListboxOption[] = [
+  { value: "", label: "All Types" },
+  { value: "Item", label: "Item" },
+  { value: "Service", label: "Service" },
+];
+
 const DEFAULT_PAGE_SIZE = 10;
 
 /**
@@ -55,13 +62,14 @@ export default function InventoryHistoryPage() {
   const { items, total, list } = useApiResource<InventoryMovement>(api, "/inventory/history");
 
   const [search, setSearch] = useState("");
+  const [type, setType] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   useEffect(() => {
-    list.run({ page, pageSize, search: search || undefined });
+    list.run({ page, pageSize, search: search || undefined, refType: type || undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, search]);
+  }, [page, pageSize, search, type]);
 
   return (
     <DataTable
@@ -77,6 +85,17 @@ export default function InventoryHistoryPage() {
         setSearch(v);
       }}
       searchPlaceholder="Search by name or code…"
+      extraFilters={
+        <DivineListbox
+          value={type}
+          onChange={(v) => {
+            setPage(1);
+            setType(v);
+          }}
+          options={TYPE_FILTER_OPTIONS}
+          className="w-40"
+        />
+      }
       page={page}
       pageSize={pageSize}
       total={total}

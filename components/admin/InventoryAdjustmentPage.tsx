@@ -13,10 +13,17 @@ import DivineButton from "../divine/DivineButton";
 import { MOVEMENT_COLUMNS, type InventoryMovement } from "./InventoryHistoryPage";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
+import { useAsyncAction } from "../../lib/useAsyncAction";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
 
 const TYPE_OPTIONS: ListboxOption[] = [
+  { value: "Item", label: "Item" },
+  { value: "Service", label: "Service" },
+];
+
+const TYPE_FILTER_OPTIONS: ListboxOption[] = [
+  { value: "", label: "All Types" },
   { value: "Item", label: "Item" },
   { value: "Service", label: "Service" },
 ];
@@ -56,18 +63,28 @@ const DEFAULT_PAGE_SIZE = 10;
 export default function InventoryAdjustmentPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.inventory, "fullAccess");
-  const { items, total, list, create } = useApiResource<InventoryMovement>(api, "/inventory/history");
+  // Read (list) and write (create) live at different paths here — GET
+  // /inventory/history vs POST /inventory/adjustments — so useApiResource's
+  // bundled create (which always POSTs to the same basePath as the list)
+  // doesn't fit; list comes from useApiResource, create is hand-rolled.
+  const { items, total, list } = useApiResource<InventoryMovement>(api, "/inventory/history");
+  const create = useAsyncAction(async (values: FormValues) => {
+    await api.post("/inventory/adjustments", values);
+    await list.run({ page, pageSize, search: search || undefined, refType: type || undefined });
+    return true;
+  });
 
   const [refOptions, setRefOptions] = useState<ListboxOption[]>([]);
   const [search, setSearch] = useState("");
+  const [type, setType] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
-    list.run({ page, pageSize, search: search || undefined });
+    list.run({ page, pageSize, search: search || undefined, refType: type || undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, search]);
+  }, [page, pageSize, search, type]);
 
   const {
     register,
@@ -120,6 +137,17 @@ export default function InventoryAdjustmentPage() {
           setSearch(v);
         }}
         searchPlaceholder="Search by name or code…"
+        extraFilters={
+          <DivineListbox
+            value={type}
+            onChange={(v) => {
+              setPage(1);
+              setType(v);
+            }}
+            options={TYPE_FILTER_OPTIONS}
+            className="w-40"
+          />
+        }
         page={page}
         pageSize={pageSize}
         total={total}
