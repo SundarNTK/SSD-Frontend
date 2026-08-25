@@ -191,7 +191,7 @@ export default function GlGroupPage() {
   return (
     <>
       <div className="mb-5 space-y-1">
-        <h1 className="font-display text-[24px] text-ink-100">GL Group Master</h1>
+        <h1 className="font-display text-[28px] font-bold text-ink-100">GL Group Master</h1>
         <p className="text-[13px] text-ink-500">Manage GL Group hierarchy by Level 1, 2, 3.</p>
       </div>
 

@@ -79,7 +79,7 @@ export default function DataTable<T>({
       <div className="flex flex-wrap items-end justify-between gap-4">
         {title && (
           <div>
-            <h1 className="font-display text-[24px] text-ink-100">{title}</h1>
+            <h1 className="font-display text-[28px] font-bold text-ink-100">{title}</h1>
             {subtitle && <p className="mt-1 text-[13px] text-ink-500">{subtitle}</p>}
           </div>
         )}

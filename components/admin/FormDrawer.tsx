@@ -67,7 +67,7 @@ export default function FormDrawer({
             >
               <div className="flex items-start justify-between border-b border-gold-500/10 px-4 py-4 sm:px-6 sm:py-5">
                 <div>
-                  <h2 className="font-display text-[19px] text-ink-100">{title}</h2>
+                  <h2 className="font-display text-[19px] font-bold text-ink-100">{title}</h2>
                   {subtitle && <p className="mt-0.5 text-[12.5px] text-ink-500">{subtitle}</p>}
                 </div>
                 <button

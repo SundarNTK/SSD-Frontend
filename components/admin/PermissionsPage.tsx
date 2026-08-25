@@ -126,7 +126,7 @@ export default function PermissionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-[24px] text-ink-100">Permissions</h1>
+        <h1 className="font-display text-[28px] font-bold text-ink-100">Permissions</h1>
         <p className="mt-1 text-[13px] text-ink-500">
           Choose a role, then set View / Edit / Full Access per module. Saving takes effect on that
           role's users immediately — including anyone already signed in.

@@ -20,7 +20,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <p className="font-accent text-[13px] uppercase tracking-[0.2em] text-amber-500">Dashboard</p>
-        <h1 className="mt-1 font-display text-[26px] text-ink-100">Welcome back, {firstName}</h1>
+        <h1 className="mt-1 font-display text-[28px] font-bold text-ink-100">Welcome back, {firstName}</h1>
         <p className="mt-1 text-[13.5px] text-ink-500">Here's where things stand today.</p>
       </motion.div>
 

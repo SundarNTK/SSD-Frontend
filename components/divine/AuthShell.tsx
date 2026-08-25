@@ -37,7 +37,7 @@ export default function AuthShell({
           <p className="animate-golden-glow font-accent text-[15px] uppercase tracking-[0.28em] text-amber-600 sm:text-base">
             {eyebrow}
           </p>
-          <h1 className="mt-3 font-display text-2xl text-amber-800 sm:text-[28px]" style={{ textWrap: "balance" as const }}>
+          <h1 className="mt-3 font-display text-2xl font-bold text-amber-800 sm:text-[28px]" style={{ textWrap: "balance" as const }}>
             {title}
           </h1>
           <p className="mx-auto mt-2 max-w-[90vw] font-body text-[13px] text-ink-500 sm:max-w-none sm:text-sm sm:whitespace-nowrap">

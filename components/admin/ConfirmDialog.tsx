@@ -58,7 +58,7 @@ export default function ConfirmDialog({
               transition={{ duration: 0.18, ease: "easeOut" }}
               className="pointer-events-auto w-full max-w-md rounded-2xl border border-gold-500/20 bg-navy-900 p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
             >
-              <h2 className="font-display text-[19px] text-ink-100">{title}</h2>
+              <h2 className="font-display text-[19px] font-bold text-ink-100">{title}</h2>
               <p className="mt-2 text-[13.5px] leading-relaxed text-ink-500">{message}</p>
 
               {error && (

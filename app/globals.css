@@ -43,8 +43,11 @@
   --color-crimson-500: #b3273f;
   --color-crimson-600: #8f1c30;
 
-  /* ink now runs dark-on-cream instead of light-on-navy. */
-  --color-ink-100: #2a2013;
+  /* ink now runs dark-on-cream instead of light-on-navy. ink-100 is the
+     primary-text color used everywhere (headings, table cells, labels) —
+     kept a hair warm rather than literal #000 so it still sits in the
+     temple's gold-adjacent palette, but dark enough to read as black. */
+  --color-ink-100: #150f08;
   --color-ink-300: #5c4d33;
   --color-ink-500: #7d6c4d;
 
