@@ -86,7 +86,7 @@ export default function DataTable<T>({
         {onCreate && (
           <button
             onClick={onCreate}
-            className="ml-auto flex items-center gap-2 rounded-xl bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 px-4 py-2.5 font-accent text-[13.5px] font-semibold text-navy-950 transition-[transform,box-shadow] hover:scale-[1.015] hover:shadow-[0_0_22px_2px_rgba(212,175,55,0.75)] active:scale-[0.985]"
+            className="ml-auto flex items-center gap-2 rounded-xl border border-gold-600/25 bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 px-4 py-2.5 font-accent text-[13.5px] font-semibold text-navy-950 shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-6px_rgba(184,137,42,0.55)] active:translate-y-0 active:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]"
           >
             <PlusIcon />
             {createLabel}

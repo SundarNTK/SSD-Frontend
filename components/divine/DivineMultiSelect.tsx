@@ -278,7 +278,7 @@ export default function DivineMultiSelect({
                   <button
                     type="button"
                     onClick={applyDraft}
-                    className="rounded-lg bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 px-3.5 py-1.5 text-[12.5px] font-semibold text-navy-950 transition-[transform,box-shadow] hover:scale-[1.02] hover:shadow-[0_0_16px_1px_rgba(212,175,55,0.6)]"
+                    className="rounded-lg border border-gold-600/25 bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 px-3.5 py-1.5 text-[12.5px] font-semibold text-navy-950 shadow-[0_1px_4px_-1px_rgba(0,0,0,0.08)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_16px_-4px_rgba(184,137,42,0.55)] active:translate-y-0"
                   >
                     OK
                   </button>

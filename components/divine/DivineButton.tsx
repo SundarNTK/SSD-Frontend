@@ -48,7 +48,7 @@ export default function DivineButton({
 
   return (
     <button
-      className={`group relative ${fullWidth ? "w-full" : "w-auto"} overflow-hidden rounded-xl bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 ${sizing} font-accent font-semibold tracking-wide text-navy-950 transition-[transform,box-shadow] duration-200 hover:scale-[1.015] hover:shadow-[0_0_22px_2px_rgba(212,175,55,0.75)] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100 disabled:hover:shadow-none ${className}`}
+      className={`group relative ${fullWidth ? "w-full" : "w-auto"} overflow-hidden rounded-xl border border-gold-600/25 bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 ${sizing} font-accent font-semibold tracking-wide text-navy-950 shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-6px_rgba(184,137,42,0.55)] active:translate-y-0 active:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] ${className}`}
       disabled={disabled || loading}
       {...rest}
     >
