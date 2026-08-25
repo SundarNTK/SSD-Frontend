@@ -77,6 +77,10 @@ const schema = z
   .refine((data) => !data.isDeityMappingRequired || data.deityMapping.length > 0, {
     message: "Select at least one deity",
     path: ["deityMapping"],
+  })
+  .refine((data) => data.maxFamilyMembers >= data.minFamilyMembers, {
+    message: "Can't be less than the minimum",
+    path: ["maxFamilyMembers"],
   });
 
 type FormValues = z.infer<typeof schema>;
@@ -452,31 +456,30 @@ export default function ServicePage() {
           />
           <p className="-mt-3 pl-1 text-[11.5px] text-ink-500">GST is derived from the selected GL account.</p>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Controller
-              control={control}
-              name="isFamilyMembersRequired"
-              render={({ field }) => (
-                <DivineRadioGroup label="Family Members Required" value={field.value} onChange={field.onChange} />
-              )}
-            />
-            {isFamilyMembersRequired && (
-              <>
-                <DivineInput
-                  label="Minimum Family Members"
-                  type="number"
-                  error={errors.minFamilyMembers?.message}
-                  {...register("minFamilyMembers", { valueAsNumber: true })}
-                />
-                <DivineInput
-                  label="Maximum Family Members"
-                  type="number"
-                  error={errors.maxFamilyMembers?.message}
-                  {...register("maxFamilyMembers", { valueAsNumber: true })}
-                />
-              </>
+          <Controller
+            control={control}
+            name="isFamilyMembersRequired"
+            render={({ field }) => (
+              <DivineRadioGroup label="Family Members Required" value={field.value} onChange={field.onChange} />
             )}
-          </div>
+          />
+
+          {isFamilyMembersRequired && (
+            <div className="grid max-w-xs grid-cols-2 gap-4">
+              <DivineInput
+                label="Min Members"
+                type="number"
+                error={errors.minFamilyMembers?.message}
+                {...register("minFamilyMembers", { valueAsNumber: true })}
+              />
+              <DivineInput
+                label="Max Members"
+                type="number"
+                error={errors.maxFamilyMembers?.message}
+                {...register("maxFamilyMembers", { valueAsNumber: true })}
+              />
+            </div>
+          )}
 
           {isInventoryRequired && (
             <div className="max-w-[200px]">
