@@ -272,7 +272,7 @@ select option {
   position: absolute;
   left: 0;
   right: 0;
-  top: -18px;
+  top: -12px;
   z-index: 10;
   font-size: 11px;
   letter-spacing: 0.025em;
@@ -310,13 +310,13 @@ select option {
  * leaving the outcome to source order for a minifier to rearrange.
  */
 .divine-input.divine-input:-webkit-autofill:not(:focus) + .divine-label {
-  top: -18px;
+  top: -12px;
   font-size: 11px;
   letter-spacing: 0.025em;
   color: var(--color-amber-600);
 }
 .divine-input.divine-input:autofill:not(:focus) + .divine-label {
-  top: -18px;
+  top: -12px;
   font-size: 11px;
   letter-spacing: 0.025em;
   color: var(--color-amber-600);

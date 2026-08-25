@@ -143,9 +143,9 @@ export default function DivineListbox({
         }`}
       >
         {label ? (
-          <div className="flex items-center gap-2 px-4 pt-5 pb-2">
+          <div className="flex items-center gap-2 px-4 py-3.5">
             <div className="relative w-full">
-              <span className="pointer-events-none absolute -top-[18px] left-0 right-0 truncate text-[11px] tracking-wide text-amber-600">
+              <span className="pointer-events-none absolute -top-3 left-0 right-0 truncate text-[11px] tracking-wide text-amber-600">
                 {label}
               </span>
               <span className={`block truncate font-body text-[15px] ${selected ? "text-ink-100" : "text-ink-500"}`}>

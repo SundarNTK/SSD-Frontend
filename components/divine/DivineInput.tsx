@@ -46,7 +46,7 @@ const DivineInput = forwardRef<HTMLInputElement, DivineInputProps>(
                 : "border-gold-500/20 hover:border-gold-400/40"
           }`}
         >
-          <div className="flex items-center gap-2 px-4 pt-5 pb-2">
+          <div className="flex items-center gap-2 px-4 py-3.5">
             {icon && (
               <span className={`shrink-0 transition-colors ${focused ? "text-amber-600" : "text-ink-500"}`}>
                 {icon}
