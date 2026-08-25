@@ -69,7 +69,16 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   { label: "POS Transactions", icon: <CartIcon /> },
-  { label: "Inventory", icon: <BoxIcon /> },
+  {
+    label: "Inventory",
+    icon: <BoxIcon />,
+    children: [
+      { label: "Inventory Adjustment", to: "/admin/inventory/adjustments", module: MODULES.inventory },
+      { label: "Available Stock", to: "/admin/inventory/available-stock", module: MODULES.inventory },
+      { label: "Inventory History", to: "/admin/inventory/history", module: MODULES.inventory },
+      { label: "Low Stock Report", to: "/admin/inventory/low-stock", module: MODULES.inventory },
+    ],
+  },
   { label: "Reports", icon: <ChartIcon /> },
 ];
 

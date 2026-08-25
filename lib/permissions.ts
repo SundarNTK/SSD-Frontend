@@ -22,6 +22,7 @@ export const MODULES = {
   events: "events",
   nakshathirams: "nakshathirams",
   paymentModes: "payment-modes",
+  inventory: "inventory",
 } as const;
 
 /**
