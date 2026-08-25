@@ -148,14 +148,14 @@ export default function DivineDatePicker({
               : "border-gold-500/20 hover:border-gold-400/40"
         }`}
       >
-        <div className="flex items-center gap-2 px-4 py-3.5">
+        <div className="flex items-center gap-2 px-4 pt-5 pb-2">
           <span className={`shrink-0 transition-colors ${open ? "text-amber-600" : "text-ink-500"}`}>
             <CalendarIcon />
           </span>
           <div className="relative w-full">
             <span
               id={labelId}
-              className="pointer-events-none absolute -top-3 left-0 right-0 truncate text-[11px] tracking-wide text-amber-600"
+              className="pointer-events-none absolute -top-[18px] left-0 right-0 truncate text-[11px] tracking-wide text-amber-600"
             >
               {label}
             </span>
