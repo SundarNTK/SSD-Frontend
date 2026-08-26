@@ -2497,9 +2497,9 @@ function BookingSuccessView({ confirmation, onNewTransaction }: { confirmation: 
             <Row label="Grand Total" value={formatCurrency(confirmation.grandTotal)} highlight />
           </div>
         </div>
-        <DivineButton fullWidth onClick={onNewTransaction}>
-          <PlusIcon /> New Transaction
-        </DivineButton>
+        <FlameActionButton icon={<PlusIcon />} chevron={false} onClick={onNewTransaction} className="w-full justify-center">
+          New Transaction
+        </FlameActionButton>
       </motion.div>
     </div>
   );
