@@ -14,6 +14,7 @@ import { toast } from "../../lib/toastStore";
 type BookingListItem = {
   _id: string;
   bookingNumber: string;
+  receiptNo: string | null;
   orderNumber: string | null;
   customer: { _id: string; customerCode: string; name: string } | null;
   lineType: string;
@@ -61,7 +62,7 @@ type BookingDetail = {
   transaction: {
     receiptNo: string;
     amount: number;
-    status: string;
+    paymentStatus: string;
     paymentModeName: string;
     transactionDate: string;
   } | null;
@@ -125,9 +126,9 @@ const COLUMNS: DataTableColumn<BookingListItem>[] = [
     render: (b) => <span className="font-medium tabular-nums text-amber-700">{b.orderNumber ?? "—"}</span>,
   },
   {
-    key: "bookingNumber",
+    key: "receiptNo",
     label: "Receipt No",
-    render: (b) => <span className="tabular-nums">{b.bookingNumber}</span>,
+    render: (b) => <span className="tabular-nums">{b.receiptNo ?? "—"}</span>,
   },
   { key: "customer", label: "Customer", render: (b) => b.customer?.name ?? "—" },
   { key: "lineType", label: "Type", render: (b) => <span className="text-ink-500">{b.lineType}</span> },
@@ -153,8 +154,9 @@ const DEFAULT_PAGE_SIZE = 10;
  * Read-only ledger of every confirmed/cancelled booking (see
  * GET /pos/booking/bookings) — mirrors Inventory History's shape: search +
  * filters + pagination, no create/edit/delete of its own. "Portal" defaults
- * to unfiltered (shows both) since today every booking is staff-created via
- * POS Portal or Admin Booking (both "Admin") — the "Customer" option is
+ * to unfiltered (shows all three) — "Admin Panel" and "POS Counter" both
+ * happen today (stamped server-side from which route tree took the
+ * request, see controllers/pos/index.js's setPortal()); "Customer" is
  * forward-looking infrastructure for the Customer Portal's eventual
  * self-service booking flow.
  */

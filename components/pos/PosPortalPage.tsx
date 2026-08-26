@@ -151,6 +151,7 @@ type PaymentMode = { _id: string; name: string };
 type BookingConfirmation = {
   bookingNumber: string;
   orderNumber: string;
+  receiptNo: string;
   customer: Customer;
   lines: CartLine[];
   grandTotal: number;
@@ -1413,6 +1414,7 @@ function BookingSuccessView({ confirmation, onNewTransaction }: { confirmation: 
         <div className="my-6 space-y-2 rounded-xl border border-gold-500/15 bg-ivory-100 px-5 py-4 text-left text-[13px]">
           <Row label="Booking No." value={confirmation.bookingNumber} highlight />
           <Row label="Order No." value={confirmation.orderNumber} />
+          <Row label="Receipt No." value={confirmation.receiptNo} />
           <Row label="Customer" value={`${confirmation.customer.name} (${confirmation.customer.customerCode})`} />
           <Row label="Payment" value={`${confirmation.paymentModeName} — ${confirmation.paymentStatus}`} />
           <div className="border-t border-gold-500/10 pt-2">
