@@ -324,6 +324,23 @@ export default function PosPortalPage() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const summaryDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Signature of just the fields that actually change what the summary API
+  // should return. The effect below writes lineTotal/inventory/
+  // quantityExceedsStock back onto `cart` from the response — if the effect
+  // depended on `cart` directly, that write would produce a new array
+  // reference, re-trigger the effect, re-fetch, re-write, forever (this was
+  // a real bug: the Network tab showed /pos/booking/summary firing in an
+  // endless loop). Two renders with the same input fields produce the exact
+  // same string, and primitive strings compare by value, so the effect only
+  // re-runs when a line is actually added/removed/changed by the user.
+  const cartSignature = useMemo(
+    () =>
+      JSON.stringify(
+        cart.map((l) => ({ refType: l.refType, refId: l.refId, quantity: l.quantity, deities: l.deities, devotees: l.devotees }))
+      ),
+    [cart]
+  );
+
   useEffect(() => {
     if (summaryDebounce.current) clearTimeout(summaryDebounce.current);
     if (!selectedCustomer || cart.length === 0) {
@@ -362,7 +379,7 @@ export default function PosPortalPage() {
       if (summaryDebounce.current) clearTimeout(summaryDebounce.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart, selectedCustomer]);
+  }, [cartSignature, selectedCustomer]);
 
   // ── customer search ─────────────────────────────────────────────────────
   useEffect(() => {

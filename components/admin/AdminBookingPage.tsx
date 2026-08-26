@@ -25,7 +25,7 @@
  *    30 min by the backend cleanup job if the order is abandoned.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { api, unwrap, extractErrorMessage, type ApiEnvelope } from "../../lib/api";
 import { toast } from "../../lib/toastStore";
@@ -197,6 +197,21 @@ export default function AdminBookingPage() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const summaryDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Signature of just the fields that affect what the summary API returns.
+  // The effect below writes lineTotal/lineGst/inventory/quantityExceedsStock
+  // back onto `cart` from the response — if the effect depended on `cart`
+  // directly, that write would produce a new array reference, re-trigger the
+  // effect, re-fetch, re-write, forever. Two renders with the same input
+  // fields produce the same string, and strings compare by value, so the
+  // effect only re-runs when a line is actually added/removed/changed.
+  const cartSignature = useMemo(
+    () =>
+      JSON.stringify(
+        cart.map((l) => ({ refType: l.refType, refId: l.refId, quantity: l.quantity, deities: l.deities, devotees: l.devotees }))
+      ),
+    [cart]
+  );
+
   // ── booking flow ─────────────────────────────────────────────────────────────
   const [step, setStep] = useState<"cart" | "payment" | "done">("cart");
   const [bookingLoading, setBookingLoading] = useState(false);
@@ -351,7 +366,7 @@ export default function AdminBookingPage() {
       if (summaryDebounce.current) clearTimeout(summaryDebounce.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart, selectedCustomer]);
+  }, [cartSignature, selectedCustomer]);
 
   // ─── derived values for add-to-cart form ─────────────────────────────────
   const selectedItem = items.find((i) => i._id === selectedItemId) ?? null;
