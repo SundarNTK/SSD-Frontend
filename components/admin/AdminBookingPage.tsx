@@ -720,7 +720,16 @@ export default function AdminBookingPage() {
             )}
 
             {/* Deity multi-select (if applicable) */}
-            {needsDeity && currentRef && (
+            {needsDeity && currentRef && deityOptions.length === 0 && (
+              <div className="rounded-xl border border-crimson-500/30 bg-crimson-500/5 px-4 py-3">
+                <p className="text-[13px] font-medium text-crimson-500">Deity is not configured</p>
+                <p className="mt-1 text-[12px] text-crimson-500">
+                  This offering requires a deity selection, but no deities have been configured for it in the master. You
+                  can&rsquo;t proceed with booking until that&rsquo;s set up.
+                </p>
+              </div>
+            )}
+            {needsDeity && currentRef && deityOptions.length > 0 && (
               <DivineMultiSelect
                 label="Deities (Multi-Select)"
                 values={selectedDeities}
