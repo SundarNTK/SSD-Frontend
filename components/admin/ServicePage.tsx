@@ -20,7 +20,7 @@ import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
-import { useTamilAutoTranslate } from "../../lib/useTamilAutoTranslate";
+import TamilNameField from "./TamilNameField";
 
 type Ref = { _id: string; name: string };
 type GlRef = { _id: string; name: string; code: string };
@@ -155,7 +155,6 @@ export default function ServicePage() {
   const isInventoryRequired = watch("isInventoryRequired");
   const nameValue = watch("name");
   const tamilNameValue = watch("tamilName");
-  useTamilAutoTranslate(nameValue, tamilNameValue, (v) => setValue("tamilName", v, { shouldDirty: true }), drawerOpen);
 
   function openCreate() {
     setEditing(null);
@@ -307,7 +306,12 @@ export default function ServicePage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <DivineInput label="Service Code" error={errors.code?.message} {...register("code")} />
             <DivineInput label="Service Name" error={errors.name?.message} {...register("name")} />
-            <DivineInput label="Tamil Name" error={errors.tamilName?.message} {...register("tamilName")} />
+            <TamilNameField
+              englishName={nameValue}
+              value={tamilNameValue}
+              onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
+              error={errors.tamilName?.message}
+            />
           </div>
 
           <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />

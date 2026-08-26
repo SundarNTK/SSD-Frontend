@@ -67,9 +67,9 @@ export function UsersIcon() {
   );
 }
 
-export function TrashIcon() {
+export function TrashIcon({ className = "h-[16px] w-[16px]" }: { className?: string } = {}) {
   return (
-    <svg className="h-[16px] w-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M4 7h16M9.5 7V5a1.5 1.5 0 011.5-1.5h2A1.5 1.5 0 0114.5 5v2M6.5 7l.8 12a2 2 0 002 1.8h5.4a2 2 0 002-1.8l.8-12" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -84,9 +84,9 @@ export function SearchIcon() {
   );
 }
 
-export function PencilIcon() {
+export function PencilIcon({ className = "h-[16px] w-[16px]" }: { className?: string } = {}) {
   return (
-    <svg className="h-[16px] w-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M14.5 4.5l5 5L8 21H3v-5z" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M12.5 6.5l5 5" strokeLinecap="round" />
     </svg>

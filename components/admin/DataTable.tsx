@@ -209,10 +209,10 @@ export default function DataTable<T>({
 }
 
 /**
- * Vibrant, 3D-styled row-action buttons — used in place of plain "Edit" /
+ * Vibrant, icon-only row-action buttons — used in place of plain "Edit" /
  * "Delete" text links across every master's table (see rowActions on
- * DataTable). Same gradient + lift-on-hover language as the "Create" button
- * above, just circular and color-coded: blue for edit, red for delete.
+ * DataTable). No badge/background — just a bold, saturated glyph that lifts
+ * and deepens in color on hover: blue for edit, red for delete.
  */
 export function EditIconButton({ onClick, label = "Edit" }: { onClick: () => void; label?: string }) {
   return (
@@ -220,9 +220,9 @@ export function EditIconButton({ onClick, label = "Edit" }: { onClick: () => voi
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex h-8 w-8 items-center justify-center rounded-full border border-blue-700/20 bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600 text-white shadow-[0_3px_8px_-2px_rgba(37,99,235,0.55)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-5px_rgba(37,99,235,0.65)] active:translate-y-0 active:shadow-[0_3px_8px_-2px_rgba(37,99,235,0.55)]"
+      className="flex h-8 w-8 items-center justify-center text-blue-600 transition-transform duration-200 hover:scale-110 hover:text-blue-700 active:scale-95"
     >
-      <PencilIcon />
+      <PencilIcon className="h-[19px] w-[19px]" />
     </button>
   );
 }
@@ -233,9 +233,9 @@ export function DeleteIconButton({ onClick, label = "Delete" }: { onClick: () =>
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex h-8 w-8 items-center justify-center rounded-full border border-red-700/20 bg-gradient-to-b from-red-400 via-red-500 to-red-600 text-white shadow-[0_3px_8px_-2px_rgba(220,38,38,0.55)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-5px_rgba(220,38,38,0.65)] active:translate-y-0 active:shadow-[0_3px_8px_-2px_rgba(220,38,38,0.55)]"
+      className="flex h-8 w-8 items-center justify-center text-red-600 transition-transform duration-200 hover:scale-110 hover:text-red-700 active:scale-95"
     >
-      <TrashIcon />
+      <TrashIcon className="h-[19px] w-[19px]" />
     </button>
   );
 }
