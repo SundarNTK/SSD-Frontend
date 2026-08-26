@@ -271,23 +271,26 @@ export default function PosTransactionsPage() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
                 <p className="text-[11px] uppercase tracking-wide text-ink-500">Order No.</p>
-                <p className="mt-0.5 font-display text-[18px] font-bold tabular-nums tracking-wide text-amber-700">
+                <p className="mt-0.5 font-display text-[15px] font-bold tabular-nums text-amber-700">
                   {detail.orderId?.orderNumber ?? "—"}
                 </p>
               </div>
               <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
                 <p className="text-[11px] uppercase tracking-wide text-ink-500">Receipt No.</p>
-                <p className="mt-0.5 font-display text-[18px] font-bold tabular-nums tracking-wide text-amber-700">
+                <p className="mt-0.5 font-display text-[15px] font-bold tabular-nums text-amber-700">
                   {detail.transaction?.receiptNo ?? "—"}
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-xl border border-gold-500/15 bg-white px-4 py-3.5 sm:grid-cols-4">
-              <DetailRow label="Status" value={<BookingStatusPill status={detail.bookingStatus} />} />
-              <DetailRow label="Portal" value={<PortalPill portal={detail.portal} />} />
-              <DetailRow label="Date & Time" value={formatTempleDateTime(detail.bookedAt)} />
-              <DetailRow label="Booked By" value={detail.bookedBy?.name ?? "—"} />
+            <div className="rounded-xl border border-gold-500/15 bg-white px-4 py-3.5">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-600">Booking Details</p>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+                <DetailRow label="Status" value={<BookingStatusPill status={detail.bookingStatus} />} />
+                <DetailRow label="Portal" value={<PortalPill portal={detail.portal} />} />
+                <DetailRow label="Date & Time" value={formatTempleDateTime(detail.bookedAt)} />
+                <DetailRow label="Booked By" value={detail.bookedBy?.name ?? "—"} />
+              </div>
             </div>
 
             <div className="rounded-xl border border-gold-500/15 bg-white px-4 py-3.5">
