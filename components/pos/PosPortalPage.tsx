@@ -43,6 +43,8 @@ import {
   PlusIcon,
   LogoutIcon,
   ChevronIcon,
+  HistoryIcon,
+  PrinterIcon,
 } from "../divine/icons";
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -883,15 +885,15 @@ function PosShell({
         <div className="hidden items-center gap-2 md:flex">
           <button
             onClick={() => toast.error("Transaction History isn't built yet.")}
-            className="rounded-lg px-3 py-2 text-[12.5px] font-medium text-ink-300 hover:bg-ivory-100"
+            className="flex items-center gap-1.5 rounded-lg border border-gold-500/25 px-3 py-2 text-[12.5px] font-medium text-ink-300 hover:border-gold-400/60 hover:bg-ivory-100"
           >
-            Transaction History
+            <HistoryIcon /> Transaction History
           </button>
           <button
             onClick={() => toast.error("Reprint isn't built yet.")}
-            className="rounded-lg px-3 py-2 text-[12.5px] font-medium text-ink-300 hover:bg-ivory-100"
+            className="flex items-center gap-1.5 rounded-lg border border-gold-500/25 px-3 py-2 text-[12.5px] font-medium text-ink-300 hover:border-gold-400/60 hover:bg-ivory-100"
           >
-            Reprint
+            <PrinterIcon /> Reprint
           </button>
         </div>
 

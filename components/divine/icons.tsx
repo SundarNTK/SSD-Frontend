@@ -166,6 +166,26 @@ export function PlusIcon() {
   );
 }
 
+export function HistoryIcon() {
+  return (
+    <svg className="h-[17px] w-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M12 7v5.5l3.5 2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4.5 9.5A8 8 0 1112 20" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 5.5v4h4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function PrinterIcon() {
+  return (
+    <svg className="h-[17px] w-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M6.5 9V4.5h11V9" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6.5 18h-2A1.5 1.5 0 013 16.5v-5A1.5 1.5 0 014.5 10h15a1.5 1.5 0 011.5 1.5v5a1.5 1.5 0 01-1.5 1.5h-2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6.5 14h11v5.5h-11V14z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function ChevronIcon({ className = "" }: { className?: string }) {
   return (
     <svg className={`h-4 w-4 ${className}`} viewBox="0 0 20 20" fill="currentColor">
