@@ -1801,7 +1801,7 @@ function RecentBookingModal({
           <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
             <div>
               <p className="text-[11px] uppercase tracking-wide text-ink-500">Order No.</p>
-              <h2 className="font-display text-[15px] font-bold tabular-nums text-amber-700">
+              <h2 className="text-[15px] font-bold tabular-nums text-ink-100">
                 {booking.orderNumber ?? booking.bookingNumber}
               </h2>
               <p className="mt-0.5 text-[12.5px] text-ink-500">{formatTempleDateTime(booking.bookedAt)}</p>
