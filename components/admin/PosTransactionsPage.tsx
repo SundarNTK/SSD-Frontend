@@ -266,7 +266,7 @@ export default function PosTransactionsPage() {
         {detailLoading && <p className="py-8 text-center text-[13px] text-ink-500">Loading…</p>}
 
         {!detailLoading && detail && (
-          <div className="space-y-6 text-[13.5px]">
+          <div className="space-y-5 text-[13.5px]">
             {/* ── Receipt masthead: Order No. / Receipt No. get real weight ── */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
@@ -290,7 +290,7 @@ export default function PosTransactionsPage() {
               <DetailRow label="Booked By" value={detail.bookedBy?.name ?? "—"} />
             </div>
 
-            <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3.5">
+            <div className="rounded-xl border border-gold-500/15 bg-white px-4 py-3.5">
               <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-600">Customer</p>
               <p className="font-medium text-ink-100">{detail.customer?.name ?? "—"}</p>
               <p className="mt-0.5 text-[12px] text-ink-500">
@@ -329,23 +329,27 @@ export default function PosTransactionsPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3.5">
+            <div className="rounded-xl border border-gold-500/15 bg-white px-4 py-3.5">
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-600">Payment</p>
-              <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-                <DetailRow label="Payment Mode" value={detail.paymentModeName} />
-                <DetailRow label="Payment Status" value={detail.paymentStatus === "paid" ? "Paid" : "Pending"} />
-              </div>
-              <div className="mt-2.5 space-y-1 border-t border-gold-500/10 pt-2.5">
-                <div className="flex justify-between text-ink-500">
-                  <span>Sub Total</span>
-                  <span>{formatCurrency(detail.subtotal)}</span>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-ink-500">Payment Mode</span>
+                  <span className="font-medium text-ink-100">{detail.paymentModeName}</span>
                 </div>
-                <div className="flex justify-between text-ink-500">
-                  <span>GST</span>
-                  <span>{formatCurrency(detail.gstAmount)}</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-ink-500">Payment Status</span>
+                  <span className="font-medium text-ink-100">{detail.paymentStatus === "paid" ? "Paid" : "Pending"}</span>
                 </div>
-                <div className="flex justify-between border-t border-gold-500/10 pt-1.5 text-[15px] font-bold text-ink-100">
-                  <span>Grand Total</span>
+                <div className="flex items-center justify-between border-t border-gold-500/10 pt-1.5">
+                  <span className="text-ink-500">Sub Total</span>
+                  <span className="text-ink-100">{formatCurrency(detail.subtotal)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-ink-500">GST</span>
+                  <span className="text-ink-100">{formatCurrency(detail.gstAmount)}</span>
+                </div>
+                <div className="flex items-center justify-between border-t border-gold-500/10 pt-1.5 text-[15px] font-bold">
+                  <span className="text-ink-100">Grand Total</span>
                   <span className="text-amber-600">{formatCurrency(detail.grandTotal)}</span>
                 </div>
               </div>
