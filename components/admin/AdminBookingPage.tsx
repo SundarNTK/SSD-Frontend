@@ -14,7 +14,7 @@
  *  4. "Proceed to Payment" shows only Cash (as requested)
  *  5. On "Confirm Booking":
  *       a. POST /pos/booking/orders        → creates order + reserves inventory
- *       b. POST /pos/booking/orders/:id/confirm → creates booking, stock-out
+ *       b. POST /pos/admin/booking/orders/:id/confirm → creates booking, stock-out
  *  6. Success state shows booking number + summary
  *
  * Inventory hold:
@@ -220,7 +220,7 @@ export default function AdminBookingPage() {
   // ─── load payment modes once ─────────────────────────────────────────────
   useEffect(() => {
     api
-      .get<ApiEnvelope<{ items: PaymentMode[] }>>("/pos/booking/payment-modes")
+      .get<ApiEnvelope<{ items: PaymentMode[] }>>("/pos/admin/booking/payment-modes")
       .then((r) => {
         const modes = unwrap(r).items;
         setPaymentModes(modes);
@@ -238,7 +238,7 @@ export default function AdminBookingPage() {
   const [nakshatraOptions, setNakshatraOptions] = useState<ListboxOption[]>([]);
   useEffect(() => {
     api
-      .get<ApiEnvelope<{ items: { _id: string; name: string }[] }>>("/pos/booking/nakshathirams")
+      .get<ApiEnvelope<{ items: { _id: string; name: string }[] }>>("/pos/admin/booking/nakshathirams")
       .then((r) => setNakshatraOptions(unwrap(r).items.map((n) => ({ value: n.name, label: n.name }))))
       .catch(() => {});
   }, []);
@@ -248,12 +248,12 @@ export default function AdminBookingPage() {
     setCatalogueLoading(true);
     try {
       if (refType === "Item") {
-        const r = await api.get<ApiEnvelope<{ items: PosItem[] }>>("/pos/booking/items", {
+        const r = await api.get<ApiEnvelope<{ items: PosItem[] }>>("/pos/admin/booking/items", {
           params: { search: itemSearch || undefined, pageSize: 100 },
         });
         setItems(unwrap(r).items);
       } else {
-        const r = await api.get<ApiEnvelope<{ items: PosService[] }>>("/pos/booking/services", {
+        const r = await api.get<ApiEnvelope<{ items: PosService[] }>>("/pos/admin/booking/services", {
           params: { search: itemSearch || undefined, pageSize: 100 },
         });
         setServices(unwrap(r).items);
@@ -288,7 +288,7 @@ export default function AdminBookingPage() {
     const t = setTimeout(async () => {
       setCustomerSearching(true);
       try {
-        const r = await api.get<ApiEnvelope<{ items: Customer[] }>>("/pos/booking/customers/search", {
+        const r = await api.get<ApiEnvelope<{ items: Customer[] }>>("/pos/admin/booking/customers/search", {
           params: { query: customerQuery.trim() },
         });
         setCustomerResults(unwrap(r).items);
@@ -328,7 +328,7 @@ export default function AdminBookingPage() {
     summaryDebounce.current = setTimeout(async () => {
       setSummaryLoading(true);
       try {
-        const r = await api.post<ApiEnvelope<SummaryResponse>>("/pos/booking/summary", {
+        const r = await api.post<ApiEnvelope<SummaryResponse>>("/pos/admin/booking/summary", {
           customerId: selectedCustomer._id,
           lines: cart.map((l) => ({
             refType: l.refType,
@@ -512,8 +512,9 @@ export default function AdminBookingPage() {
 
     setBookingLoading(true);
     try {
-      // Step 1: create order
-      const orderRes = await api.post<ApiEnvelope<{ _id: string; orderNumber: string }>>("/pos/booking/orders", {
+      // Step 1: create order — routed through /admin/booking so the backend
+      // stamps portal = "admin" via the setPortal("admin") middleware.
+      const orderRes = await api.post<ApiEnvelope<{ _id: string; orderNumber: string }>>("/pos/admin/booking/orders", {
         customerId: selectedCustomer._id,
         lines: cart.map((l) => ({
           refType: l.refType,
@@ -526,9 +527,10 @@ export default function AdminBookingPage() {
       });
       const order = unwrap(orderRes);
 
-      // Step 2: immediately confirm (Cash payment)
+      // Step 2: immediately confirm (Cash payment). Confirm also goes through
+      // the /admin/booking path so portal stays "admin" on the Booking too.
       const confirmRes = await api.post<ApiEnvelope<BookingConfirmation>>(
-        `/pos/booking/orders/${order._id}/confirm`,
+        `/pos/admin/booking/orders/${order._id}/confirm`,
         {}
       );
       const booking = unwrap(confirmRes);
