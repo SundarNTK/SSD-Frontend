@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -204,17 +204,9 @@ export default function GeneralLedgerPage() {
         createLabel="Add GL Account"
         emptyMessage="No GL accounts yet — create the first one."
         rowActions={(g) => (
-          <div className="flex justify-end gap-3">
-            {canEdit && (
-              <button onClick={() => openEdit(g)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
-                Edit
-              </button>
-            )}
-            {canCreate && (
-              <button onClick={() => setDeleting(g)} className="text-[12.5px] text-crimson-500 hover:underline">
-                Delete
-              </button>
-            )}
+          <div className="flex justify-end gap-2">
+            {canEdit && <EditIconButton onClick={() => openEdit(g)} />}
+            {canCreate && <DeleteIconButton onClick={() => setDeleting(g)} />}
           </div>
         )}
       />
@@ -259,69 +251,75 @@ export default function GeneralLedgerPage() {
         }
       >
         <form id="gl-form" onSubmit={submit} noValidate className="space-y-5">
-          <DivineInput label="Name" error={errors.name?.message} {...register("name")} />
-          <DivineInput label="Code" error={errors.code?.message} {...register("code")} />
-          <Controller
-            control={control}
-            name="gstType"
-            render={({ field }) => (
-              <DivineListbox
-                label="GST Type"
-                value={field.value}
-                onChange={field.onChange}
-                options={gstOptions}
-                placeholder="Select GST type"
-                error={errors.gstType?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="groupLevel1"
-            render={({ field }) => (
-              <DivineListbox
-                label="GL Group — Level 1"
-                value={field.value}
-                onChange={(v) => {
-                  field.onChange(v);
-                  setValue("groupLevel2", "");
-                  setValue("groupLevel3", "");
-                }}
-                options={level1Options}
-                placeholder="Select Level 1"
-                error={errors.groupLevel1?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="groupLevel2"
-            render={({ field }) => (
-              <DivineListbox
-                label="GL Group — Level 2 (optional)"
-                value={field.value}
-                onChange={(v) => {
-                  field.onChange(v);
-                  setValue("groupLevel3", "");
-                }}
-                options={level2Options}
-                placeholder={selectedLevel1 ? "Select Level 2" : "Select Level 1 first"}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="groupLevel3"
-            render={({ field }) => (
-              <DivineListbox
-                label="GL Group — Level 3 (optional)"
-                value={field.value}
-                onChange={field.onChange}
-                options={level3Options}
-                placeholder={selectedLevel2 ? "Select Level 3" : "Select Level 2 first"}
-              />
-            )}
-          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DivineInput label="Name" error={errors.name?.message} {...register("name")} />
+            <DivineInput label="Code" error={errors.code?.message} {...register("code")} />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Controller
+              control={control}
+              name="gstType"
+              render={({ field }) => (
+                <DivineListbox
+                  label="GST Type"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={gstOptions}
+                  placeholder="Select GST type"
+                  error={errors.gstType?.message}
+                />
+              )}
+            />
+            <Controller
+              control={control}
+              name="groupLevel1"
+              render={({ field }) => (
+                <DivineListbox
+                  label="GL Group — Level 1"
+                  value={field.value}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    setValue("groupLevel2", "");
+                    setValue("groupLevel3", "");
+                  }}
+                  options={level1Options}
+                  placeholder="Select Level 1"
+                  error={errors.groupLevel1?.message}
+                />
+              )}
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Controller
+              control={control}
+              name="groupLevel2"
+              render={({ field }) => (
+                <DivineListbox
+                  label="GL Group — Level 2 (optional)"
+                  value={field.value}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    setValue("groupLevel3", "");
+                  }}
+                  options={level2Options}
+                  placeholder={selectedLevel1 ? "Select Level 2" : "Select Level 1 first"}
+                />
+              )}
+            />
+            <Controller
+              control={control}
+              name="groupLevel3"
+              render={({ field }) => (
+                <DivineListbox
+                  label="GL Group — Level 3 (optional)"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={level3Options}
+                  placeholder={selectedLevel2 ? "Select Level 3" : "Select Level 2 first"}
+                />
+              )}
+            />
+          </div>
           <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
           <Controller
             control={control}

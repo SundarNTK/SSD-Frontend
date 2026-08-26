@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -287,17 +287,9 @@ export default function EventPage() {
         createLabel="Add Event"
         emptyMessage="No events yet — create the first one."
         rowActions={(e) => (
-          <div className="flex justify-end gap-3">
-            {canEdit && (
-              <button onClick={() => openEdit(e)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
-                Edit
-              </button>
-            )}
-            {canCreate && (
-              <button onClick={() => setDeleting(e)} className="text-[12.5px] text-crimson-500 hover:underline">
-                Delete
-              </button>
-            )}
+          <div className="flex justify-end gap-2">
+            {canEdit && <EditIconButton onClick={() => openEdit(e)} />}
+            {canCreate && <DeleteIconButton onClick={() => setDeleting(e)} />}
           </div>
         )}
       />
@@ -330,7 +322,7 @@ export default function EventPage() {
         title={editing ? "Edit Event" : "Add Event"}
         subtitle={editing ? `${editing.name} · ${editing.code}` : "Define a new temple event."}
         error={create.error || update.error}
-        maxWidthClassName="max-w-2xl"
+        maxWidthClassName="max-w-3xl"
         footer={
           <div className="flex justify-end gap-3">
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>

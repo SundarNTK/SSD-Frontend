@@ -934,8 +934,12 @@ export default function PosPortalPage() {
               <CartIcon /> Cart <span className="rounded-full bg-gold-500/15 px-2 py-0.5 text-[11px] text-amber-700">{cart.length}</span>
             </p>
             {cart.length > 0 && (
-              <button onClick={clearCart} className="text-[12px] text-ink-500 hover:text-crimson-400">
-                Clear Cart
+              <button
+                onClick={clearCart}
+                aria-label="Clear cart"
+                className="flex items-center gap-1.5 rounded-full border border-red-700/20 bg-gradient-to-b from-red-400 via-red-500 to-red-600 px-3 py-1.5 text-[11.5px] font-semibold text-white shadow-[0_2px_6px_-1px_rgba(220,38,38,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_16px_-4px_rgba(220,38,38,0.6)] active:translate-y-0"
+              >
+                <TrashIcon /> Clear Cart
               </button>
             )}
           </div>
@@ -1268,7 +1272,11 @@ function CartLineRow({ line, onRemove }: { line: CartLine; onRemove: () => void 
           <span className="whitespace-nowrap text-[13px] font-semibold text-amber-600">
             {formatCurrency(line.lineTotal ?? line.unitPrice * line.quantity)}
           </span>
-          <button onClick={onRemove} aria-label={`Remove ${line.name}`} className="text-ink-500 hover:text-crimson-500">
+          <button
+            onClick={onRemove}
+            aria-label={`Remove ${line.name}`}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-red-700/20 bg-gradient-to-b from-red-400 via-red-500 to-red-600 text-white shadow-[0_2px_5px_-1px_rgba(220,38,38,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_14px_-3px_rgba(220,38,38,0.6)] active:translate-y-0"
+          >
             <TrashIcon />
           </button>
         </div>

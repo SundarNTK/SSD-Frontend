@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineInput from "../divine/DivineInput";
 import DivineListbox from "../divine/DivineListbox";
@@ -186,9 +186,9 @@ export default function CustomersPage() {
         emptyMessage="No devotee profiles yet."
         rowActions={(c) =>
           canEdit ? (
-            <button onClick={() => openEdit(c)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
-              Edit
-            </button>
+            <div className="flex justify-end">
+              <EditIconButton onClick={() => openEdit(c)} />
+            </div>
           ) : null
         }
       />
@@ -211,35 +211,41 @@ export default function CustomersPage() {
         }
       >
         <form id="customer-form" onSubmit={submit} noValidate className="space-y-5">
-          <DivineInput label="Full name" icon={<UserIcon />} error={errors.name?.message} {...register("name")} />
-          <DivineInput label="Email address" type="email" icon={<MailIcon />} error={errors.email?.message} {...register("email")} />
-          <DivineInput label="Mobile number" icon={<PhoneIcon />} error={errors.mobileNumber?.message} {...register("mobileNumber")} />
-          <Controller
-            control={control}
-            name="dateOfBirth"
-            render={({ field }) => (
-              <DivineDatePicker
-                label="Date of birth"
-                value={field.value ?? ""}
-                onChange={field.onChange}
-                placeholder="Not recorded"
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="gender"
-            render={({ field }) => (
-              <DivineListbox label="Gender" value={field.value ?? ""} onChange={field.onChange} options={GENDER_OPTIONS} />
-            )}
-          />
-          <Controller
-            control={control}
-            name="status"
-            render={({ field }) => (
-              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
-            )}
-          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DivineInput label="Full name" icon={<UserIcon />} error={errors.name?.message} {...register("name")} />
+            <DivineInput label="Email address" type="email" icon={<MailIcon />} error={errors.email?.message} {...register("email")} />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DivineInput label="Mobile number" icon={<PhoneIcon />} error={errors.mobileNumber?.message} {...register("mobileNumber")} />
+            <Controller
+              control={control}
+              name="dateOfBirth"
+              render={({ field }) => (
+                <DivineDatePicker
+                  label="Date of birth"
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  placeholder="Not recorded"
+                />
+              )}
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Controller
+              control={control}
+              name="gender"
+              render={({ field }) => (
+                <DivineListbox label="Gender" value={field.value ?? ""} onChange={field.onChange} options={GENDER_OPTIONS} />
+              )}
+            />
+            <Controller
+              control={control}
+              name="status"
+              render={({ field }) => (
+                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+              )}
+            />
+          </div>
 
           {editing && editing.familyMembers.length > 0 && (
             <div>

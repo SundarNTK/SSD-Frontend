@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
@@ -241,9 +241,9 @@ export default function GlGroupPage() {
         emptyMessage={`No Level ${activeLevel} groups yet.`}
         rowActions={(g) =>
           canEdit ? (
-            <button onClick={() => openEdit(g)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
-              Edit
-            </button>
+            <div className="flex justify-end">
+              <EditIconButton onClick={() => openEdit(g)} />
+            </div>
           ) : null
         }
       />
