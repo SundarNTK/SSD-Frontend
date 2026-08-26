@@ -23,7 +23,7 @@
  * can never disagree.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { api, unwrap, extractErrorMessage, type ApiEnvelope } from "../../lib/api";
 import { toast } from "../../lib/toastStore";
@@ -789,7 +789,8 @@ export default function PosPortalPage() {
     <PosShell user={user} onNewTransaction={startNewTransaction}>
       <div className="relative z-10 grid grid-cols-1 gap-4 p-4 lg:h-full lg:grid-cols-[260px_1fr_360px]">
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-white/60 bg-white/55 p-4 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-xl backdrop-saturate-150 lg:h-full lg:overflow-y-auto">
+        <div className="relative flex flex-col gap-3 rounded-2xl border border-white/60 bg-white/40 p-4 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-2xl backdrop-saturate-150 lg:h-full lg:overflow-y-auto">
+          <TempleIllustration />
           <p className="font-display text-[15px] font-bold text-ink-100">Customer</p>
           <div className={`relative rounded-xl transition-shadow duration-300 ${needsCustomerForCart ? "shadow-[0_0_0_3px_rgba(220,38,38,0.25)]" : ""}`}>
             <AnimatePresence>
@@ -939,7 +940,7 @@ export default function PosPortalPage() {
                 }}
                 className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium transition-[transform,box-shadow,background-color,color] duration-200 hover:-translate-y-0.5 ${
                   !selectedCategoryId
-                    ? "border-transparent bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-400 text-white shadow-[0_8px_18px_-8px_rgba(255,122,46,0.55)]"
+                    ? "border-transparent bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145] text-white shadow-[0_8px_18px_-8px_rgba(255,122,46,0.55)]"
                     : "border-white/70 bg-white/40 text-ink-300 hover:bg-white/75 hover:shadow-[0_8px_18px_-10px_rgba(255,122,46,0.4)]"
                 }`}
               >
@@ -954,7 +955,7 @@ export default function PosPortalPage() {
                   }}
                   className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium transition-[transform,box-shadow,background-color,color] duration-200 hover:-translate-y-0.5 ${
                     selectedCategoryId === c._id
-                      ? "border-transparent bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-400 text-white shadow-[0_8px_18px_-8px_rgba(255,122,46,0.55)]"
+                      ? "border-transparent bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145] text-white shadow-[0_8px_18px_-8px_rgba(255,122,46,0.55)]"
                       : "border-white/70 bg-white/40 text-ink-300 hover:bg-white/75 hover:shadow-[0_8px_18px_-10px_rgba(255,122,46,0.4)]"
                   }`}
                 >
@@ -1028,14 +1029,20 @@ export default function PosPortalPage() {
                   <button
                     key={`${f.categoryId}::${f.subCategoryId}`}
                     onClick={() => openFolder(f)}
-                    className="group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/60 bg-white/55 p-4 text-center backdrop-blur-md transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.02] hover:border-flame-500/50 hover:shadow-[0_20px_40px_-16px_rgba(255,122,46,0.55)]"
+                    className="group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/60 bg-gradient-to-br from-white/75 via-rose-50/55 to-orange-50/55 p-4 text-center backdrop-blur-xl transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:border-flame-500/50 hover:shadow-[0_22px_44px_-16px_rgba(255,122,46,0.55)]"
                   >
                     <span
                       aria-hidden="true"
-                      className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/60 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
+                      className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
                     />
-                    <span className="flex h-16 w-full items-center justify-center rounded-xl bg-gradient-to-br from-crimson-600 via-flame-500 to-gold-400 shadow-[0_8px_18px_-8px_rgba(255,122,46,0.55)]">
-                      <FolderIcon large white />
+                    <span className="relative flex h-16 w-16 items-center justify-center">
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-0 rounded-full bg-gradient-to-br from-crimson-500 via-flame-500 to-[#FFC145] opacity-40 blur-md transition-opacity duration-300 group-hover:opacity-70"
+                      />
+                      <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-crimson-600 via-flame-500 to-[#FFC145] shadow-[0_8px_18px_-6px_rgba(255,122,46,0.6)]">
+                        <FolderIcon white />
+                      </span>
                     </span>
                     <span className="text-[13px] font-medium text-ink-100">{f.subCategoryName}</span>
                     <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10.5px] font-semibold text-amber-700">
@@ -1062,7 +1069,7 @@ export default function PosPortalPage() {
         <div className="flex flex-col overflow-hidden rounded-2xl border border-white/60 bg-white/55 p-4 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-xl backdrop-saturate-150 lg:h-full">
           <div className="mb-3 flex items-center justify-between">
             <p className="flex items-center gap-2 font-display text-[15px] font-bold text-ink-100">
-              <CartIcon /> Cart <span className="rounded-full bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-400 px-2 py-0.5 text-[11px] font-semibold text-white">{cart.length}</span>
+              <CartIcon /> Cart <span className="rounded-full bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145] px-2 py-0.5 text-[11px] font-semibold text-white">{cart.length}</span>
             </p>
             {cart.length > 0 && (
               <button
@@ -1077,7 +1084,8 @@ export default function PosPortalPage() {
 
           <div className="lg:flex-1 lg:overflow-y-auto">
             {cart.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center gap-2 py-10 text-center">
+              <div className="relative flex h-full flex-col items-center justify-center gap-2 py-10 text-center">
+                <TempleIllustration className="inset-4 max-w-[160px] opacity-[0.14]" />
                 <CartIcon />
                 <p className="text-[13px] font-medium text-ink-300">No items or services added</p>
                 <p className="text-[11.5px] text-ink-500">Select an offering to begin the transaction.</p>
@@ -1098,7 +1106,7 @@ export default function PosPortalPage() {
             </div>
             <div className="flex justify-between border-t border-white/50 pt-2 font-bold text-ink-100">
               <span>Total Payable (S$)</span>
-              <span className="bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-600 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FF8C1A] bg-clip-text text-transparent">
                 {formatCurrency(summary?.grandTotal ?? 0)}
               </span>
             </div>
@@ -1218,7 +1226,8 @@ function PosShell({
 
   return (
     <div className="pos-flame-canvas relative flex h-screen w-full flex-col overflow-hidden">
-      <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/60 bg-white/55 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.18)] backdrop-blur-xl backdrop-saturate-150 sm:px-6 sm:py-3">
+      <div aria-hidden="true" className="h-1.5 shrink-0 bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145]" />
+      <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/60 bg-white/45 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.22)] backdrop-blur-2xl backdrop-saturate-150 sm:px-6 sm:py-3">
         <div className="flex min-w-0 items-center">
           <img
             src="/SSD_Full_Logo.png"
@@ -1245,7 +1254,7 @@ function PosShell({
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <button
             onClick={onNewTransaction}
-            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-400 bg-[length:200%_200%] bg-left px-2.5 py-2 text-[12.5px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(255,122,46,0.55)] transition-[transform,box-shadow,background-position] duration-300 hover:-translate-y-0.5 hover:bg-right hover:shadow-[0_14px_30px_-8px_rgba(255,122,46,0.7)] sm:px-3"
+            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145] bg-[length:200%_200%] bg-left px-2.5 py-2 text-[12.5px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(255,122,46,0.55)] transition-[transform,box-shadow,background-position] duration-300 hover:-translate-y-0.5 hover:bg-right hover:shadow-[0_14px_30px_-8px_rgba(255,122,46,0.7)] sm:px-3"
           >
             <PlusIcon /> <span className="hidden sm:inline">New Transaction</span>
           </button>
@@ -1254,7 +1263,7 @@ function PosShell({
           </div>
           <div className="relative">
             <button onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-white/60">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-crimson-600 via-flame-500 to-gold-400 text-[12px] font-semibold text-white shadow-[0_4px_12px_-4px_rgba(255,122,46,0.6)]">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-crimson-600 via-flame-500 to-[#FFC145] text-[12px] font-semibold text-white shadow-[0_4px_12px_-4px_rgba(255,122,46,0.6)]">
                 {user ? initials(user.name) : "?"}
               </span>
               <span className="hidden text-left lg:block">
@@ -1290,6 +1299,43 @@ function PosShell({
 }
 
 // ─── sub-components ───────────────────────────────────────────────────────────
+
+/**
+ * A faint gopuram silhouette anchored to the bottom of a glass panel —
+ * decorative only (aria-hidden, pointer-events-none), sitting on a negative
+ * z-index so it paints behind the panel's real content instead of on top of
+ * it. `useId()` keeps the gradient's id collision-free across the two
+ * places this renders (Customer panel, empty cart).
+ */
+function TempleIllustration({ className = "inset-x-0 bottom-0 max-w-[220px] opacity-[0.16]" }: { className?: string }) {
+  const gradId = `temple-illustration-grad-${useId()}`;
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 220 260"
+      className={`pointer-events-none absolute -z-10 mx-auto h-auto w-full ${className}`}
+      fill="none"
+    >
+      <path d="M110 20 L150 60 H70 Z" fill={`url(#${gradId})`} />
+      <rect x="85" y="60" width="50" height="18" fill={`url(#${gradId})`} />
+      <path d="M110 78 L165 118 H55 Z" fill={`url(#${gradId})`} />
+      <rect x="65" y="118" width="90" height="20" fill={`url(#${gradId})`} />
+      <path d="M110 138 L200 210 H20 Z" fill={`url(#${gradId})`} />
+      <rect x="30" y="210" width="160" height="40" rx="4" fill={`url(#${gradId})`} />
+      <circle cx="40" cy="232" r="6" fill="#FF7A2E" />
+      <circle cx="180" cy="236" r="5" fill="#E11D2E" />
+      <circle cx="60" cy="246" r="4" fill="#FFC145" />
+      <circle cx="160" cy="248" r="4" fill="#FF7A2E" />
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="220" y2="260" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#E11D2E" />
+          <stop offset="0.5" stopColor="#FF7A2E" />
+          <stop offset="1" stopColor="#FFC145" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
 
 function FolderIcon({ large, white }: { large?: boolean; white?: boolean }) {
   const size = large ? "h-8 w-8" : "h-4 w-4";
@@ -1352,20 +1398,26 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
     <button
       onClick={() => onPick(offering)}
       disabled={outOfStock}
-      className="group relative flex flex-col items-start gap-2 overflow-hidden rounded-2xl border border-white/60 bg-white/55 p-4 text-left backdrop-blur-md transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.02] hover:border-flame-500/50 hover:shadow-[0_20px_40px_-16px_rgba(255,122,46,0.55)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none"
+      className="group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/60 bg-gradient-to-br from-white/75 via-rose-50/55 to-orange-50/55 p-4 text-center backdrop-blur-xl transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:border-flame-500/50 hover:shadow-[0_22px_44px_-16px_rgba(255,122,46,0.55)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none"
     >
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/60 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
+        className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
       />
-      <span className="flex h-16 w-full items-center justify-center rounded-xl bg-gradient-to-br from-crimson-600 via-flame-500 to-gold-400 text-white shadow-[0_8px_18px_-8px_rgba(255,122,46,0.55)]">
-        {offering.refType === "Service" ? <SparkleIcon white /> : <BoxGlyph white />}
+      <span className="relative flex h-16 w-16 items-center justify-center">
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full bg-gradient-to-br from-crimson-500 via-flame-500 to-[#FFC145] opacity-40 blur-md transition-opacity duration-300 group-hover:opacity-70"
+        />
+        <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-crimson-600 via-flame-500 to-[#FFC145] text-white shadow-[0_8px_18px_-6px_rgba(255,122,46,0.6)]">
+          {offering.refType === "Service" ? <SparkleIcon white /> : <BoxGlyph white />}
+        </span>
       </span>
       <div>
         <p className="text-[13px] font-medium text-ink-100">{offering.name}</p>
         {offering.tamilName && <p className="text-[11.5px] text-ink-500">{offering.tamilName}</p>}
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap justify-center gap-1.5">
         <span
           className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${
             offering.refType === "Service" ? "bg-gold-500/15 text-amber-700" : "bg-white/70 text-ink-500"
@@ -1384,7 +1436,7 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
           </span>
         )}
       </div>
-      <p className="bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-600 bg-clip-text font-semibold text-transparent">
+      <p className="bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FF8C1A] bg-clip-text font-semibold text-transparent">
         {formatCurrency(offering.salePrice)}
       </p>
     </button>
@@ -1406,7 +1458,7 @@ function CartLineRow({ line, onEdit, onRemove }: { line: CartLine; onEdit: () =>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="whitespace-nowrap bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-600 bg-clip-text text-[13px] font-semibold text-transparent">
+          <span className="whitespace-nowrap bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FF8C1A] bg-clip-text text-[13px] font-semibold text-transparent">
             {formatCurrency(line.lineTotal ?? line.unitPrice * line.quantity)}
           </span>
           {line.offering && (
