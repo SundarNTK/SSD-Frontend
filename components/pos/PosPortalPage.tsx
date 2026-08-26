@@ -52,10 +52,14 @@ import {
   HomeIcon,
 } from "../divine/icons";
 
-// Shared by every search field on the counter screen (Customer, Offerings) —
-// a themed border/shadow at rest, with its own distinct hover state, on top
-// of DivineInput's existing gold focus glow.
-const SEARCH_FIELD_ACCENT =
+// Shared by every text/select/date field on the counter screen — search
+// bars, and every field inside a popup form — a themed border/shadow at
+// rest, with its own distinct hover state, on top of each field's existing
+// gold focus glow. A ring rather than a border override: stacking another
+// border-* utility on top of these components' own conditional border-*
+// classes would leave the winner up to Tailwind's generation order rather
+// than source order (same CSS property, same specificity).
+const FIELD_ACCENT =
   "ring-1 ring-orange-200/70 shadow-[0_4px_16px_-8px_rgba(255,122,46,0.35)] hover:ring-orange-400/80 hover:shadow-[0_6px_22px_-6px_rgba(255,122,46,0.5)]";
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -858,7 +862,7 @@ export default function PosPortalPage() {
                 if (selectedCustomer) clearCustomer();
               }}
               disabled={!!selectedCustomer}
-              containerClassName={SEARCH_FIELD_ACCENT}
+              containerClassName={FIELD_ACCENT}
             />
             <AnimatePresence>
               {customerResults.length > 0 && !selectedCustomer && (
@@ -936,7 +940,7 @@ export default function PosPortalPage() {
               icon={<SearchIcon />}
               value={offeringSearch}
               onChange={(e) => setOfferingSearch(e.target.value)}
-              containerClassName={SEARCH_FIELD_ACCENT}
+              containerClassName={FIELD_ACCENT}
             />
             <div className="flex flex-wrap gap-2">
               <button
@@ -1531,6 +1535,16 @@ function PriceTagRowIcon({ className = "" }: { className?: string }) {
   );
 }
 
+function CashIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={`h-5 w-5 ${className}`} fill="none" stroke="currentColor" strokeWidth="1.6">
+      <rect x="2.5" y="6" width="19" height="12" rx="2" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M5.5 9v0M18.5 15v0" strokeLinecap="round" strokeWidth="2.2" />
+    </svg>
+  );
+}
+
 type CatalogueCardTheme = {
   banner: string;
   border: string;
@@ -1822,7 +1836,7 @@ function AddToCartModal({
           initial={{ opacity: 0, y: 16, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.97 }}
-          className="pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/60 bg-white/85 shadow-[0_30px_80px_-20px_rgba(179,39,63,0.35)] backdrop-blur-xl backdrop-saturate-150"
+          className="pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/60 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.35)]"
         >
           <div aria-hidden="true" className="h-1.5 shrink-0 bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145]" />
           <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
@@ -1900,6 +1914,7 @@ function AddToCartModal({
                   min={1}
                   value={String(quantity)}
                   onChange={(e) => onQuantityChange(Math.max(1, Number(e.target.value) || 1))}
+                  containerClassName={FIELD_ACCENT}
                 />
               </div>
             )}
@@ -1928,8 +1943,10 @@ function AddToCartModal({
                       }}
                       list={devoteeNameSuggestions && devoteeNameSuggestions.length > 0 ? "devotee-name-suggestions" : undefined}
                       autoComplete="off"
+                      containerClassName={FIELD_ACCENT}
                     />
                     <DivineListbox
+                      label="Nakshatra"
                       value={devotee.nakshatra}
                       onChange={(v) => {
                         const updated = [...devotees];
@@ -1938,6 +1955,7 @@ function AddToCartModal({
                       }}
                       options={nakshatraOptions}
                       placeholder="Nakshatra"
+                      containerClassName={FIELD_ACCENT}
                     />
                     {devotees.length > 1 && (
                       <button
@@ -2127,17 +2145,45 @@ function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCr
               </div>
             )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <DivineInput label="Full Name" icon={<UserIcon />} value={name} onChange={(e) => setName(e.target.value)} disabled={!!matched} />
-              <DivineInput label="Email" icon={<MailIcon />} value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!matched} />
+              <DivineInput
+                label="Full Name"
+                icon={<UserIcon />}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={!!matched}
+                containerClassName={FIELD_ACCENT}
+              />
+              <DivineInput
+                label="Email"
+                icon={<MailIcon />}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={!!matched}
+                containerClassName={FIELD_ACCENT}
+              />
               <DivineInput
                 label="Mobile Number"
                 icon={<PhoneIcon />}
                 value={mobileNumber}
                 onChange={(e) => setMobileNumber(e.target.value)}
                 hint={checkingMobile ? "Checking…" : undefined}
+                containerClassName={FIELD_ACCENT}
               />
-              <DivineDatePicker label="Date of birth" value={dateOfBirth} onChange={setDateOfBirth} placeholder="Not recorded" />
-              <DivineListbox label="Gender" value={gender} onChange={setGender} options={CREATE_CUSTOMER_GENDER_OPTIONS} disabled={!!matched} />
+              <DivineDatePicker
+                label="Date of birth"
+                value={dateOfBirth}
+                onChange={setDateOfBirth}
+                placeholder="Not recorded"
+                containerClassName={FIELD_ACCENT}
+              />
+              <DivineListbox
+                label="Gender"
+                value={gender}
+                onChange={setGender}
+                options={CREATE_CUSTOMER_GENDER_OPTIONS}
+                disabled={!!matched}
+                containerClassName={FIELD_ACCENT}
+              />
             </div>
             {error && <p className="mt-3 text-[12.5px] text-crimson-500">{error}</p>}
           </div>
@@ -2180,7 +2226,7 @@ function RecentBookingModal({
           initial={{ opacity: 0, y: 16, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.97 }}
-          className="pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/60 bg-white/85 shadow-[0_30px_80px_-20px_rgba(179,39,63,0.35)] backdrop-blur-xl backdrop-saturate-150"
+          className="pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/60 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.35)]"
         >
           <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
             <div>
@@ -2332,26 +2378,55 @@ function PaymentModal({
           initial={{ opacity: 0, y: 16, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.97 }}
-          className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border border-white/60 bg-white/85 shadow-[0_30px_80px_-20px_rgba(179,39,63,0.35)] backdrop-blur-xl backdrop-saturate-150"
+          className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border border-white/60 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.35)]"
         >
+          <div aria-hidden="true" className="h-1.5 shrink-0 bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145]" />
           <div className="border-b border-gold-500/10 px-6 py-5">
-            <h2 className="font-display text-[18px] font-bold text-ink-100">Payment Mode</h2>
+            <h2 className="font-accent text-[18px] font-extrabold tracking-tight text-ink-100">Payment Mode</h2>
             <p className="text-[12.5px] text-ink-500">Choose how the devotee is paying.</p>
           </div>
 
           <div className="space-y-4 px-6 py-5">
             <div className="space-y-2">
-              {cashModes.map((m) => (
-                <label key={m._id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-gold-500/20 bg-ivory-100 px-3 py-2.5">
-                  <input
-                    type="radio"
-                    checked={selectedPaymentModeId === m._id}
-                    onChange={() => onSelectPaymentMode(m._id)}
-                    className="accent-amber-600"
-                  />
-                  <span className="text-[13px] font-medium text-ink-100">{m.name}</span>
-                </label>
-              ))}
+              {cashModes.map((m) => {
+                const selected = selectedPaymentModeId === m._id;
+                return (
+                  <button
+                    key={m._id}
+                    type="button"
+                    onClick={() => onSelectPaymentMode(m._id)}
+                    className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-[transform,box-shadow,background-color,border-color] duration-200 hover:-translate-y-0.5 ${
+                      selected
+                        ? "border-transparent bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145] shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)]"
+                        : "border-orange-200/70 bg-white shadow-[0_2px_10px_-6px_rgba(255,122,46,0.25)] hover:border-flame-400/60"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                        selected ? "bg-white/25 text-white" : "bg-[#FFC145]/15 text-amber-700"
+                      }`}
+                    >
+                      <CashIcon />
+                    </span>
+                    <span className={`text-[13.5px] font-semibold ${selected ? "text-white" : "text-ink-100"}`}>{m.name}</span>
+                    <AnimatePresence initial={false}>
+                      {selected && (
+                        <motion.span
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ duration: 0.18 }}
+                          className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/25"
+                        >
+                          <svg className="h-3 w-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                            <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </button>
+                );
+              })}
               {cashModes.length === 0 && (
                 <p className="text-[12.5px] text-crimson-500">No active Cash payment mode is configured.</p>
               )}
@@ -2365,18 +2440,30 @@ function PaymentModal({
               </div>
               <div className="flex justify-between border-t border-gold-500/10 pt-1.5 font-bold text-ink-100">
                 <span>Total Payable (S$)</span>
-                <span className="text-amber-600">{formatCurrency(grandTotal)}</span>
+                <span className="bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FF8C1A] bg-clip-text text-transparent">
+                  {formatCurrency(grandTotal)}
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 border-t border-gold-500/10 px-6 py-4">
-            <DivineButton variant="ghost" fullWidth={false} type="button" onClick={onCancel} disabled={loading}>
+          <div className="flex items-center justify-end gap-3 border-t border-gold-500/10 px-6 py-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={loading}
+              className="rounded-full border border-gold-500/30 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-ink-300 transition-[border-color,color] duration-200 hover:border-flame-500/60 hover:text-flame-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
               Cancel
-            </DivineButton>
-            <DivineButton fullWidth={false} type="button" loading={loading} disabled={loading || !selectedPaymentModeId} onClick={onConfirm}>
-              Confirm Booking
-            </DivineButton>
+            </button>
+            <FlameActionButton
+              icon={<LockIcon />}
+              chevron={false}
+              onClick={onConfirm}
+              disabled={loading || !selectedPaymentModeId}
+            >
+              {loading ? "Confirming…" : "Confirm Booking"}
+            </FlameActionButton>
           </div>
         </motion.div>
       </div>
