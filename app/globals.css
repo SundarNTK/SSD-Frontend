@@ -340,6 +340,40 @@ select option {
     color 999999s ease-in-out 0s;
 }
 
+/* ---------- POS counter: Flame & Gold ---------- */
+/* A slow-flowing gradient (crimson -> flame -> gold, back to crimson) behind
+   the whole counter screen — the same "wavy" motion as the design concept
+   the temple picked, just gentle enough not to fight with the actual work
+   of reading prices and tapping buttons all shift. Oversized background so
+   the position shift reads as a wave rather than a hard cut at the edges. */
+@keyframes flame-wave {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+.pos-flame-canvas {
+  background-image: linear-gradient(
+    120deg,
+    var(--color-ivory-50) 0%,
+    #ffe3d2 22%,
+    var(--color-ivory-50) 45%,
+    #fde9c8 68%,
+    var(--color-ivory-50) 100%
+  );
+  background-size: 280% 280%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pos-flame-canvas {
+    animation: flame-wave 18s ease-in-out infinite;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
