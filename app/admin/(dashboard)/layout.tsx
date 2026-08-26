@@ -65,7 +65,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Topbar onMenuClick={() => setSidebarOpen(true)} />
         <main className="relative flex-1 overflow-y-auto overflow-x-hidden">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(212,175,55,0.05),transparent_70%)]" />
-          <div className="relative mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</div>
+          <div className="relative mx-auto max-w-[1800px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</div>
         </main>
       </div>
       <ToastStack />
