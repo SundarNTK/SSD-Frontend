@@ -165,6 +165,7 @@ type RecentBookingLine = {
 type RecentBooking = {
   _id: string;
   bookingNumber: string;
+  orderNumber: string | null;
   grandTotal: number;
   bookedAt: string;
   lines: RecentBookingLine[];
@@ -1600,7 +1601,7 @@ function RecentBookingModal({
         >
           <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
             <div>
-              <h2 className="font-display text-[19px] font-bold text-ink-100">{booking.bookingNumber}</h2>
+              <h2 className="font-display text-[19px] font-bold text-ink-100">{booking.orderNumber ?? booking.bookingNumber}</h2>
               <p className="text-[13px] text-ink-500">{formatTempleDateTime(booking.bookedAt)}</p>
             </div>
             <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-ink-500 hover:bg-ivory-100">
