@@ -158,15 +158,6 @@ function formatCurrency(v: number) {
   return `$${v.toFixed(2)}`;
 }
 
-const NAKSHATRA_OPTIONS: ListboxOption[] = [
-  { value: "", label: "— Select Nakshatra —" },
-  ...["Ashwini","Bharani","Krittika","Rohini","Mrigashira","Ardra","Punarvasu","Pushya",
-    "Ashlesha","Magha","Purva Phalguni","Uttara Phalguni","Hasta","Chitra","Swati",
-    "Vishakha","Anuradha","Jyeshtha","Mula","Purva Ashadha","Uttara Ashadha","Shravana",
-    "Dhanishtha","Shatabhisha","Purva Bhadrapada","Uttara Bhadrapada","Revati",
-  ].map((n) => ({ value: n, label: n })),
-];
-
 // ─── main component ───────────────────────────────────────────────────────────
 
 export default function AdminBookingPage() {
@@ -221,6 +212,18 @@ export default function AdminBookingPage() {
         const cash = modes.find((m) => m.name.toLowerCase() === "cash");
         if (cash) setSelectedPaymentModeId(cash._id);
       })
+      .catch(() => {});
+  }, []);
+
+  // ─── nakshatra options — sourced from the real Nakshathiram master, not a
+  // hardcoded list, so the dropdown always matches what's actually maintained
+  // there. Scoped under /pos so booking staff don't also need that master's
+  // own view permission. ────────────────────────────────────────────────────
+  const [nakshatraOptions, setNakshatraOptions] = useState<ListboxOption[]>([]);
+  useEffect(() => {
+    api
+      .get<ApiEnvelope<{ items: { _id: string; name: string }[] }>>("/pos/booking/nakshathirams")
+      .then((r) => setNakshatraOptions(unwrap(r).items.map((n) => ({ value: n.name, label: n.name }))))
       .catch(() => {});
   }, []);
 
@@ -355,7 +358,6 @@ export default function AdminBookingPage() {
   const currentRef = refType === "Item" ? selectedItem : selectedService;
   const unitPrice =
     refType === "Item" ? (selectedItem?.salePrice ?? 0) : (selectedService?.defaultSalePrice ?? 0);
-  const lineTotal = unitPrice * quantity;
 
   const deityOptions: ListboxOption[] =
     refType === "Service" && selectedService?.deityMapping
@@ -371,6 +373,14 @@ export default function AdminBookingPage() {
     refType === "Item"
       ? (selectedItem?.isFamilyMembersRequired ?? false)
       : (selectedService?.isFamilyMembersRequired ?? false);
+
+  // Deity-mapped lines are priced (and reserved) per selected deity, not a
+  // separately-typed quantity — the backend enforces this too
+  // (effectiveQuantity() in controllers/pos/index.js), so the two can never
+  // disagree. A plain item/service with no deity concept keeps its own
+  // quantity input.
+  const effectiveQuantity = needsDeity ? selectedDeities.length : quantity;
+  const lineTotal = unitPrice * effectiveQuantity;
 
   const deityCount = selectedDeities.length || 1;
 
@@ -426,7 +436,7 @@ export default function AdminBookingPage() {
       refId,
       name,
       code,
-      quantity,
+      quantity: effectiveQuantity,
       unitPrice,
       deities: selectedDeities,
       devotees: needsDevotees ? devotees.map((d) => ({ name: d.name.trim(), nakshatra: d.nakshatra })) : [],
@@ -713,25 +723,29 @@ export default function AdminBookingPage() {
                         updated[idx] = { ...updated[idx], nakshatra: v };
                         setDevotees(updated);
                       }}
-                      options={NAKSHATRA_OPTIONS}
+                      options={nakshatraOptions}
                     />
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Quantity + unit price row */}
+            {/* Quantity + unit price row — a deity-mapped offering has no
+                separate quantity to type; the deity count above is the
+                quantity, matching the backend's effectiveQuantity(). */}
             {currentRef && (
               <div className="flex flex-wrap items-end gap-4">
-                <div className="w-32">
-                  <DivineInput
-                    label="Quantity"
-                    type="number"
-                    min={1}
-                    value={String(quantity)}
-                    onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
-                  />
-                </div>
+                {!needsDeity && (
+                  <div className="w-32">
+                    <DivineInput
+                      label="Quantity"
+                      type="number"
+                      min={1}
+                      value={String(quantity)}
+                      onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
+                    />
+                  </div>
+                )}
                 <div className="flex-1 space-y-0.5 text-[13px] text-ink-500">
                   <div className="flex justify-between">
                     <span>Unit Price</span>
@@ -740,7 +754,7 @@ export default function AdminBookingPage() {
                   {needsDeity && (
                     <div className="flex justify-between">
                       <span>Selected Deities</span>
-                      <span className="font-medium text-ink-200">{selectedDeities.length || 1}</span>
+                      <span className="font-medium text-ink-200">{selectedDeities.length}</span>
                     </div>
                   )}
                   <div className="flex justify-between border-t border-gold-500/10 pt-1.5">
@@ -758,7 +772,7 @@ export default function AdminBookingPage() {
                 : selectedService?.inventory;
               if (!inv?.isApplicable) return null;
               const avail = inv.availableQty ?? 0;
-              if (quantity <= avail) return null;
+              if (effectiveQuantity <= avail) return null;
               return (
                 <p className="rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-[12.5px] text-crimson-400">
                   Only {avail} unit(s) available for booking ({inv.currentStock} in stock, {inv.reservedQty} reserved, {inv.threshold} safety buffer).
