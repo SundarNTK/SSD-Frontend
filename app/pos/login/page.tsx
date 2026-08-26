@@ -14,7 +14,7 @@ import { authApi, unwrap, type ApiEnvelope } from "../../../lib/api";
 import { useAsyncAction } from "../../../lib/useAsyncAction";
 import { emailField, requiredPasswordField } from "../../../lib/validation";
 import { useAuthStore, takeSessionEndReason, type SessionUser } from "../../../lib/authStore";
-import { isAdminPanelType } from "../../../lib/userTypes";
+import { isAdminPanelType, USER_TYPES } from "../../../lib/userTypes";
 
 const schema = z.object({
   email: emailField,
@@ -61,11 +61,13 @@ export default function PosLoginPage() {
 
     // Neither check calls setSession — a refused login never touches
     // localStorage, so there's nothing to unwind and no reload needed to
-    // show the error on this same screen.
+    // show the error on this same screen. System Admin bypasses the
+    // posAccess check the same way it bypasses every other permission in
+    // this app — it's never gated by a per-user flag.
     if (!isAdminPanelType(user.userType)) {
       throw new Error("This account doesn't have POS access.");
     }
-    if (!user.posAccess) {
+    if (user.userType !== USER_TYPES.SUPER_ADMIN && !user.posAccess) {
       throw new Error("This account doesn't have POS access. Contact your administrator to enable it.");
     }
 
