@@ -23,6 +23,7 @@ export const MODULES = {
   nakshathirams: "nakshathirams",
   paymentModes: "payment-modes",
   inventory: "inventory",
+  adminBooking: "admin-booking",
 } as const;
 
 /**

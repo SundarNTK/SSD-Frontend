@@ -68,7 +68,13 @@ const NAV_ITEMS: NavItem[] = [
       { label: "Payment Mode", to: "/admin/masters/payment-modes", module: MODULES.paymentModes },
     ],
   },
-  { label: "POS Transactions", icon: <CartIcon /> },
+  {
+    label: "Transactions",
+    icon: <CartIcon />,
+    children: [
+      { label: "Admin Booking", to: "/admin/transactions/admin-booking", module: MODULES.adminBooking },
+    ],
+  },
   {
     label: "Inventory",
     icon: <BoxIcon />,
