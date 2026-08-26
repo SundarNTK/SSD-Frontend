@@ -81,6 +81,7 @@ export default function PosLoginPage() {
       eyebrow="Sri Siva Durga Temple"
       title="POS Counter"
       subtitle="Sign in to open the counter terminal."
+      variant="marigold"
     >
       <form onSubmit={handleSubmit(run)} noValidate>
         {error ? (

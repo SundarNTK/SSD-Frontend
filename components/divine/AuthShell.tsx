@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import DivineBackground from "./DivineBackground";
+import DivineBackgroundMarigold from "./DivineBackgroundMarigold";
 import DivineCard from "./DivineCard";
 import LogoMark from "./LogoMark";
 
@@ -13,6 +14,7 @@ export default function AuthShell({
   children,
   footer,
   cardMaxWidthClassName,
+  variant = "classic",
 }: {
   eyebrow: string;
   title: string;
@@ -20,10 +22,14 @@ export default function AuthShell({
   children: ReactNode;
   footer?: ReactNode;
   cardMaxWidthClassName?: string;
+  /** "marigold" swaps in the warmer POS login backdrop/card. Defaults to
+   *  "classic" so Admin login, Forgot Password, and Set Password are
+   *  unaffected. */
+  variant?: "classic" | "marigold";
 }) {
   return (
     <div className="relative flex min-h-screen w-full items-center justify-center px-4 py-12">
-      <DivineBackground />
+      {variant === "marigold" ? <DivineBackgroundMarigold /> : <DivineBackground />}
 
       <div className="relative z-10 flex w-full flex-col items-center">
         <LogoMark />
@@ -45,7 +51,9 @@ export default function AuthShell({
           </p>
         </motion.div>
 
-        <DivineCard maxWidthClassName={cardMaxWidthClassName}>{children}</DivineCard>
+        <DivineCard maxWidthClassName={cardMaxWidthClassName} variant={variant}>
+          {children}
+        </DivineCard>
 
         {footer && (
           <motion.div
