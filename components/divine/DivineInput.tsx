@@ -11,6 +11,10 @@ type DivineInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "placeholder
   hint?: string;
   /** "password" gets a built-in show/hide toggle for free — no per-page state needed. */
   revealable?: boolean;
+  /** Extra classes appended to the bordered container div — e.g. a page that
+   *  wants this field to carry a themed border/shadow at rest, not just on
+   *  focus. Empty by default, so every existing call site is unaffected. */
+  containerClassName?: string;
 };
 
 /**
@@ -26,7 +30,7 @@ type DivineInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "placeholder
  * and a visible one would collide with the label anyway.
  */
 const DivineInput = forwardRef<HTMLInputElement, DivineInputProps>(
-  ({ label, error, icon, hint, id, className = "", type = "text", revealable, ...rest }, ref) => {
+  ({ label, error, icon, hint, id, className = "", type = "text", revealable, containerClassName = "", ...rest }, ref) => {
     const [focused, setFocused] = useState(false);
     const [revealed, setRevealed] = useState(false);
     const autoId = useId();
@@ -44,7 +48,7 @@ const DivineInput = forwardRef<HTMLInputElement, DivineInputProps>(
               : focused
                 ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
                 : "border-gold-500/20 hover:border-gold-400/40"
-          }`}
+          } ${containerClassName}`}
         >
           <div className="flex items-center gap-2 px-4 py-3.5">
             {icon && (
