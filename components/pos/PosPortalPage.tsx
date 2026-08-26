@@ -29,7 +29,7 @@ import { api, unwrap, extractErrorMessage, type ApiEnvelope } from "../../lib/ap
 import { toast } from "../../lib/toastStore";
 import { useAuthStore, endSession } from "../../lib/authStore";
 import { USER_TYPE_LABEL } from "../../lib/userTypes";
-import { formatTempleDateTime } from "../../lib/datetime";
+import TempleClock from "../admin/TempleClock";
 import DivineInput from "../divine/DivineInput";
 import DivineButton from "../divine/DivineButton";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
@@ -175,11 +175,6 @@ function initials(name: string) {
 
 export default function PosPortalPage() {
   const user = useAuthStore((s) => s.user);
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(t);
-  }, []);
 
   // ── customer ──────────────────────────────────────────────────────────────
   const [customerQuery, setCustomerQuery] = useState("");
@@ -551,7 +546,7 @@ export default function PosPortalPage() {
 
   if (step === "done" && confirmation) {
     return (
-      <PosShell now={now} user={user}>
+      <PosShell user={user}>
         <BookingSuccessView confirmation={confirmation} onNewTransaction={startNewTransaction} />
       </PosShell>
     );
@@ -561,7 +556,7 @@ export default function PosPortalPage() {
   const showingFolder = !showingSearch && activeFolder;
 
   return (
-    <PosShell now={now} user={user} onNewTransaction={startNewTransaction}>
+    <PosShell user={user} onNewTransaction={startNewTransaction}>
       <div className="grid h-full grid-cols-1 gap-0 lg:grid-cols-[260px_1fr_360px]">
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
         <div className="space-y-3 border-b border-gold-500/15 p-4 lg:border-b-0 lg:border-r">
@@ -864,12 +859,10 @@ export default function PosPortalPage() {
 // ─── shell (top bar) ──────────────────────────────────────────────────────────
 
 function PosShell({
-  now,
   user,
   onNewTransaction,
   children,
 }: {
-  now: Date;
   user: ReturnType<typeof useAuthStore.getState>["user"];
   onNewTransaction?: () => void;
   children: React.ReactNode;
@@ -879,13 +872,12 @@ function PosShell({
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-ivory-50">
       <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-gold-500/15 bg-white px-4 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.1)] sm:px-6">
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center">
           <img
             src="/SSD_Full_Logo.png"
             alt="Sri Siva Durga Temple"
-            className="h-10 w-auto max-w-[160px] shrink-0 object-contain sm:max-w-[188px]"
+            className="h-12 w-auto max-w-[200px] shrink-0 object-contain sm:h-[52px] sm:max-w-[240px]"
           />
-          <p className="hidden truncate text-[11px] text-ink-500 sm:block">POS Counter · {formatTempleDateTime(now)}</p>
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
@@ -909,7 +901,10 @@ function PosShell({
           </button>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-3">
+          <div className="hidden sm:block">
+            <TempleClock />
+          </div>
           <div className="relative">
             <button onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-ivory-100">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-crimson-500 text-[12px] font-semibold text-white">
