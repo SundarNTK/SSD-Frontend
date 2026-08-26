@@ -38,6 +38,7 @@ import DivineDatePicker from "../divine/DivineDatePicker";
 import {
   SearchIcon,
   TrashIcon,
+  PencilIcon,
   CartIcon,
   UserIcon,
   PhoneIcon,
@@ -127,6 +128,14 @@ type CartLine = {
   lineTotal?: number;
   inventory?: InventoryInfo;
   quantityExceedsStock?: boolean;
+  // The full offering this line was added from — kept so re-opening the
+  // Edit modal later doesn't depend on the offering still being in whatever
+  // catalogue list/search results happen to be loaded at that moment.
+  // Optional because "repeat a past booking" builds lines straight from a
+  // recheck-lines response, which doesn't carry full offering metadata
+  // (isDeityMappingRequired, maxFamilyMembers, ...) — those lines just
+  // don't offer an Edit button (see CartLineRow).
+  offering?: Offering;
 };
 
 type SummaryLine = {
@@ -541,8 +550,12 @@ export default function PosPortalPage() {
   const [modalDeities, setModalDeities] = useState<string[]>([]);
   const [modalDevotees, setModalDevotees] = useState<Devotee[]>([{ name: "", nakshatra: "" }]);
   const [modalQuantity, setModalQuantity] = useState(1);
+  // Set while editing an existing cart line instead of adding a new one —
+  // confirmAddToCart() branches on this to update in place rather than append.
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
 
   function openAddModal(offering: Offering) {
+    setEditingLineId(null);
     setModalOffering(offering);
     setModalDeities([]);
     // Family member details are their own independent count (the offering's
@@ -554,6 +567,21 @@ export default function PosPortalPage() {
     const startRows = offering.isFamilyMembersRequired ? Math.max(1, offering.maxFamilyMembers || 1) : 1;
     setModalDevotees(Array.from({ length: startRows }, () => ({ name: "", nakshatra: "" })));
     setModalQuantity(1);
+  }
+
+  // Reopens the same modal pre-filled with what's already on this cart
+  // line, so the deity/devotee selections already made for it aren't lost
+  // just to change one of them.
+  function openEditModal(line: CartLine) {
+    const offering = line.offering;
+    if (!offering) return;
+    setEditingLineId(line.id);
+    setModalOffering(offering);
+    setModalDeities(line.deities);
+    const startRows = offering.isFamilyMembersRequired ? Math.max(1, offering.maxFamilyMembers || 1) : 1;
+    const rows = Array.from({ length: Math.max(startRows, line.devotees.length) }, (_, i) => line.devotees[i] ?? { name: "", nakshatra: "" });
+    setModalDevotees(rows);
+    setModalQuantity(line.quantity);
   }
 
   const modalDevoteeRows = modalOffering?.isFamilyMembersRequired ? modalDevotees.length : 0;
@@ -594,6 +622,27 @@ export default function PosPortalPage() {
       .filter((d) => d.name.trim())
       .map((d) => ({ name: d.name.trim(), nakshatra: d.nakshatra }));
 
+    if (editingLineId) {
+      const lineId = editingLineId;
+      setCart((prev) =>
+        prev.map((l) =>
+          l.id === lineId
+            ? {
+                ...l,
+                quantity: modalEffectiveQty || 1,
+                deities: modalDeities,
+                devotees: modalOffering.isFamilyMembersRequired ? filledDevotees : [],
+                offering: modalOffering,
+              }
+            : l
+        )
+      );
+      setModalOffering(null);
+      setEditingLineId(null);
+      toast.updated(`${modalOffering.name} updated.`);
+      return;
+    }
+
     const newLine: CartLine = {
       id: newLineId(),
       refType: modalOffering.refType,
@@ -604,6 +653,7 @@ export default function PosPortalPage() {
       unitPrice: modalOffering.salePrice,
       deities: modalDeities,
       devotees: modalOffering.isFamilyMembersRequired ? filledDevotees : [],
+      offering: modalOffering,
     };
     setCart((prev) => [...prev, newLine]);
     setModalOffering(null);
@@ -880,11 +930,37 @@ export default function PosPortalPage() {
 
             {!catalogueLoading && !showingSearch && showingFolder && activeFolder && (
               <div>
-                <div className="mb-4 flex items-center gap-2">
-                  <FolderIcon />
-                  <p className="font-display text-[16px] font-bold text-ink-100">{activeFolder.subCategoryName}</p>
-                  <button onClick={() => setActiveFolder(null)} className="ml-2 text-[12.5px] text-crimson-500 hover:underline">
-                    Back
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5 text-[12.5px]">
+                    <button
+                      onClick={() => {
+                        setActiveFolder(null);
+                        setSelectedCategoryId("");
+                      }}
+                      className="text-ink-500 transition-colors hover:text-amber-600"
+                    >
+                      All Categories
+                    </button>
+                    <ChevronIcon className="-rotate-90 text-ink-400" />
+                    <button
+                      onClick={() => {
+                        setActiveFolder(null);
+                        setSelectedCategoryId(activeFolder.categoryId);
+                      }}
+                      className="text-ink-500 transition-colors hover:text-amber-600"
+                    >
+                      {activeFolder.categoryName}
+                    </button>
+                    <ChevronIcon className="-rotate-90 text-ink-400" />
+                    <span className="flex items-center gap-1.5 font-display text-[15px] font-bold text-ink-100">
+                      <FolderIcon /> {activeFolder.subCategoryName}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setActiveFolder(null)}
+                    className="flex shrink-0 items-center gap-1 text-[12.5px] font-medium text-crimson-500 hover:underline"
+                  >
+                    <ChevronIcon className="rotate-90" /> Back
                   </button>
                 </div>
                 {folderLoading ? (
@@ -954,7 +1030,7 @@ export default function PosPortalPage() {
             ) : (
               <div className="space-y-2">
                 {cart.map((line) => (
-                  <CartLineRow key={line.id} line={line} onRemove={() => removeCartLine(line.id)} />
+                  <CartLineRow key={line.id} line={line} onEdit={() => openEditModal(line)} onRemove={() => removeCartLine(line.id)} />
                 ))}
               </div>
             )}
@@ -1048,7 +1124,11 @@ export default function PosPortalPage() {
           quantity={modalQuantity}
           onQuantityChange={setModalQuantity}
           total={modalTotal}
-          onCancel={() => setModalOffering(null)}
+          isEditing={!!editingLineId}
+          onCancel={() => {
+            setModalOffering(null);
+            setEditingLineId(null);
+          }}
           onConfirm={confirmAddToCart}
         />
       )}
@@ -1254,7 +1334,7 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
   );
 }
 
-function CartLineRow({ line, onRemove }: { line: CartLine; onRemove: () => void }) {
+function CartLineRow({ line, onEdit, onRemove }: { line: CartLine; onEdit: () => void; onRemove: () => void }) {
   return (
     <div className={`rounded-xl border p-3 ${line.quantityExceedsStock ? "border-crimson-500/30 bg-crimson-500/5" : "border-gold-500/15 bg-white"}`}>
       <div className="flex items-start justify-between gap-2">
@@ -1272,6 +1352,15 @@ function CartLineRow({ line, onRemove }: { line: CartLine; onRemove: () => void 
           <span className="whitespace-nowrap text-[13px] font-semibold text-amber-600">
             {formatCurrency(line.lineTotal ?? line.unitPrice * line.quantity)}
           </span>
+          {line.offering && (
+            <button
+              onClick={onEdit}
+              aria-label={`Edit ${line.name}`}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-blue-700/20 bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600 text-white shadow-[0_2px_5px_-1px_rgba(37,99,235,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_14px_-3px_rgba(37,99,235,0.6)] active:translate-y-0"
+            >
+              <PencilIcon />
+            </button>
+          )}
           <button
             onClick={onRemove}
             aria-label={`Remove ${line.name}`}
@@ -1299,6 +1388,7 @@ function AddToCartModal({
   quantity,
   onQuantityChange,
   total,
+  isEditing,
   onCancel,
   onConfirm,
 }: {
@@ -1315,6 +1405,7 @@ function AddToCartModal({
   quantity: number;
   onQuantityChange: (v: number) => void;
   total: number;
+  isEditing?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -1334,6 +1425,7 @@ function AddToCartModal({
         >
           <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
             <div>
+              {isEditing && <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-blue-600">Editing cart line</p>}
               <h2 className="font-display text-[19px] font-bold text-ink-100">{offering.name}</h2>
               {offering.tamilName && <p className="text-[13px] text-ink-500">{offering.tamilName}</p>}
             </div>
@@ -1443,7 +1535,7 @@ function AddToCartModal({
                 Cancel
               </DivineButton>
               <DivineButton fullWidth={false} type="button" onClick={onConfirm}>
-                Add to Cart
+                {isEditing ? "Save Changes" : "Add to Cart"}
               </DivineButton>
             </div>
           </div>
