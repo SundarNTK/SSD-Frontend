@@ -17,6 +17,10 @@ type DivineListboxProps = {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** Extra classes appended to the trigger button — e.g. a page that wants
+   *  this field to carry a themed border/shadow at rest, not just on focus.
+   *  Empty by default, so every existing call site is unaffected. */
+  containerClassName?: string;
 };
 
 type PanelPosition = { left: number; width: number; maxHeight: number; upward: boolean; top?: number; bottom?: number };
@@ -57,6 +61,7 @@ export default function DivineListbox({
   placeholder = "Select…",
   className = "",
   disabled = false,
+  containerClassName = "",
 }: DivineListboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -146,7 +151,7 @@ export default function DivineListbox({
               : open
                 ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
                 : "border-gold-500/20 hover:border-gold-400/40"
-        }`}
+        } ${containerClassName}`}
       >
         {label ? (
           <div className="flex items-center gap-2 px-4 pt-5 pb-2">
