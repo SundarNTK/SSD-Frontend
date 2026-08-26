@@ -787,9 +787,9 @@ export default function PosPortalPage() {
 
   return (
     <PosShell user={user} onNewTransaction={startNewTransaction}>
-      <div className="grid grid-cols-1 gap-4 p-4 lg:h-full lg:grid-cols-[260px_1fr_360px]">
+      <div className="relative z-10 grid grid-cols-1 gap-4 p-4 lg:h-full lg:grid-cols-[260px_1fr_360px]">
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-gold-500/15 bg-white p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.08)] lg:h-full lg:overflow-y-auto">
+        <div className="flex flex-col gap-3 rounded-2xl border border-white/60 bg-white/55 p-4 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-xl backdrop-saturate-150 lg:h-full lg:overflow-y-auto">
           <p className="font-display text-[15px] font-bold text-ink-100">Customer</p>
           <div className={`relative rounded-xl transition-shadow duration-300 ${needsCustomerForCart ? "shadow-[0_0_0_3px_rgba(220,38,38,0.25)]" : ""}`}>
             <AnimatePresence>
@@ -893,7 +893,7 @@ export default function PosPortalPage() {
             <button
               type="button"
               onClick={() => setCreateCustomerOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-gold-500/25 bg-white px-3 py-2.5 text-[13px] font-medium text-amber-700 hover:border-gold-400/60 hover:bg-gold-500/5"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/70 bg-white/50 px-3 py-2.5 text-[13px] font-medium text-amber-700 transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-[0_10px_22px_-10px_rgba(255,122,46,0.4)]"
             >
               <UserIcon /> Create Customer
             </button>
@@ -909,7 +909,7 @@ export default function PosPortalPage() {
                   key={b._id}
                   type="button"
                   onClick={() => setViewingRecentBooking(b)}
-                  className="flex w-full flex-col items-start gap-0.5 rounded-xl border border-gold-500/15 bg-white px-3 py-2.5 text-left hover:border-gold-400/50 hover:bg-ivory-100"
+                  className="flex w-full flex-col items-start gap-0.5 rounded-xl border border-white/60 bg-white/45 px-3 py-2.5 text-left transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-white/80 hover:shadow-[0_10px_22px_-12px_rgba(255,122,46,0.45)]"
                 >
                   <span className="flex w-full items-center justify-between text-[12.5px] font-medium text-ink-100">
                     <span className="tabular-nums">{b.bookingNumber}</span>
@@ -923,8 +923,8 @@ export default function PosPortalPage() {
         </div>
 
         {/* ── CENTER: catalogue ────────────────────────────────────────── */}
-        <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-gold-500/15 bg-white shadow-[0_2px_10px_-4px_rgba(0,0,0,0.08)] lg:h-full">
-          <div className="space-y-3 border-b border-gold-500/10 p-4">
+        <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/60 bg-white/50 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-xl backdrop-saturate-150 lg:h-full">
+          <div className="space-y-3 border-b border-white/50 p-4">
             <DivineInput
               label="Search offerings…"
               icon={<SearchIcon />}
@@ -937,10 +937,10 @@ export default function PosPortalPage() {
                   setSelectedCategoryId("");
                   setActiveFolder(null);
                 }}
-                className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium transition-colors ${
+                className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium transition-[transform,box-shadow,background-color,color] duration-200 hover:-translate-y-0.5 ${
                   !selectedCategoryId
-                    ? "border-gold-500 bg-gold-500/20 text-amber-800"
-                    : "border-gold-500/20 text-ink-300 hover:bg-ivory-100"
+                    ? "border-transparent bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-400 text-white shadow-[0_8px_18px_-8px_rgba(255,122,46,0.55)]"
+                    : "border-white/70 bg-white/40 text-ink-300 hover:bg-white/75 hover:shadow-[0_8px_18px_-10px_rgba(255,122,46,0.4)]"
                 }`}
               >
                 All Categories ({totalOfferingCount})
@@ -952,10 +952,10 @@ export default function PosPortalPage() {
                     setSelectedCategoryId(c._id);
                     setActiveFolder(null);
                   }}
-                  className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium transition-colors ${
+                  className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium transition-[transform,box-shadow,background-color,color] duration-200 hover:-translate-y-0.5 ${
                     selectedCategoryId === c._id
-                      ? "border-gold-500 bg-gold-500/20 text-amber-800"
-                      : "border-gold-500/20 text-ink-300 hover:bg-ivory-100"
+                      ? "border-transparent bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-400 text-white shadow-[0_8px_18px_-8px_rgba(255,122,46,0.55)]"
+                      : "border-white/70 bg-white/40 text-ink-300 hover:bg-white/75 hover:shadow-[0_8px_18px_-10px_rgba(255,122,46,0.4)]"
                   }`}
                 >
                   {c.name} ({c.count})
@@ -964,7 +964,7 @@ export default function PosPortalPage() {
             </div>
           </div>
 
-          <div className="bg-ivory-50/60 p-4 lg:flex-1 lg:overflow-y-auto">
+          <div className="p-4 lg:flex-1 lg:overflow-y-auto">
             {catalogueLoading && <p className="py-12 text-center text-[13px] text-ink-500">Loading catalogue…</p>}
 
             {!catalogueLoading && showingSearch && (
@@ -1028,13 +1028,17 @@ export default function PosPortalPage() {
                   <button
                     key={`${f.categoryId}::${f.subCategoryId}`}
                     onClick={() => openFolder(f)}
-                    className="flex flex-col items-center gap-2 rounded-2xl border border-gold-500/15 bg-white p-4 text-center transition-shadow hover:shadow-[0_8px_20px_-8px_rgba(0,0,0,0.15)]"
+                    className="group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/60 bg-white/55 p-4 text-center backdrop-blur-md transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.02] hover:border-flame-500/50 hover:shadow-[0_20px_40px_-16px_rgba(255,122,46,0.55)]"
                   >
-                    <span className="flex h-16 w-full items-center justify-center rounded-xl bg-ivory-100">
-                      <FolderIcon large />
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/60 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
+                    />
+                    <span className="flex h-16 w-full items-center justify-center rounded-xl bg-gradient-to-br from-crimson-600 via-flame-500 to-gold-400 shadow-[0_8px_18px_-8px_rgba(255,122,46,0.55)]">
+                      <FolderIcon large white />
                     </span>
                     <span className="text-[13px] font-medium text-ink-100">{f.subCategoryName}</span>
-                    <span className="rounded-full border border-gold-500/25 bg-gold-500/10 px-2 py-0.5 text-[10.5px] text-amber-700">
+                    <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10.5px] font-semibold text-amber-700">
                       Folder
                     </span>
                     <span className="text-[11px] text-ink-500">{f.total} offering(s)</span>
@@ -1055,10 +1059,10 @@ export default function PosPortalPage() {
         </div>
 
         {/* ── RIGHT: cart ──────────────────────────────────────────────── */}
-        <div className="flex flex-col overflow-hidden rounded-2xl border border-gold-500/15 bg-white p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.08)] lg:h-full">
+        <div className="flex flex-col overflow-hidden rounded-2xl border border-white/60 bg-white/55 p-4 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-xl backdrop-saturate-150 lg:h-full">
           <div className="mb-3 flex items-center justify-between">
             <p className="flex items-center gap-2 font-display text-[15px] font-bold text-ink-100">
-              <CartIcon /> Cart <span className="rounded-full bg-gold-500/15 px-2 py-0.5 text-[11px] text-amber-700">{cart.length}</span>
+              <CartIcon /> Cart <span className="rounded-full bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-400 px-2 py-0.5 text-[11px] font-semibold text-white">{cart.length}</span>
             </p>
             {cart.length > 0 && (
               <button
@@ -1087,14 +1091,16 @@ export default function PosPortalPage() {
             )}
           </div>
 
-          <div className="mt-3 space-y-2 border-t border-gold-500/10 pt-3 text-[13px]">
+          <div className="mt-3 space-y-2 border-t border-white/50 pt-3 text-[13px]">
             <div className="flex justify-between text-ink-500">
               <span>Sub Total (S$)</span>
               <span>{formatCurrency(summary?.subtotal ?? 0)}</span>
             </div>
-            <div className="flex justify-between border-t border-gold-500/10 pt-2 font-bold text-ink-100">
+            <div className="flex justify-between border-t border-white/50 pt-2 font-bold text-ink-100">
               <span>Total Payable (S$)</span>
-              <span className="text-amber-600">{formatCurrency(summary?.grandTotal ?? 0)}</span>
+              <span className="bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-600 bg-clip-text text-transparent">
+                {formatCurrency(summary?.grandTotal ?? 0)}
+              </span>
             </div>
           </div>
 
@@ -1211,8 +1217,8 @@ function PosShell({
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden bg-ivory-100">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gold-500/15 bg-white px-3 py-2.5 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.1)] sm:px-6 sm:py-3">
+    <div className="pos-flame-canvas relative flex h-screen w-full flex-col overflow-hidden">
+      <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/60 bg-white/55 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.18)] backdrop-blur-xl backdrop-saturate-150 sm:px-6 sm:py-3">
         <div className="flex min-w-0 items-center">
           <img
             src="/SSD_Full_Logo.png"
@@ -1224,13 +1230,13 @@ function PosShell({
         <div className="hidden items-center gap-2 md:flex">
           <button
             onClick={() => toast.error("Transaction History isn't built yet.")}
-            className="flex items-center gap-1.5 rounded-lg border border-gold-500/25 px-3 py-2 text-[12.5px] font-medium text-ink-300 hover:border-gold-400/60 hover:bg-ivory-100"
+            className="flex items-center gap-1.5 rounded-xl border border-white/70 bg-white/50 px-3 py-2 text-[12.5px] font-medium text-ink-300 transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-[0_10px_22px_-10px_rgba(255,122,46,0.4)]"
           >
             <HistoryIcon /> Transaction History
           </button>
           <button
             onClick={() => toast.error("Reprint isn't built yet.")}
-            className="flex items-center gap-1.5 rounded-lg border border-gold-500/25 px-3 py-2 text-[12.5px] font-medium text-ink-300 hover:border-gold-400/60 hover:bg-ivory-100"
+            className="flex items-center gap-1.5 rounded-xl border border-white/70 bg-white/50 px-3 py-2 text-[12.5px] font-medium text-ink-300 transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-[0_10px_22px_-10px_rgba(255,122,46,0.4)]"
           >
             <PrinterIcon /> Reprint
           </button>
@@ -1239,7 +1245,7 @@ function PosShell({
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <button
             onClick={onNewTransaction}
-            className="flex items-center gap-1.5 rounded-lg bg-crimson-500/10 px-2.5 py-2 text-[12.5px] font-medium text-crimson-500 hover:bg-crimson-500/15 sm:px-3"
+            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-400 bg-[length:200%_200%] bg-left px-2.5 py-2 text-[12.5px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(255,122,46,0.55)] transition-[transform,box-shadow,background-position] duration-300 hover:-translate-y-0.5 hover:bg-right hover:shadow-[0_14px_30px_-8px_rgba(255,122,46,0.7)] sm:px-3"
           >
             <PlusIcon /> <span className="hidden sm:inline">New Transaction</span>
           </button>
@@ -1247,8 +1253,8 @@ function PosShell({
             <TempleClock />
           </div>
           <div className="relative">
-            <button onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-ivory-100">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-crimson-500 text-[12px] font-semibold text-white">
+            <button onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-white/60">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-crimson-600 via-flame-500 to-gold-400 text-[12px] font-semibold text-white shadow-[0_4px_12px_-4px_rgba(255,122,46,0.6)]">
                 {user ? initials(user.name) : "?"}
               </span>
               <span className="hidden text-left lg:block">
@@ -1285,26 +1291,26 @@ function PosShell({
 
 // ─── sub-components ───────────────────────────────────────────────────────────
 
-function FolderIcon({ large }: { large?: boolean }) {
+function FolderIcon({ large, white }: { large?: boolean; white?: boolean }) {
   const size = large ? "h-8 w-8" : "h-4 w-4";
   return (
-    <svg className={`${size} text-amber-600`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg className={`${size} ${white ? "text-white" : "text-amber-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function SparkleIcon() {
+function SparkleIcon({ white }: { white?: boolean } = {}) {
   return (
-    <svg className="h-8 w-8 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg className={`h-8 w-8 ${white ? "text-white" : "text-amber-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }
 
-function BoxGlyph() {
+function BoxGlyph({ white }: { white?: boolean } = {}) {
   return (
-    <svg className="h-8 w-8 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg className={`h-8 w-8 ${white ? "text-white" : "text-amber-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
@@ -1346,10 +1352,14 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
     <button
       onClick={() => onPick(offering)}
       disabled={outOfStock}
-      className="flex flex-col items-start gap-2 rounded-2xl border border-gold-500/15 bg-white p-4 text-left transition-shadow hover:shadow-[0_8px_20px_-8px_rgba(0,0,0,0.15)] disabled:cursor-not-allowed disabled:opacity-60"
+      className="group relative flex flex-col items-start gap-2 overflow-hidden rounded-2xl border border-white/60 bg-white/55 p-4 text-left backdrop-blur-md transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.02] hover:border-flame-500/50 hover:shadow-[0_20px_40px_-16px_rgba(255,122,46,0.55)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none"
     >
-      <span className="flex h-16 w-full items-center justify-center rounded-xl bg-ivory-100">
-        {offering.refType === "Service" ? <SparkleIcon /> : <BoxGlyph />}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/60 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
+      />
+      <span className="flex h-16 w-full items-center justify-center rounded-xl bg-gradient-to-br from-crimson-600 via-flame-500 to-gold-400 text-white shadow-[0_8px_18px_-8px_rgba(255,122,46,0.55)]">
+        {offering.refType === "Service" ? <SparkleIcon white /> : <BoxGlyph white />}
       </span>
       <div>
         <p className="text-[13px] font-medium text-ink-100">{offering.name}</p>
@@ -1357,10 +1367,8 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
       </div>
       <div className="flex flex-wrap gap-1.5">
         <span
-          className={`rounded-full border px-2 py-0.5 text-[10.5px] ${
-            offering.refType === "Service"
-              ? "border-gold-500/25 bg-gold-500/10 text-amber-700"
-              : "border-ink-500/20 bg-ivory-100 text-ink-500"
+          className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${
+            offering.refType === "Service" ? "bg-gold-500/15 text-amber-700" : "bg-white/70 text-ink-500"
           }`}
         >
           {offering.refType}
@@ -1376,14 +1384,16 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
           </span>
         )}
       </div>
-      <p className="font-semibold text-amber-600">{formatCurrency(offering.salePrice)}</p>
+      <p className="bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-600 bg-clip-text font-semibold text-transparent">
+        {formatCurrency(offering.salePrice)}
+      </p>
     </button>
   );
 }
 
 function CartLineRow({ line, onEdit, onRemove }: { line: CartLine; onEdit: () => void; onRemove: () => void }) {
   return (
-    <div className={`rounded-xl border p-3 ${line.quantityExceedsStock ? "border-crimson-500/30 bg-crimson-500/5" : "border-gold-500/15 bg-white"}`}>
+    <div className={`rounded-xl border p-3 backdrop-blur-md transition-shadow duration-200 ${line.quantityExceedsStock ? "border-crimson-500/30 bg-crimson-500/5" : "border-white/60 bg-white/55 hover:shadow-[0_8px_20px_-14px_rgba(255,122,46,0.5)]"}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-[13px] font-medium text-ink-100">{line.name}</p>
@@ -1396,7 +1406,7 @@ function CartLineRow({ line, onEdit, onRemove }: { line: CartLine; onEdit: () =>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="whitespace-nowrap text-[13px] font-semibold text-amber-600">
+          <span className="whitespace-nowrap bg-gradient-to-r from-crimson-600 via-flame-500 to-gold-600 bg-clip-text text-[13px] font-semibold text-transparent">
             {formatCurrency(line.lineTotal ?? line.unitPrice * line.quantity)}
           </span>
           {line.offering && (
@@ -1470,7 +1480,7 @@ function AddToCartModal({
           initial={{ opacity: 0, y: 16, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.97 }}
-          className="pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-gold-500/20 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
+          className="pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/60 bg-white/85 shadow-[0_30px_80px_-20px_rgba(179,39,63,0.35)] backdrop-blur-xl backdrop-saturate-150"
         >
           <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
             <div>
@@ -1803,7 +1813,7 @@ function RecentBookingModal({
           initial={{ opacity: 0, y: 16, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.97 }}
-          className="pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-gold-500/20 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
+          className="pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/60 bg-white/85 shadow-[0_30px_80px_-20px_rgba(179,39,63,0.35)] backdrop-blur-xl backdrop-saturate-150"
         >
           <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
             <div>
@@ -1955,7 +1965,7 @@ function PaymentModal({
           initial={{ opacity: 0, y: 16, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.97 }}
-          className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border border-gold-500/20 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
+          className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border border-white/60 bg-white/85 shadow-[0_30px_80px_-20px_rgba(179,39,63,0.35)] backdrop-blur-xl backdrop-saturate-150"
         >
           <div className="border-b border-gold-500/10 px-6 py-5">
             <h2 className="font-display text-[18px] font-bold text-ink-100">Payment Mode</h2>
