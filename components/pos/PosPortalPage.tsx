@@ -1534,7 +1534,12 @@ function AddToCartModal({
               <DivineButton variant="ghost" fullWidth={false} type="button" onClick={onCancel}>
                 Cancel
               </DivineButton>
-              <DivineButton fullWidth={false} type="button" onClick={onConfirm}>
+              <DivineButton
+                fullWidth={false}
+                type="button"
+                onClick={onConfirm}
+                disabled={offering.isDeityMappingRequired && deities.length === 0}
+              >
                 {isEditing ? "Save Changes" : "Add to Cart"}
               </DivineButton>
             </div>
@@ -1734,8 +1739,11 @@ function RecentBookingModal({
         >
           <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
             <div>
-              <h2 className="font-display text-[19px] font-bold text-ink-100">{booking.orderNumber ?? booking.bookingNumber}</h2>
-              <p className="text-[13px] text-ink-500">{formatTempleDateTime(booking.bookedAt)}</p>
+              <p className="text-[11px] uppercase tracking-wide text-ink-500">Order No.</p>
+              <h2 className="font-display text-[20px] font-bold tabular-nums tracking-wide text-amber-700">
+                {booking.orderNumber ?? booking.bookingNumber}
+              </h2>
+              <p className="mt-0.5 text-[12.5px] text-ink-500">{formatTempleDateTime(booking.bookedAt)}</p>
             </div>
             <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-ink-500 hover:bg-ivory-100">
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
