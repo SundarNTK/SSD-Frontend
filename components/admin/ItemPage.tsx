@@ -44,7 +44,6 @@ export type Item = {
   quantityReduction: number;
   futureBookingCutOffDate: string | null;
   isFamilyMembersRequired: boolean;
-  minFamilyMembers: number;
   maxFamilyMembers: number;
   posAvailability: boolean;
   customerPortalAvailability: boolean;
@@ -79,8 +78,7 @@ const schema = z
     quantityReduction: z.number().int().min(1),
     futureBookingCutOffDate: z.string(),
     isFamilyMembersRequired: z.boolean(),
-    minFamilyMembers: z.number().int().min(0),
-    maxFamilyMembers: z.number().int().min(0),
+    maxFamilyMembers: z.number().int().min(1),
     posAvailability: z.boolean(),
     customerPortalAvailability: z.boolean(),
     status: z.number(),
@@ -88,10 +86,6 @@ const schema = z
   .refine((data) => !data.isDeityMappingRequired || data.deityMapping.length > 0, {
     message: "Select at least one deity",
     path: ["deityMapping"],
-  })
-  .refine((data) => data.maxFamilyMembers >= data.minFamilyMembers, {
-    message: "Can't be less than the minimum",
-    path: ["maxFamilyMembers"],
   });
 
 type FormValues = z.infer<typeof schema>;
@@ -117,8 +111,7 @@ const DEFAULT_VALUES: FormValues = {
   quantityReduction: 1,
   futureBookingCutOffDate: "",
   isFamilyMembersRequired: false,
-  minFamilyMembers: 1,
-  maxFamilyMembers: 1,
+  maxFamilyMembers: 2,
   posAvailability: true,
   customerPortalAvailability: true,
   status: 1,
@@ -169,6 +162,7 @@ export default function ItemPage() {
     handleSubmit,
     reset,
     watch,
+    setValue,
     control,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULT_VALUES });
@@ -209,7 +203,6 @@ export default function ItemPage() {
       quantityReduction: item.quantityReduction,
       futureBookingCutOffDate: item.futureBookingCutOffDate ? item.futureBookingCutOffDate.slice(0, 10) : "",
       isFamilyMembersRequired: item.isFamilyMembersRequired,
-      minFamilyMembers: item.minFamilyMembers,
       maxFamilyMembers: item.maxFamilyMembers,
       posAvailability: item.posAvailability,
       customerPortalAvailability: item.customerPortalAvailability,
@@ -543,17 +536,22 @@ export default function ItemPage() {
             )}
           />
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Controller
               control={control}
               name="isFamilyMembersRequired"
-              render={({ field }) => <DivineRadioGroup label="Family Members Required" value={field.value} onChange={field.onChange} />}
-            />
-            <DivineInput
-              label="Min Members"
-              type="number"
-              error={errors.minFamilyMembers?.message}
-              {...register("minFamilyMembers", { valueAsNumber: true })}
+              render={({ field }) => (
+                <DivineRadioGroup
+                  label="Family Members Required"
+                  value={field.value}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    // Switching this on gives a sensible starting point —
+                    // the count itself stays fully editable afterward.
+                    if (v) setValue("maxFamilyMembers", 2);
+                  }}
+                />
+              )}
             />
             <DivineInput
               label="Max Members"

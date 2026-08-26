@@ -72,7 +72,6 @@ type PosItem = {
   isDeityMappingRequired: boolean;
   deityMapping: { _id: string; name: string }[];
   isFamilyMembersRequired: boolean;
-  minFamilyMembers: number;
   maxFamilyMembers: number;
   minQuantity: number;
   maxQuantity: number;
@@ -87,7 +86,6 @@ type PosService = {
   isDeityMappingRequired: boolean;
   deityMapping: { _id: string; name: string }[];
   isFamilyMembersRequired: boolean;
-  minFamilyMembers: number;
   maxFamilyMembers: number;
   inventory: InventoryInfo;
 };
@@ -375,10 +373,8 @@ export default function AdminBookingPage() {
       ? (selectedItem?.isFamilyMembersRequired ?? false)
       : (selectedService?.isFamilyMembersRequired ?? false);
 
-  const minFamilyMembers =
-    (refType === "Item" ? selectedItem?.minFamilyMembers : selectedService?.minFamilyMembers) ?? 1;
   const maxFamilyMembers =
-    (refType === "Item" ? selectedItem?.maxFamilyMembers : selectedService?.maxFamilyMembers) ?? minFamilyMembers;
+    (refType === "Item" ? selectedItem?.maxFamilyMembers : selectedService?.maxFamilyMembers) ?? 1;
 
   // Deity-mapped lines are priced (and reserved) per selected deity, not a
   // separately-typed quantity — the backend enforces this too
@@ -390,9 +386,10 @@ export default function AdminBookingPage() {
 
   const deityCount = selectedDeities.length || 1;
 
-  // Deity-mapped: one devotee row per selected deity, floored at the
-  // configured minimum. Family-only (no deity): rows are grown/shrunk
-  // manually via addDevoteeRow/removeDevoteeRow, bounded by min/max.
+  // Deity-mapped: one devotee row per selected deity. Family-only (no
+  // deity): rows are grown/shrunk manually via addDevoteeRow/
+  // removeDevoteeRow, starting at 1 and capped at the configured maximum —
+  // there's no configured minimum any more.
   const devoteeRowCount = needsDevotees ? devotees.length : 0;
 
   useEffect(() => {
@@ -402,12 +399,12 @@ export default function AdminBookingPage() {
     }
     if (!needsDeity) return;
     setDevotees((prev) => {
-      const rows = Math.max(deityCount, minFamilyMembers);
+      const rows = deityCount;
       if (prev.length === rows) return prev;
       if (prev.length < rows) return [...prev, ...Array(rows - prev.length).fill({ name: "", nakshatra: "" })];
       return prev.slice(0, rows);
     });
-  }, [deityCount, needsDevotees, needsDeity, minFamilyMembers]);
+  }, [deityCount, needsDevotees, needsDeity]);
 
   function addDevoteeRow() {
     if (devotees.length >= maxFamilyMembers) return;
@@ -415,7 +412,7 @@ export default function AdminBookingPage() {
   }
 
   function removeDevoteeRow(idx: number) {
-    if (devotees.length <= minFamilyMembers) return;
+    if (devotees.length <= 1) return;
     setDevotees((prev) => prev.filter((_, i) => i !== idx));
   }
 
@@ -424,8 +421,7 @@ export default function AdminBookingPage() {
   useEffect(() => {
     setQuantity(1);
     setSelectedDeities([]);
-    const startRows = needsDevotees && !needsDeity ? Math.max(1, minFamilyMembers) : 1;
-    setDevotees(Array.from({ length: startRows }, () => ({ name: "", nakshatra: "" })));
+    setDevotees([{ name: "", nakshatra: "" }]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedItemId, selectedServiceId]);
 
@@ -732,7 +728,7 @@ export default function AdminBookingPage() {
                 <p className="text-[12.5px] text-ink-500">
                   {needsDeity
                     ? `Devotee details — ${devotees.length} row(s) · same devotees apply to all selected deities`
-                    : `Devotee details (min ${minFamilyMembers}, max ${maxFamilyMembers})`}
+                    : `Devotee details (max ${maxFamilyMembers})`}
                 </p>
                 {devotees.map((devotee, idx) => (
                   <div key={idx} className="grid grid-cols-[1fr_auto] items-end gap-3 sm:grid-cols-[1fr_180px_auto]">
@@ -756,7 +752,7 @@ export default function AdminBookingPage() {
                       }}
                       options={nakshatraOptions}
                     />
-                    {!needsDeity && devotees.length > minFamilyMembers && (
+                    {!needsDeity && devotees.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeDevoteeRow(idx)}

@@ -86,7 +86,6 @@ type PosItem = {
   isDeityMappingRequired: boolean;
   deityMapping: DeityOption[];
   isFamilyMembersRequired: boolean;
-  minFamilyMembers: number;
   maxFamilyMembers: number;
   inventory: InventoryInfo;
 };
@@ -100,7 +99,6 @@ type PosService = {
   isDeityMappingRequired: boolean;
   deityMapping: DeityOption[];
   isFamilyMembersRequired: boolean;
-  minFamilyMembers: number;
   maxFamilyMembers: number;
   inventory: InventoryInfo;
 };
@@ -406,14 +404,10 @@ export default function PosPortalPage() {
   function openAddModal(offering: Offering) {
     setModalOffering(offering);
     setModalDeities([]);
-    // Deity-mapped offerings still get one devotee row per selected deity
-    // (synced below). A family-only offering starts at its configured
-    // minimum and can be grown/shrunk up to its configured maximum.
-    const startRows =
-      offering.isFamilyMembersRequired && !offering.isDeityMappingRequired
-        ? Math.max(1, offering.minFamilyMembers || 1)
-        : 1;
-    setModalDevotees(Array.from({ length: startRows }, () => ({ name: "", nakshatra: "" })));
+    // Deity-mapped offerings get one devotee row per selected deity (synced
+    // below). A family-only offering just starts at 1 and can be grown up
+    // to its configured maximum — there's no configured minimum any more.
+    setModalDevotees([{ name: "", nakshatra: "" }]);
     setModalQuantity(1);
   }
 
@@ -426,7 +420,7 @@ export default function PosPortalPage() {
   useEffect(() => {
     if (!modalOffering?.isFamilyMembersRequired || !modalOffering?.isDeityMappingRequired) return;
     setModalDevotees((prev) => {
-      const rows = Math.max(modalDeityCount, modalOffering.minFamilyMembers || 1);
+      const rows = modalDeityCount;
       if (prev.length === rows) return prev;
       if (prev.length < rows) return [...prev, ...Array(rows - prev.length).fill({ name: "", nakshatra: "" })];
       return prev.slice(0, rows);
@@ -442,9 +436,7 @@ export default function PosPortalPage() {
   }
 
   function removeDevoteeRow(idx: number) {
-    if (!modalOffering) return;
-    const min = modalOffering.minFamilyMembers || 1;
-    if (modalDevotees.length <= min) return;
+    if (modalDevotees.length <= 1) return;
     setModalDevotees((prev) => prev.filter((_, i) => i !== idx));
   }
 
@@ -1171,7 +1163,7 @@ function AddToCartModal({
                 <p className="text-[11px] uppercase tracking-wide text-amber-600">
                   {offering.isDeityMappingRequired
                     ? `Devotee Details (${devoteeRows} row${devoteeRows > 1 ? "s" : ""} — applies to all selected deities) *`
-                    : `Devotee Details (min ${offering.minFamilyMembers}, max ${offering.maxFamilyMembers}) *`}
+                    : `Devotee Details (max ${offering.maxFamilyMembers}) *`}
                 </p>
                 {devotees.map((devotee, idx) => (
                   <div key={idx} className="grid grid-cols-[1fr_140px_auto] items-start gap-2">
@@ -1194,7 +1186,7 @@ function AddToCartModal({
                       options={nakshatraOptions}
                       placeholder="Nakshatra"
                     />
-                    {!offering.isDeityMappingRequired && devotees.length > offering.minFamilyMembers && (
+                    {!offering.isDeityMappingRequired && devotees.length > 1 && (
                       <button
                         type="button"
                         onClick={() => onRemoveDevotee(idx)}

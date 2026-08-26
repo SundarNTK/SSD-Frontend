@@ -35,7 +35,6 @@ export type Service = {
   categoryDetails: { category: Ref | null; subCategory: Ref | null; salePrice: number; displayOrder: number }[];
   generalLedger: GlRef | null;
   isFamilyMembersRequired: boolean;
-  minFamilyMembers: number;
   maxFamilyMembers: number;
   sessionRequired: boolean;
   isInventoryRequired: boolean;
@@ -64,8 +63,7 @@ const schema = z
     categoryDetails: z.array(categoryDetailSchema),
     generalLedger: z.string().min(1, "GL account is required"),
     isFamilyMembersRequired: z.boolean(),
-    minFamilyMembers: z.number().int().min(0),
-    maxFamilyMembers: z.number().int().min(0),
+    maxFamilyMembers: z.number().int().min(1),
     sessionRequired: z.boolean(),
     isInventoryRequired: z.boolean(),
     thresholdCount: z.number().int().min(0),
@@ -77,10 +75,6 @@ const schema = z
   .refine((data) => !data.isDeityMappingRequired || data.deityMapping.length > 0, {
     message: "Select at least one deity",
     path: ["deityMapping"],
-  })
-  .refine((data) => data.maxFamilyMembers >= data.minFamilyMembers, {
-    message: "Can't be less than the minimum",
-    path: ["maxFamilyMembers"],
   });
 
 type FormValues = z.infer<typeof schema>;
@@ -97,8 +91,7 @@ const DEFAULT_VALUES: FormValues = {
   categoryDetails: [],
   generalLedger: "",
   isFamilyMembersRequired: false,
-  minFamilyMembers: 1,
-  maxFamilyMembers: 1,
+  maxFamilyMembers: 2,
   sessionRequired: false,
   isInventoryRequired: false,
   thresholdCount: 0,
@@ -151,6 +144,7 @@ export default function ServicePage() {
     handleSubmit,
     reset,
     watch,
+    setValue,
     control,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULT_VALUES });
@@ -183,7 +177,6 @@ export default function ServicePage() {
       })),
       generalLedger: service.generalLedger?._id ?? "",
       isFamilyMembersRequired: service.isFamilyMembersRequired,
-      minFamilyMembers: service.minFamilyMembers,
       maxFamilyMembers: service.maxFamilyMembers,
       sessionRequired: service.sessionRequired,
       isInventoryRequired: service.isInventoryRequired,
@@ -455,19 +448,22 @@ export default function ServicePage() {
           />
           <p className="-mt-3 pl-1 text-[11.5px] text-ink-500">GST is derived from the selected GL account.</p>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Controller
               control={control}
               name="isFamilyMembersRequired"
               render={({ field }) => (
-                <DivineRadioGroup label="Family Members Required" value={field.value} onChange={field.onChange} />
+                <DivineRadioGroup
+                  label="Family Members Required"
+                  value={field.value}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    // Switching this on gives a sensible starting point —
+                    // the count itself stays fully editable afterward.
+                    if (v) setValue("maxFamilyMembers", 2);
+                  }}
+                />
               )}
-            />
-            <DivineInput
-              label="Min Members"
-              type="number"
-              error={errors.minFamilyMembers?.message}
-              {...register("minFamilyMembers", { valueAsNumber: true })}
             />
             <DivineInput
               label="Max Members"
