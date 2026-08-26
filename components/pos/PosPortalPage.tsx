@@ -131,10 +131,10 @@ type CartLine = {
   // The full offering this line was added from — kept so re-opening the
   // Edit modal later doesn't depend on the offering still being in whatever
   // catalogue list/search results happen to be loaded at that moment.
-  // Optional because "repeat a past booking" builds lines straight from a
-  // recheck-lines response, which doesn't carry full offering metadata
-  // (isDeityMappingRequired, maxFamilyMembers, ...) — those lines just
-  // don't offer an Edit button (see CartLineRow).
+  // Populated for "repeat a past booking" lines too (recheck-lines returns
+  // the same metadata alongside every available line). Stays optional
+  // purely as a defensive fallback — if a line somehow arrives without it,
+  // it just doesn't get an Edit button (see CartLineRow) instead of crashing.
   offering?: Offering;
 };
 
@@ -194,6 +194,13 @@ type RecheckedLine = {
   unitPrice?: number;
   lineTotal?: number;
   reason?: string;
+  // Only present when available — lets the "repeat a past booking" flow
+  // reconstruct a full Offering so its cart lines get an Edit button too.
+  tamilName?: string;
+  isDeityMappingRequired?: boolean;
+  deityMapping?: DeityOption[];
+  isFamilyMembersRequired?: boolean;
+  maxFamilyMembers?: number;
 };
 
 type BookingConfirmation = {
@@ -521,17 +528,42 @@ export default function PosPortalPage() {
   }
 
   function appendRecheckedLinesToCart(lines: RecheckedLine[]) {
-    const newLines: CartLine[] = lines.map((l) => ({
-      id: newLineId(),
-      refType: l.refType,
-      refId: l.refId,
-      name: l.name ?? "",
-      code: l.code ?? "",
-      quantity: l.quantity,
-      unitPrice: l.unitPrice ?? 0,
-      deities: l.deities,
-      devotees: l.devotees,
-    }));
+    const newLines: CartLine[] = lines.map((l) => {
+      // recheck-lines returns offering metadata alongside every available
+      // line specifically so this reconstruction is possible — without it,
+      // a "repeat a past booking" line couldn't get an Edit button at all
+      // (isDeityMappingRequired/maxFamilyMembers aren't derivable from just
+      // name/code/price).
+      const offering: Offering | undefined =
+        l.isDeityMappingRequired !== undefined
+          ? ({
+              refType: l.refType,
+              _id: l.refId,
+              code: l.code ?? "",
+              name: l.name ?? "",
+              tamilName: l.tamilName ?? "",
+              salePrice: l.unitPrice ?? 0,
+              isDeityMappingRequired: l.isDeityMappingRequired,
+              deityMapping: l.deityMapping ?? [],
+              isFamilyMembersRequired: l.isFamilyMembersRequired ?? false,
+              maxFamilyMembers: l.maxFamilyMembers ?? 1,
+              inventory: { isApplicable: false },
+            } as Offering)
+          : undefined;
+
+      return {
+        id: newLineId(),
+        refType: l.refType,
+        refId: l.refId,
+        name: l.name ?? "",
+        code: l.code ?? "",
+        quantity: l.quantity,
+        unitPrice: l.unitPrice ?? 0,
+        deities: l.deities,
+        devotees: l.devotees,
+        offering,
+      };
+    });
     setCart((prev) => [...prev, ...newLines]);
   }
 
@@ -588,6 +620,23 @@ export default function PosPortalPage() {
   // Deity-mapped offerings: full active roster unless the offering has its
   // own curated deityMapping, in which case that takes precedence.
   const modalDeityChoices = modalOffering?.deityMapping?.length ? modalOffering.deityMapping : deityOptions;
+
+  // Devotee names the selected customer has already used, across their last
+  // 3 confirmed bookings (recentBookings is already limited to that) — so
+  // typing a devotee name here can suggest "who usually gets booked for",
+  // deduplicated since the same devotee often appears across bookings.
+  const devoteeNameSuggestions = useMemo(() => {
+    const names = new Set<string>();
+    for (const booking of recentBookings) {
+      for (const line of booking.lines) {
+        for (const devotee of line.devotees) {
+          const trimmed = devotee.name.trim();
+          if (trimmed) names.add(trimmed);
+        }
+      }
+    }
+    return Array.from(names);
+  }, [recentBookings]);
 
   function addDevoteeRow() {
     if (!modalOffering) return;
@@ -1121,6 +1170,7 @@ export default function PosPortalPage() {
           devoteeRows={modalDevoteeRows}
           onAddDevotee={addDevoteeRow}
           onRemoveDevotee={removeDevoteeRow}
+          devoteeNameSuggestions={devoteeNameSuggestions}
           quantity={modalQuantity}
           onQuantityChange={setModalQuantity}
           total={modalTotal}
@@ -1385,6 +1435,7 @@ function AddToCartModal({
   devoteeRows,
   onAddDevotee,
   onRemoveDevotee,
+  devoteeNameSuggestions,
   quantity,
   onQuantityChange,
   total,
@@ -1402,6 +1453,7 @@ function AddToCartModal({
   devoteeRows: number;
   onAddDevotee: () => void;
   onRemoveDevotee: (idx: number) => void;
+  devoteeNameSuggestions?: string[];
   quantity: number;
   onQuantityChange: (v: number) => void;
   total: number;
@@ -1479,6 +1531,13 @@ function AddToCartModal({
                 <p className="text-[11px] uppercase tracking-wide text-amber-600">
                   Devotee Details (max {offering.maxFamilyMembers}) *
                 </p>
+                {devoteeNameSuggestions && devoteeNameSuggestions.length > 0 && (
+                  <datalist id="devotee-name-suggestions">
+                    {devoteeNameSuggestions.map((n) => (
+                      <option key={n} value={n} />
+                    ))}
+                  </datalist>
+                )}
                 {devotees.map((devotee, idx) => (
                   <div key={idx} className="grid grid-cols-[1fr_140px_auto] items-start gap-2">
                     <DivineInput
@@ -1489,6 +1548,8 @@ function AddToCartModal({
                         updated[idx] = { ...updated[idx], name: e.target.value };
                         onDevoteesChange(updated);
                       }}
+                      list={devoteeNameSuggestions && devoteeNameSuggestions.length > 0 ? "devotee-name-suggestions" : undefined}
+                      autoComplete="off"
                     />
                     <DivineListbox
                       value={devotee.nakshatra}
@@ -1740,7 +1801,7 @@ function RecentBookingModal({
           <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
             <div>
               <p className="text-[11px] uppercase tracking-wide text-ink-500">Order No.</p>
-              <h2 className="font-display text-[20px] font-bold tabular-nums tracking-wide text-amber-700">
+              <h2 className="font-display text-[15px] font-bold tabular-nums text-amber-700">
                 {booking.orderNumber ?? booking.bookingNumber}
               </h2>
               <p className="mt-0.5 text-[12.5px] text-ink-500">{formatTempleDateTime(booking.bookedAt)}</p>
