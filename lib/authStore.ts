@@ -8,6 +8,9 @@ export type SessionUser = {
   userType: "SUPER_ADMIN" | "Admin_Users" | "Customers";
   profileImage?: string | null;
   uCode?: string | null;
+  /** Gates entry to the POS Portal (/pos) specifically — separate from the
+   *  role/permission system; see models/users on the backend. */
+  posAccess?: boolean;
   /**
    * What this account can reach, as resolved at login. Used only to decide
    * which nav entries and buttons to render — the server re-checks every
@@ -85,7 +88,12 @@ export function endSession(reason: SessionEndReason = "signed-out"): void {
   }
 
   useAuthStore.getState().clearSession();
-  window.location.replace("/admin/login");
+  // Send a POS session back to the POS login, not the admin one — the two
+  // surfaces are gated differently (posAccess, on top of the usual admin
+  // check), and landing a counter session on /admin/login would be a wrong
+  // screen at exactly the moment someone's mid-transaction.
+  const isPos = window.location.pathname.startsWith("/pos");
+  window.location.replace(isPos ? "/pos/login" : "/admin/login");
 }
 
 /** Reads and consumes the reason, so it's announced once and not on every later visit. */

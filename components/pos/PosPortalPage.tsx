@@ -24,7 +24,6 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { api, unwrap, extractErrorMessage, type ApiEnvelope } from "../../lib/api";
 import { toast } from "../../lib/toastStore";
@@ -880,17 +879,7 @@ function PosShell({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Link href="/admin/dashboard" className="rounded-lg px-3 py-2 text-[12.5px] font-medium text-ink-300 hover:bg-ivory-100">
-            Admin Panel
-          </Link>
-          <Link href="/pos" className="rounded-lg bg-crimson-500 px-3 py-2 text-[12.5px] font-semibold text-white">
-            POS Counter
-          </Link>
-          <Link href="/customer" className="rounded-lg px-3 py-2 text-[12.5px] font-medium text-ink-300 hover:bg-ivory-100">
-            Customer Portal
-          </Link>
-
-          <div className="relative ml-1">
+          <div className="relative">
             <button onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-ivory-100">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-crimson-500 text-[12px] font-semibold text-white">
                 {user ? initials(user.name) : "?"}
