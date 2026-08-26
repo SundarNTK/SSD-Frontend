@@ -22,7 +22,7 @@ type BookingListItem = {
   gstAmount: number;
   grandTotal: number;
   bookingStatus: "confirmed" | "cancelled";
-  portal: "admin" | "customer";
+  portal: "admin" | "pos" | "customer";
   bookedAt: string;
 };
 
@@ -52,9 +52,19 @@ type BookingDetail = {
   paymentModeName: string;
   paymentStatus: "paid" | "pending";
   bookingStatus: "confirmed" | "cancelled";
-  portal: "admin" | "customer";
+  portal: "admin" | "pos" | "customer";
   bookedBy: { _id: string; name: string; email: string } | null;
   bookedAt: string;
+  // Transaction record attached by getBookingDetail — carries the receipt
+  // number and payment metadata. null only if the transaction row was never
+  // written (should never happen in normal operation after the atomic confirm).
+  transaction: {
+    receiptNo: string;
+    amount: number;
+    status: string;
+    paymentModeName: string;
+    transactionDate: string;
+  } | null;
 };
 
 function formatCurrency(v: number) {
@@ -73,12 +83,22 @@ function BookingStatusPill({ status }: { status: "confirmed" | "cancelled" }) {
   );
 }
 
-function PortalPill({ portal }: { portal: "admin" | "customer" }) {
-  return portal === "admin" ? (
-    <span className="rounded-full border border-gold-500/25 bg-gold-500/10 px-2.5 py-1 text-[11px] tracking-wide text-amber-700">
-      Admin
-    </span>
-  ) : (
+function PortalPill({ portal }: { portal: "admin" | "pos" | "customer" }) {
+  if (portal === "admin") {
+    return (
+      <span className="rounded-full border border-gold-500/25 bg-gold-500/10 px-2.5 py-1 text-[11px] tracking-wide text-amber-700">
+        Admin Panel
+      </span>
+    );
+  }
+  if (portal === "pos") {
+    return (
+      <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-[11px] tracking-wide text-violet-600">
+        POS Counter
+      </span>
+    );
+  }
+  return (
     <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[11px] tracking-wide text-sky-600">
       Customer
     </span>
@@ -93,7 +113,8 @@ const STATUS_FILTER_OPTIONS: ListboxOption[] = [
 
 const PORTAL_FILTER_OPTIONS: ListboxOption[] = [
   { value: "", label: "All Portals" },
-  { value: "admin", label: "Admin" },
+  { value: "admin", label: "Admin Panel" },
+  { value: "pos", label: "POS Counter" },
   { value: "customer", label: "Customer" },
 ];
 
@@ -231,7 +252,16 @@ export default function PosTransactionsPage() {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         title={detail ? `Booking ${detail.bookingNumber}` : "Booking Details"}
-        subtitle={detail?.orderId?.orderNumber ? `Transaction ${detail.orderId.orderNumber}` : undefined}
+        subtitle={
+          detail
+            ? [
+                detail.orderId?.orderNumber ? `Order ${detail.orderId.orderNumber}` : null,
+                detail.transaction?.receiptNo ? `Receipt ${detail.transaction.receiptNo}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ") || undefined
+            : undefined
+        }
         maxWidthClassName="max-w-2xl"
         footer={
           <div className="flex justify-end">
@@ -293,6 +323,7 @@ export default function PosTransactionsPage() {
 
             <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
               <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Payment</p>
+              <DetailRow label="Receipt No." value={detail.transaction?.receiptNo ?? "—"} />
               <DetailRow label="Payment Mode" value={detail.paymentModeName} />
               <DetailRow label="Payment Status" value={detail.paymentStatus === "paid" ? "Paid" : "Pending"} />
               <div className="mt-2 space-y-1 border-t border-gold-500/10 pt-2">
