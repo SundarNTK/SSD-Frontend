@@ -852,6 +852,7 @@ export default function PosPortalPage() {
                 if (selectedCustomer) clearCustomer();
               }}
               disabled={!!selectedCustomer}
+              containerClassName="ring-1 ring-orange-200/70 shadow-[0_4px_16px_-8px_rgba(255,122,46,0.35)]"
             />
             <AnimatePresence>
               {customerResults.length > 0 && !selectedCustomer && (
@@ -893,13 +894,9 @@ export default function PosPortalPage() {
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => setCreateCustomerOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/70 bg-white/50 px-3 py-2.5 text-[13px] font-medium text-amber-700 transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-[0_10px_22px_-10px_rgba(255,122,46,0.4)]"
-            >
-              <UserIcon /> Create Customer
-            </button>
+            <FlameActionButton icon={<UserIcon />} chevron={false} onClick={() => setCreateCustomerOpen(true)} className="w-full justify-center">
+              Create Customer
+            </FlameActionButton>
           )}
 
           {selectedCustomer && recentBookings.length > 0 && (
@@ -927,7 +924,7 @@ export default function PosPortalPage() {
 
         {/* ── CENTER: catalogue ────────────────────────────────────────── */}
         <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-md lg:h-full">
-          <div className="space-y-3 border-b border-white/50 p-4">
+          <div className="space-y-3 p-4 pb-2">
             <DivineInput
               label="Search offerings…"
               icon={<SearchIcon />}
@@ -967,7 +964,11 @@ export default function PosPortalPage() {
             </div>
           </div>
 
-          <div className="p-4 lg:flex-1 lg:overflow-y-auto">
+          <div className="px-4">
+            <SectionWaveDivider />
+          </div>
+
+          <div className="p-4 pt-2 lg:flex-1 lg:overflow-y-auto">
             {catalogueLoading && <p className="py-12 text-center text-[13px] text-ink-500">Loading catalogue…</p>}
 
             {!catalogueLoading && showingSearch && (
@@ -1123,9 +1124,9 @@ export default function PosPortalPage() {
             )}
 
             <div className="mt-3 space-y-2">
-              <DivineButton fullWidth onClick={() => setStep("payment")} disabled={!canProceed}>
-                <LockIcon /> Proceed to Payment
-              </DivineButton>
+              <FlameActionButton icon={<LockIcon />} chevron={false} onClick={() => setStep("payment")} disabled={!canProceed} className="w-full justify-center">
+                Proceed to Payment
+              </FlameActionButton>
             </div>
           </div>
         </div>
@@ -1229,26 +1230,24 @@ function PosShell({
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
-          <button
-            onClick={() => toast.error("Transaction History isn't built yet.")}
-            className="flex items-center gap-1.5 rounded-xl border border-flame-500/25 bg-white px-3 py-2 text-[12.5px] font-medium text-ink-300 transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-ivory-100 hover:shadow-[0_10px_22px_-10px_rgba(255,122,46,0.4)]"
-          >
-            <HistoryIcon /> Transaction History
-          </button>
-          <button
-            onClick={() => toast.error("Reprint isn't built yet.")}
-            className="flex items-center gap-1.5 rounded-xl border border-flame-500/25 bg-white px-3 py-2 text-[12.5px] font-medium text-ink-300 transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-ivory-100 hover:shadow-[0_10px_22px_-10px_rgba(255,122,46,0.4)]"
-          >
-            <PrinterIcon /> Reprint
-          </button>
+          <FlameActionButton icon={<HistoryIcon />} chevron={false} onClick={() => toast.error("Transaction History isn't built yet.")}>
+            Transaction History
+          </FlameActionButton>
+          <FlameActionButton icon={<PrinterIcon />} chevron={false} onClick={() => toast.error("Reprint isn't built yet.")}>
+            Reprint
+          </FlameActionButton>
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <FlameActionButton icon={<PlusIcon />} onClick={onNewTransaction} className="hidden sm:flex">
+            New Transaction
+          </FlameActionButton>
           <button
             onClick={onNewTransaction}
-            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145] bg-[length:200%_200%] bg-left px-2.5 py-2 text-[12.5px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(255,122,46,0.55)] transition-[transform,box-shadow,background-position] duration-300 hover:-translate-y-0.5 hover:bg-right hover:shadow-[0_14px_30px_-8px_rgba(255,122,46,0.7)] sm:px-3"
+            aria-label="New Transaction"
+            className="flex items-center justify-center rounded-full bg-gradient-to-br from-crimson-600 via-flame-500 to-[#FFC145] p-2.5 text-white shadow-[0_8px_20px_-8px_rgba(255,122,46,0.55)] sm:hidden"
           >
-            <PlusIcon /> <span className="hidden sm:inline">New Transaction</span>
+            <PlusIcon />
           </button>
           <div className="hidden sm:block">
             <TempleClock />
@@ -1291,6 +1290,58 @@ function PosShell({
 }
 
 // ─── sub-components ───────────────────────────────────────────────────────────
+
+/**
+ * The pill-shaped action button used across the counter screen's topbar,
+ * Customer panel, and Cart footer — an icon badge, a divider, a bold label,
+ * a dot-grid texture, and a chevron, all on the crimson -> flame -> gold
+ * gradient (or a plain red one for the one destructive action, Clear Cart).
+ * Hover brightens the gradient, rings the icon badge, sweeps a shine across,
+ * and fades in a few twinkling sparks at the corners.
+ */
+function FlameActionButton({
+  icon,
+  children,
+  onClick,
+  disabled,
+  chevron = true,
+  tone = "flame",
+  className = "",
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  chevron?: boolean;
+  tone?: "flame" | "crimson";
+  className?: string;
+}) {
+  const gradient = tone === "crimson" ? "from-red-700 via-crimson-600 to-crimson-500" : "from-crimson-600 via-flame-500 to-[#FFC145]";
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`group relative flex items-center gap-2.5 overflow-hidden rounded-full bg-gradient-to-r ${gradient} bg-[length:200%_200%] bg-left px-3.5 py-2.5 text-white shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] transition-[transform,box-shadow,background-position] duration-300 hover:-translate-y-0.5 hover:bg-right hover:shadow-[0_18px_36px_-10px_rgba(255,90,30,0.7)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-left disabled:hover:shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] ${className}`}
+    >
+      <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1/2 rounded-t-full bg-gradient-to-b from-white/35 to-transparent" />
+      <DotGrid className="right-2 top-1/2 h-8 w-16 -translate-y-1/2 opacity-70" />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/45 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
+      />
+      <Spark className="absolute -left-2 -top-2 h-3 w-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100" delay={0} duration={1.8} />
+      <Spark className="absolute -right-2 -top-1 h-3.5 w-3.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" delay={0.3} duration={2.1} />
+      <Spark className="absolute -bottom-2 right-6 h-2.5 w-2.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" delay={0.6} duration={1.6} />
+
+      <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/18 ring-2 ring-white/0 transition-[box-shadow] duration-300 group-hover:ring-white/40">
+        {icon}
+      </span>
+      <span aria-hidden="true" className="h-4 w-px bg-white/35" />
+      <span className="relative z-10 whitespace-nowrap text-[13px] font-bold">{children}</span>
+      {chevron && <ChevronIcon className="relative z-10 ml-auto -rotate-90 text-white/90" />}
+    </button>
+  );
+}
 
 /**
  * Three softly blurred, slowly drifting color blobs — decorative only
@@ -1380,6 +1431,36 @@ function BannerWave({ className = "" }: { className?: string }) {
     <svg aria-hidden="true" viewBox="0 0 200 36" preserveAspectRatio="none" className={`absolute inset-x-0 bottom-0 h-9 w-full ${className}`}>
       <path d="M0 20 Q50 2 100 18 T200 14 V36 H0 Z" fill="white" />
     </svg>
+  );
+}
+
+/**
+ * The section break between the category pill row and the folder/offering
+ * grid below it — a slim animated gradient wave with a continuous shimmer
+ * traveling along it, instead of plain vertical spacing.
+ */
+function SectionWaveDivider() {
+  return (
+    <div aria-hidden="true" className="relative -mx-1 my-1 h-5 w-[calc(100%+8px)] overflow-hidden">
+      <svg viewBox="0 0 400 20" preserveAspectRatio="none" className="h-full w-full">
+        <defs>
+          <linearGradient id="section-wave-grad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#E11D2E" />
+            <stop offset="50%" stopColor="#FF7A2E" />
+            <stop offset="100%" stopColor="#F5A623" />
+          </linearGradient>
+        </defs>
+        <path
+          d="M0 10 Q50 0 100 10 T200 10 T300 10 T400 10"
+          fill="none"
+          stroke="url(#section-wave-grad)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          opacity="0.5"
+        />
+      </svg>
+      <span className="pointer-events-none absolute inset-0 animate-[shimmer-sweep_3.4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+    </div>
   );
 }
 
