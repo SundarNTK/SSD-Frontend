@@ -1090,10 +1090,6 @@ export default function PosPortalPage() {
               <span>Sub Total (S$)</span>
               <span>{formatCurrency(summary?.subtotal ?? 0)}</span>
             </div>
-            <div className="flex justify-between text-ink-500">
-              <span>GST (S$)</span>
-              <span>{formatCurrency(summary?.gstAmount ?? 0)}</span>
-            </div>
             <div className="flex justify-between border-t border-gold-500/10 pt-2 font-bold text-ink-100">
               <span>Total Payable (S$)</span>
               <span className="text-amber-600">{formatCurrency(summary?.grandTotal ?? 0)}</span>
@@ -1189,7 +1185,6 @@ export default function PosPortalPage() {
           selectedPaymentModeId={selectedPaymentModeId}
           onSelectPaymentMode={setSelectedPaymentModeId}
           subtotal={summary?.subtotal ?? 0}
-          gstAmount={summary?.gstAmount ?? 0}
           grandTotal={summary?.grandTotal ?? 0}
           loading={bookingLoading}
           onConfirm={handleConfirmBooking}
@@ -1924,7 +1919,6 @@ function PaymentModal({
   selectedPaymentModeId,
   onSelectPaymentMode,
   subtotal,
-  gstAmount,
   grandTotal,
   loading,
   onConfirm,
@@ -1934,7 +1928,6 @@ function PaymentModal({
   selectedPaymentModeId: string;
   onSelectPaymentMode: (id: string) => void;
   subtotal: number;
-  gstAmount: number;
   grandTotal: number;
   loading: boolean;
   onConfirm: () => void;
@@ -1980,10 +1973,6 @@ function PaymentModal({
               <div className="flex justify-between text-ink-500">
                 <span>Sub Total (S$)</span>
                 <span>{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-ink-500">
-                <span>GST (S$)</span>
-                <span>{formatCurrency(gstAmount)}</span>
               </div>
               <div className="flex justify-between border-t border-gold-500/10 pt-1.5 font-bold text-ink-100">
                 <span>Total Payable (S$)</span>
