@@ -16,6 +16,7 @@ type DivineListboxProps = {
   error?: string;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 };
 
 type PanelPosition = { left: number; width: number; maxHeight: number; upward: boolean; top?: number; bottom?: number };
@@ -55,6 +56,7 @@ export default function DivineListbox({
   error,
   placeholder = "Select…",
   className = "",
+  disabled = false,
 }: DivineListboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -131,15 +133,19 @@ export default function DivineListbox({
         ref={triggerRef}
         type="button"
         id={triggerId}
+        disabled={disabled}
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-disabled={disabled}
         className={`group relative w-full rounded-xl border bg-white text-left transition-colors duration-300 ${
-          error
-            ? "border-crimson-500/70"
-            : open
-              ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
-              : "border-gold-500/20 hover:border-gold-400/40"
+          disabled
+            ? "cursor-not-allowed border-gold-500/10 opacity-60"
+            : error
+              ? "border-crimson-500/70"
+              : open
+                ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
+                : "border-gold-500/20 hover:border-gold-400/40"
         }`}
       >
         {label ? (

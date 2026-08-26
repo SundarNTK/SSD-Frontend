@@ -1399,11 +1399,29 @@ const CREATE_CUSTOMER_GENDER_OPTIONS: ListboxOption[] = [
   { value: "OTHER", label: "Other" },
 ];
 
+type WalkInMatch = {
+  _id: string;
+  customerCode: string;
+  name: string;
+  email: string;
+  mobileNumber: string | null;
+  dateOfBirth: string | null;
+  gender: string | null;
+};
+
 /**
  * Captures the same fields the Admin Panel's Customer master can edit
  * (name, email, mobile, date of birth, gender) — a walk-in profile created
  * at the counter shouldn't be a lesser record than one created any other
  * way, and staff can later find/edit this exact profile from Customers.
+ *
+ * As the mobile number is typed, it's checked (debounced) against existing
+ * *unregistered* walk-in profiles — a repeat visitor on the same mobile
+ * auto-fills from their earlier profile instead of hitting the
+ * mobile-uniqueness error on a second create, and the button just selects
+ * that existing profile rather than posting a duplicate. A profile that's
+ * already fully registered is never matched this way (see the backend's
+ * isRegistered field) — reusing one of those goes through customer search.
  */
 function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCreated: (c: Customer) => void }) {
   const [name, setName] = useState("");
@@ -1413,8 +1431,49 @@ function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCr
   const [gender, setGender] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [matched, setMatched] = useState<WalkInMatch | null>(null);
+  const [checkingMobile, setCheckingMobile] = useState(false);
+
+  useEffect(() => {
+    const mobile = mobileNumber.trim();
+    if (mobile.length < 6) {
+      setMatched(null);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setCheckingMobile(true);
+      try {
+        const r = await api.get<ApiEnvelope<WalkInMatch | null>>("/pos/booking/customers/lookup", { params: { mobileNumber: mobile } });
+        const found = unwrap(r);
+        setMatched(found);
+        if (found) {
+          setName(found.name);
+          setEmail(found.email);
+          setDateOfBirth(found.dateOfBirth ? found.dateOfBirth.slice(0, 10) : "");
+          setGender(found.gender ?? "");
+        }
+      } catch {
+        // A failed lookup shouldn't block manual entry — just proceed uncached.
+      } finally {
+        setCheckingMobile(false);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [mobileNumber]);
+
+  function clearMatch() {
+    setMatched(null);
+    setName("");
+    setEmail("");
+    setDateOfBirth("");
+    setGender("");
+  }
 
   async function submit() {
+    if (matched) {
+      onCreated(matched);
+      return;
+    }
     if (!name.trim() || !email.trim()) {
       setError("Name and email are required.");
       return;
@@ -1447,26 +1506,44 @@ function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCr
           initial={{ opacity: 0, y: 16, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.97 }}
-          className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border border-gold-500/20 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
+          className="pointer-events-auto w-full max-w-xl overflow-hidden rounded-2xl border border-gold-500/20 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
         >
           <div className="border-b border-gold-500/10 px-6 py-5">
             <h2 className="font-display text-[18px] font-bold text-ink-100">Create Customer</h2>
             <p className="text-[12.5px] text-ink-500">Quick walk-in profile — no login required.</p>
           </div>
-          <div className="max-h-[65vh] space-y-4 overflow-y-auto px-6 py-5">
-            <DivineInput label="Full Name" icon={<UserIcon />} value={name} onChange={(e) => setName(e.target.value)} />
-            <DivineInput label="Email" icon={<MailIcon />} value={email} onChange={(e) => setEmail(e.target.value)} />
-            <DivineInput label="Mobile Number" icon={<PhoneIcon />} value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} />
-            <DivineDatePicker label="Date of birth" value={dateOfBirth} onChange={setDateOfBirth} placeholder="Not recorded" />
-            <DivineListbox label="Gender" value={gender} onChange={setGender} options={CREATE_CUSTOMER_GENDER_OPTIONS} />
-            {error && <p className="text-[12.5px] text-crimson-500">{error}</p>}
+          <div className="px-6 py-5">
+            {matched && (
+              <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-gold-500/25 bg-gold-500/5 px-3.5 py-2.5">
+                <p className="text-[12.5px] text-amber-700">
+                  Existing profile found for this mobile number ({matched.customerCode}) — details filled in below.
+                </p>
+                <button type="button" onClick={clearMatch} className="whitespace-nowrap text-[12px] text-crimson-500 hover:underline">
+                  Not this person?
+                </button>
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <DivineInput label="Full Name" icon={<UserIcon />} value={name} onChange={(e) => setName(e.target.value)} disabled={!!matched} />
+              <DivineInput label="Email" icon={<MailIcon />} value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!matched} />
+              <DivineInput
+                label="Mobile Number"
+                icon={<PhoneIcon />}
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
+                hint={checkingMobile ? "Checking…" : undefined}
+              />
+              <DivineDatePicker label="Date of birth" value={dateOfBirth} onChange={setDateOfBirth} placeholder="Not recorded" />
+              <DivineListbox label="Gender" value={gender} onChange={setGender} options={CREATE_CUSTOMER_GENDER_OPTIONS} disabled={!!matched} />
+            </div>
+            {error && <p className="mt-3 text-[12.5px] text-crimson-500">{error}</p>}
           </div>
           <div className="flex justify-end gap-3 border-t border-gold-500/10 px-6 py-4">
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={onClose}>
               Cancel
             </DivineButton>
             <DivineButton fullWidth={false} type="button" loading={submitting} onClick={submit}>
-              Create
+              {matched ? "Use This Customer" : "Create"}
             </DivineButton>
           </div>
         </motion.div>
