@@ -1255,7 +1255,7 @@ function PosShell({
 
         <div className="col-start-3 flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
           <div className="hidden sm:block">
-            <TempleClock />
+            <TempleClock variant="flame" />
           </div>
           <div className="relative">
             <button onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-white/60">
