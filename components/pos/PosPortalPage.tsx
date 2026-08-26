@@ -343,15 +343,14 @@ export default function PosPortalPage() {
     return () => clearTimeout(t);
   }, [offeringSearch, selectedCategoryId]);
 
-  // ── deity / nakshatra masters ───────────────────────────────────────────
-  const [deityOptions, setDeityOptions] = useState<DeityOption[]>([]);
+  // ── nakshatra master ────────────────────────────────────────────────────
+  // No general deity-roster fetch here any more — each offering's own
+  // deityMapping is the only source of deity choices now (see
+  // modalDeityChoices), so there's nothing left to use a full active
+  // roster for.
   const [nakshatraOptions, setNakshatraOptions] = useState<ListboxOption[]>([]);
 
   useEffect(() => {
-    api
-      .get<ApiEnvelope<{ items: DeityOption[] }>>("/pos/booking/deities")
-      .then((r) => setDeityOptions(unwrap(r).items))
-      .catch(() => {});
     api
       .get<ApiEnvelope<{ items: NakshatraOption[] }>>("/pos/booking/nakshathirams")
       .then((r) => setNakshatraOptions(unwrap(r).items.map((n) => ({ value: n.name, label: n.name }))))
@@ -617,9 +616,12 @@ export default function PosPortalPage() {
   }
 
   const modalDevoteeRows = modalOffering?.isFamilyMembersRequired ? modalDevotees.length : 0;
-  // Deity-mapped offerings: full active roster unless the offering has its
-  // own curated deityMapping, in which case that takes precedence.
-  const modalDeityChoices = modalOffering?.deityMapping?.length ? modalOffering.deityMapping : deityOptions;
+  // Deity-mapped offerings must have their own curated deityMapping — an
+  // empty list means the master was never configured with deities, not
+  // "any deity goes", so this deliberately does NOT fall back to the full
+  // active roster (deityOptions) any more. The modal shows a blocking note
+  // instead of a deity picker when this is empty (see AddToCartModal).
+  const modalDeityChoices = modalOffering?.deityMapping ?? [];
 
   // Devotee names the selected customer has already used, across their last
   // 3 confirmed bookings (recentBookings is already limited to that) — so
@@ -1484,7 +1486,17 @@ function AddToCartModal({
           </div>
 
           <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-            {offering.isDeityMappingRequired && (
+            {offering.isDeityMappingRequired && deityOptions.length === 0 && (
+              <div className="rounded-xl border border-crimson-500/30 bg-crimson-500/5 px-4 py-3">
+                <p className="text-[13px] font-medium text-crimson-500">Deity is not configured</p>
+                <p className="mt-1 text-[12px] text-crimson-500">
+                  This offering requires a deity selection, but no deities have been configured for it in the master. You
+                  can&rsquo;t proceed with booking until that&rsquo;s set up.
+                </p>
+              </div>
+            )}
+
+            {offering.isDeityMappingRequired && deityOptions.length > 0 && (
               <div>
                 <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Deities (Multi-Select) *</p>
                 <div className="flex flex-wrap gap-2">
