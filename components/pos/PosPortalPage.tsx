@@ -1091,9 +1091,20 @@ export default function PosPortalPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {cart.map((line) => (
-                    <CartLineRow key={line.id} line={line} onEdit={() => openEditModal(line)} onRemove={() => removeCartLine(line.id)} />
-                  ))}
+                  <AnimatePresence initial={false}>
+                    {cart.map((line) => (
+                      <motion.div
+                        key={line.id}
+                        layout
+                        initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
+                        transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                      >
+                        <CartLineRow line={line} onEdit={() => openEditModal(line)} onRemove={() => removeCartLine(line.id)} />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
                 </div>
               )}
             </div>
@@ -1722,7 +1733,9 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
 
 function CartLineRow({ line, onEdit, onRemove }: { line: CartLine; onEdit: () => void; onRemove: () => void }) {
   return (
-    <div className={`rounded-xl border p-3 backdrop-blur-md transition-shadow duration-200 ${line.quantityExceedsStock ? "border-crimson-500/30 bg-crimson-500/5" : "border-white/60 bg-white/55 hover:shadow-[0_8px_20px_-14px_rgba(255,122,46,0.5)]"}`}>
+    <div
+      className={`rounded-xl border p-3 shadow-[0_2px_10px_-6px_rgba(255,122,46,0.25)] transition-shadow duration-200 ${line.quantityExceedsStock ? "border-crimson-500/30 bg-crimson-500/5" : "border-orange-200/60 bg-white/70 hover:shadow-[0_8px_20px_-14px_rgba(255,122,46,0.5)]"}`}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-[13px] font-medium text-ink-100">{line.name}</p>
@@ -1811,10 +1824,11 @@ function AddToCartModal({
           exit={{ opacity: 0, y: 16, scale: 0.97 }}
           className="pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/60 bg-white/85 shadow-[0_30px_80px_-20px_rgba(179,39,63,0.35)] backdrop-blur-xl backdrop-saturate-150"
         >
+          <div aria-hidden="true" className="h-1.5 shrink-0 bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145]" />
           <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
             <div>
               {isEditing && <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-blue-600">Editing cart line</p>}
-              <h2 className="font-display text-[19px] font-bold text-ink-100">{offering.name}</h2>
+              <h2 className="font-accent text-[19px] font-extrabold tracking-tight text-ink-100">{offering.name}</h2>
               {offering.tamilName && <p className="text-[13px] text-ink-500">{offering.tamilName}</p>}
             </div>
             <button onClick={onCancel} aria-label="Close" className="rounded-lg p-1.5 text-ink-500 hover:bg-ivory-100">
@@ -1839,20 +1853,38 @@ function AddToCartModal({
               <div>
                 <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Deities (Multi-Select) *</p>
                 <div className="flex flex-wrap gap-2">
-                  {deityOptions.map((d) => (
-                    <button
-                      key={d._id}
-                      type="button"
-                      onClick={() => toggleDeity(d._id)}
-                      className={`rounded-lg border px-3 py-1.5 text-[13px] transition-colors ${
-                        deities.includes(d._id)
-                          ? "border-crimson-500 bg-crimson-500/5 text-crimson-500"
-                          : "border-gold-500/25 text-ink-200 hover:border-gold-400/60"
-                      }`}
-                    >
-                      {d.name}
-                    </button>
-                  ))}
+                  {deityOptions.map((d) => {
+                    const selected = deities.includes(d._id);
+                    return (
+                      <button
+                        key={d._id}
+                        type="button"
+                        onClick={() => toggleDeity(d._id)}
+                        className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-[transform,box-shadow,background-color,color,border-color] duration-200 hover:-translate-y-0.5 ${
+                          selected
+                            ? "border-transparent bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145] text-white shadow-[0_8px_18px_-8px_rgba(255,122,46,0.55)]"
+                            : "border-orange-200/70 bg-white/70 text-ink-300 shadow-[0_2px_10px_-6px_rgba(255,122,46,0.3)] hover:border-flame-500/70 hover:bg-white/90 hover:text-flame-600 hover:shadow-[0_8px_18px_-10px_rgba(255,122,46,0.45)]"
+                        }`}
+                      >
+                        <AnimatePresence initial={false}>
+                          {selected && (
+                            <motion.span
+                              initial={{ width: 0, opacity: 0 }}
+                              animate={{ width: "auto", opacity: 1 }}
+                              exit={{ width: 0, opacity: 0 }}
+                              transition={{ duration: 0.18 }}
+                              className="flex items-center overflow-hidden"
+                            >
+                              <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                        {d.name}
+                      </button>
+                    );
+                  })}
                 </div>
                 <p className="mt-2 text-[11.5px] text-ink-500">
                   {deities.length} deity/deities selected · Qty: {deities.length || 0}
@@ -1935,20 +1967,26 @@ function AddToCartModal({
           <div className="flex items-center justify-between border-t border-gold-500/10 px-6 py-4">
             <p className="text-[14px]">
               <span className="text-ink-500">Total: </span>
-              <span className="font-bold text-amber-600">{formatCurrency(total)}</span>
+              <span className="bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FF8C1A] bg-clip-text font-bold text-transparent">
+                {formatCurrency(total)}
+              </span>
             </p>
-            <div className="flex gap-3">
-              <DivineButton variant="ghost" fullWidth={false} type="button" onClick={onCancel}>
-                Cancel
-              </DivineButton>
-              <DivineButton
-                fullWidth={false}
+            <div className="flex items-center gap-3">
+              <button
                 type="button"
+                onClick={onCancel}
+                className="rounded-full border border-gold-500/30 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-ink-300 transition-[border-color,color] duration-200 hover:border-flame-500/60 hover:text-flame-600"
+              >
+                Cancel
+              </button>
+              <FlameActionButton
+                icon={<PlusIcon />}
+                chevron={false}
                 onClick={onConfirm}
                 disabled={offering.isDeityMappingRequired && deities.length === 0}
               >
                 {isEditing ? "Save Changes" : "Add to Cart"}
-              </DivineButton>
+              </FlameActionButton>
             </div>
           </div>
         </motion.div>
