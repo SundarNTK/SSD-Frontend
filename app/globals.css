@@ -358,15 +358,18 @@ select option {
   }
 }
 .pos-flame-canvas {
+  /* Continuously tinted — no flat white/ivory patches — so the wave reads as
+     moving color the whole time, not color fading in and out of plain cream. */
   background-image: linear-gradient(
     120deg,
-    var(--color-ivory-50) 0%,
-    #ffe3d2 22%,
-    var(--color-ivory-50) 45%,
-    #fde9c8 68%,
-    var(--color-ivory-50) 100%
+    #fbd3d9 0%,
+    #ffe0c7 20%,
+    #fff3e0 40%,
+    #ffddb0 60%,
+    #ffc98f 80%,
+    #fbd3d9 100%
   );
-  background-size: 280% 280%;
+  background-size: 320% 320%;
 }
 @media (prefers-reduced-motion: no-preference) {
   .pos-flame-canvas {
