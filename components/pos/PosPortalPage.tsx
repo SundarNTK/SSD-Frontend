@@ -30,9 +30,11 @@ import { toast } from "../../lib/toastStore";
 import { useAuthStore, endSession } from "../../lib/authStore";
 import { USER_TYPE_LABEL } from "../../lib/userTypes";
 import TempleClock from "../admin/TempleClock";
+import { formatTempleDateTime } from "../../lib/datetime";
 import DivineInput from "../divine/DivineInput";
 import DivineButton from "../divine/DivineButton";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
+import DivineDatePicker from "../divine/DivineDatePicker";
 import {
   SearchIcon,
   TrashIcon,
@@ -147,6 +149,42 @@ type SummaryResponse = {
 };
 
 type PaymentMode = { _id: string; name: string };
+
+type RecentBookingLine = {
+  refType: "Item" | "Service";
+  refId: string;
+  name: string;
+  code: string;
+  quantity: number;
+  unitPrice: number;
+  deities: DeityOption[];
+  devotees: Devotee[];
+  lineTotal: number;
+};
+
+type RecentBooking = {
+  _id: string;
+  bookingNumber: string;
+  grandTotal: number;
+  bookedAt: string;
+  lines: RecentBookingLine[];
+};
+
+/** One line's outcome from POST /pos/booking/recheck-lines — `available`
+ *  decides whether it can be re-added to the cart as-is. */
+type RecheckedLine = {
+  refType: "Item" | "Service";
+  refId: string;
+  quantity: number;
+  deities: string[];
+  devotees: Devotee[];
+  available: boolean;
+  name?: string;
+  code?: string;
+  unitPrice?: number;
+  lineTotal?: number;
+  reason?: string;
+};
 
 type BookingConfirmation = {
   bookingNumber: string;
@@ -411,6 +449,90 @@ export default function PosPortalPage() {
     setSelectedCustomer(null);
     setCustomerQuery("");
     setCustomerResults([]);
+    setRecentBookings([]);
+  }
+
+  // ── recent transactions (repeat a past booking) ─────────────────────────
+  const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
+  const [viewingRecentBooking, setViewingRecentBooking] = useState<RecentBooking | null>(null);
+  const [recheckingCart, setRecheckingCart] = useState(false);
+  const [unavailableLines, setUnavailableLines] = useState<RecheckedLine[] | null>(null);
+  const [pendingAvailableLines, setPendingAvailableLines] = useState<RecheckedLine[]>([]);
+
+  useEffect(() => {
+    if (!selectedCustomer) {
+      setRecentBookings([]);
+      return;
+    }
+    api
+      .get<ApiEnvelope<{ items: RecentBooking[] }>>(`/pos/booking/customers/${selectedCustomer._id}/recent-bookings`, {
+        params: { limit: 3 },
+      })
+      .then((r) => setRecentBookings(unwrap(r).items))
+      .catch(() => setRecentBookings([]));
+  }, [selectedCustomer]);
+
+  /** Re-adds a past booking's lines — checks live availability first via
+   *  recheck-lines, then either adds everything straight to the cart or,
+   *  if some lines are no longer valid, opens a confirmation dialog so
+   *  staff can proceed with just what's still available. */
+  async function addRecentBookingToCart(booking: RecentBooking) {
+    setRecheckingCart(true);
+    try {
+      const r = await api.post<ApiEnvelope<{ lines: RecheckedLine[] }>>("/pos/booking/recheck-lines", {
+        lines: booking.lines.map((l) => ({
+          refType: l.refType,
+          refId: l.refId,
+          quantity: l.quantity,
+          deities: l.deities.map((d) => d._id),
+          devotees: l.devotees,
+        })),
+      });
+      const { lines } = unwrap(r);
+      const available = lines.filter((l) => l.available);
+      const unavailable = lines.filter((l) => !l.available);
+
+      if (unavailable.length === 0) {
+        appendRecheckedLinesToCart(available);
+        setViewingRecentBooking(null);
+        toast.created(`${available.length} item(s) added to cart.`);
+        return;
+      }
+
+      // Some lines can't be re-added as-is — let staff decide rather than
+      // silently dropping them or failing the whole re-order.
+      setPendingAvailableLines(available);
+      setUnavailableLines(unavailable);
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setRecheckingCart(false);
+    }
+  }
+
+  function appendRecheckedLinesToCart(lines: RecheckedLine[]) {
+    const newLines: CartLine[] = lines.map((l) => ({
+      id: newLineId(),
+      refType: l.refType,
+      refId: l.refId,
+      name: l.name ?? "",
+      code: l.code ?? "",
+      quantity: l.quantity,
+      unitPrice: l.unitPrice ?? 0,
+      deities: l.deities,
+      devotees: l.devotees,
+    }));
+    setCart((prev) => [...prev, ...newLines]);
+  }
+
+  function confirmAddAvailableOnly() {
+    if (pendingAvailableLines.length > 0) {
+      appendRecheckedLinesToCart(pendingAvailableLines);
+      toast.created(`${pendingAvailableLines.length} available item(s) added to cart.`);
+    }
+    setUnavailableLines(null);
+    setPendingAvailableLines([]);
+    setViewingRecentBooking(null);
   }
 
   // ── add-to-cart modal ───────────────────────────────────────────────────
@@ -422,29 +544,21 @@ export default function PosPortalPage() {
   function openAddModal(offering: Offering) {
     setModalOffering(offering);
     setModalDeities([]);
-    // Deity-mapped offerings get one devotee row per selected deity (synced
-    // below). A family-only offering just starts at 1 and can be grown up
-    // to its configured maximum — there's no configured minimum any more.
-    setModalDevotees([{ name: "", nakshatra: "" }]);
+    // Family member details are their own independent count (the offering's
+    // configured max), not tied to how many deities get picked — selecting
+    // more deities only changes price/quantity, never how many devotee rows
+    // show. Starts fully populated at the configured maximum (so "Max
+    // Members: 2" actually shows 2 fields up front, not 1 with a hidden
+    // add button) and can be shrunk via removeDevoteeRow down to a floor of 1.
+    const startRows = offering.isFamilyMembersRequired ? Math.max(1, offering.maxFamilyMembers || 1) : 1;
+    setModalDevotees(Array.from({ length: startRows }, () => ({ name: "", nakshatra: "" })));
     setModalQuantity(1);
   }
 
-  const modalDeityCount = modalDeities.length || 1;
   const modalDevoteeRows = modalOffering?.isFamilyMembersRequired ? modalDevotees.length : 0;
   // Deity-mapped offerings: full active roster unless the offering has its
   // own curated deityMapping, in which case that takes precedence.
   const modalDeityChoices = modalOffering?.deityMapping?.length ? modalOffering.deityMapping : deityOptions;
-
-  useEffect(() => {
-    if (!modalOffering?.isFamilyMembersRequired || !modalOffering?.isDeityMappingRequired) return;
-    setModalDevotees((prev) => {
-      const rows = modalDeityCount;
-      if (prev.length === rows) return prev;
-      if (prev.length < rows) return [...prev, ...Array(rows - prev.length).fill({ name: "", nakshatra: "" })];
-      return prev.slice(0, rows);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalDeityCount, modalOffering?.isFamilyMembersRequired, modalOffering?.isDeityMappingRequired]);
 
   function addDevoteeRow() {
     if (!modalOffering) return;
@@ -632,6 +746,28 @@ export default function PosPortalPage() {
               <UserIcon /> Create Customer
             </button>
           )}
+
+          {selectedCustomer && recentBookings.length > 0 && (
+            <div className="space-y-2">
+              <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-amber-600">
+                <HistoryIcon /> Recent Transactions
+              </p>
+              {recentBookings.map((b) => (
+                <button
+                  key={b._id}
+                  type="button"
+                  onClick={() => setViewingRecentBooking(b)}
+                  className="flex w-full flex-col items-start gap-0.5 rounded-xl border border-gold-500/15 bg-white px-3 py-2.5 text-left hover:border-gold-400/50 hover:bg-ivory-100"
+                >
+                  <span className="flex w-full items-center justify-between text-[12.5px] font-medium text-ink-100">
+                    <span className="tabular-nums">{b.bookingNumber}</span>
+                    <span className="text-amber-600">{formatCurrency(b.grandTotal)}</span>
+                  </span>
+                  <span className="text-[11px] text-ink-500">{formatTempleDateTime(b.bookedAt)} · {b.lines.length} item(s)</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── CENTER: catalogue ────────────────────────────────────────── */}
@@ -818,6 +954,27 @@ export default function PosPortalPage() {
             selectCustomer(c);
             setCreateCustomerOpen(false);
           }}
+        />
+      )}
+
+      {viewingRecentBooking && (
+        <RecentBookingModal
+          booking={viewingRecentBooking}
+          loading={recheckingCart}
+          onClose={() => setViewingRecentBooking(null)}
+          onAddToCart={() => addRecentBookingToCart(viewingRecentBooking)}
+        />
+      )}
+
+      {unavailableLines && (
+        <UnavailableLinesDialog
+          unavailableLines={unavailableLines}
+          availableCount={pendingAvailableLines.length}
+          onCancel={() => {
+            setUnavailableLines(null);
+            setPendingAvailableLines([]);
+          }}
+          onProceed={confirmAddAvailableOnly}
         />
       )}
 
@@ -1169,9 +1326,7 @@ function AddToCartModal({
             {offering.isFamilyMembersRequired && devoteeRows > 0 && (
               <div className="space-y-3">
                 <p className="text-[11px] uppercase tracking-wide text-amber-600">
-                  {offering.isDeityMappingRequired
-                    ? `Devotee Details (${devoteeRows} row${devoteeRows > 1 ? "s" : ""} — applies to all selected deities) *`
-                    : `Devotee Details (max ${offering.maxFamilyMembers}) *`}
+                  Devotee Details (max {offering.maxFamilyMembers}) *
                 </p>
                 {devotees.map((devotee, idx) => (
                   <div key={idx} className="grid grid-cols-[1fr_140px_auto] items-start gap-2">
@@ -1194,7 +1349,7 @@ function AddToCartModal({
                       options={nakshatraOptions}
                       placeholder="Nakshatra"
                     />
-                    {!offering.isDeityMappingRequired && devotees.length > 1 && (
+                    {devotees.length > 1 && (
                       <button
                         type="button"
                         onClick={() => onRemoveDevotee(idx)}
@@ -1206,7 +1361,7 @@ function AddToCartModal({
                     )}
                   </div>
                 ))}
-                {!offering.isDeityMappingRequired && devotees.length < offering.maxFamilyMembers && (
+                {devotees.length < offering.maxFamilyMembers && (
                   <button
                     type="button"
                     onClick={onAddDevotee}
@@ -1239,10 +1394,25 @@ function AddToCartModal({
   );
 }
 
+const CREATE_CUSTOMER_GENDER_OPTIONS: ListboxOption[] = [
+  { value: "", label: "Not specified" },
+  { value: "MALE", label: "Male" },
+  { value: "FEMALE", label: "Female" },
+  { value: "OTHER", label: "Other" },
+];
+
+/**
+ * Captures the same fields the Admin Panel's Customer master can edit
+ * (name, email, mobile, date of birth, gender) — a walk-in profile created
+ * at the counter shouldn't be a lesser record than one created any other
+ * way, and staff can later find/edit this exact profile from Customers.
+ */
 function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCreated: (c: Customer) => void }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [gender, setGender] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1258,6 +1428,8 @@ function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCr
         name: name.trim(),
         email: email.trim(),
         mobileNumber: mobileNumber.trim() || undefined,
+        dateOfBirth: dateOfBirth || undefined,
+        gender: gender || undefined,
       });
       const customer = unwrap(r);
       toast.created("Devotee profile created.");
@@ -1283,10 +1455,12 @@ function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCr
             <h2 className="font-display text-[18px] font-bold text-ink-100">Create Customer</h2>
             <p className="text-[12.5px] text-ink-500">Quick walk-in profile — no login required.</p>
           </div>
-          <div className="space-y-4 px-6 py-5">
+          <div className="max-h-[65vh] space-y-4 overflow-y-auto px-6 py-5">
             <DivineInput label="Full Name" icon={<UserIcon />} value={name} onChange={(e) => setName(e.target.value)} />
             <DivineInput label="Email" icon={<MailIcon />} value={email} onChange={(e) => setEmail(e.target.value)} />
             <DivineInput label="Mobile Number" icon={<PhoneIcon />} value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} />
+            <DivineDatePicker label="Date of birth" value={dateOfBirth} onChange={setDateOfBirth} placeholder="Not recorded" />
+            <DivineListbox label="Gender" value={gender} onChange={setGender} options={CREATE_CUSTOMER_GENDER_OPTIONS} />
             {error && <p className="text-[12.5px] text-crimson-500">{error}</p>}
           </div>
           <div className="flex justify-end gap-3 border-t border-gold-500/10 px-6 py-4">
@@ -1296,6 +1470,146 @@ function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCr
             <DivineButton fullWidth={false} type="button" loading={submitting} onClick={submit}>
               Create
             </DivineButton>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}
+
+/**
+ * Shows a past booking's line items in a center-screen popup — "repeat this
+ * booking" for the counter. Add to Cart re-checks live availability before
+ * doing anything (see addRecentBookingToCart); this component only renders
+ * what was originally bought and triggers that check.
+ */
+function RecentBookingModal({
+  booking,
+  loading,
+  onClose,
+  onAddToCart,
+}: {
+  booking: RecentBooking;
+  loading: boolean;
+  onClose: () => void;
+  onAddToCart: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-40 bg-navy-950/60 backdrop-blur-sm" />
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 16, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 16, scale: 0.97 }}
+          className="pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-gold-500/20 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
+        >
+          <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
+            <div>
+              <h2 className="font-display text-[19px] font-bold text-ink-100">{booking.bookingNumber}</h2>
+              <p className="text-[13px] text-ink-500">{formatTempleDateTime(booking.bookedAt)}</p>
+            </div>
+            <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-ink-500 hover:bg-ivory-100">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-2 overflow-y-auto px-6 py-5">
+            {booking.lines.map((line, idx) => (
+              <div key={idx} className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[13px] font-medium text-ink-100">{line.name}</p>
+                    <p className="text-[11.5px] text-ink-500">
+                      {line.refType} · {line.code} · Qty {line.quantity}
+                    </p>
+                    {line.deities.length > 0 && (
+                      <p className="mt-1 text-[11.5px] text-ink-500">Deities: {line.deities.map((d) => d.name).join(", ")}</p>
+                    )}
+                    {line.devotees.length > 0 && (
+                      <p className="text-[11.5px] text-ink-500">Devotees: {line.devotees.map((d) => d.name).join(", ")}</p>
+                    )}
+                  </div>
+                  <span className="whitespace-nowrap font-semibold text-amber-600">{formatCurrency(line.lineTotal)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between border-t border-gold-500/10 px-6 py-4">
+            <p className="text-[14px]">
+              <span className="text-ink-500">Total: </span>
+              <span className="font-bold text-amber-600">{formatCurrency(booking.grandTotal)}</span>
+            </p>
+            <div className="flex gap-3">
+              <DivineButton variant="ghost" fullWidth={false} type="button" onClick={onClose} disabled={loading}>
+                Cancel
+              </DivineButton>
+              <DivineButton fullWidth={false} type="button" loading={loading} onClick={onAddToCart}>
+                Add to Cart
+              </DivineButton>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}
+
+/**
+ * Shown when re-adding a past booking finds some lines no longer valid
+ * (deactivated, out of stock, ...) — lists exactly what's unavailable and
+ * why, and lets staff proceed with just the still-available lines instead
+ * of failing the whole re-order.
+ */
+function UnavailableLinesDialog({
+  unavailableLines,
+  availableCount,
+  onCancel,
+  onProceed,
+}: {
+  unavailableLines: RecheckedLine[];
+  availableCount: number;
+  onCancel: () => void;
+  onProceed: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onCancel} className="fixed inset-0 z-40 bg-navy-950/60 backdrop-blur-sm" />
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 16, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 16, scale: 0.97 }}
+          className="pointer-events-auto w-full max-w-md overflow-hidden rounded-2xl border border-gold-500/20 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
+        >
+          <div className="border-b border-gold-500/10 px-6 py-5">
+            <h2 className="font-display text-[18px] font-bold text-ink-100">Some items aren&apos;t available</h2>
+            <p className="text-[12.5px] text-ink-500">
+              {availableCount > 0
+                ? `${availableCount} item(s) from this booking are still available. The rest can't be re-added right now:`
+                : "None of this booking's items can be re-added right now:"}
+            </p>
+          </div>
+          <div className="max-h-[40vh] space-y-2 overflow-y-auto px-6 py-5">
+            {unavailableLines.map((line, idx) => (
+              <div key={idx} className="rounded-xl border border-crimson-500/25 bg-crimson-500/5 px-3 py-2.5">
+                <p className="text-[13px] font-medium text-ink-100">{line.name ?? "Unknown item"}</p>
+                <p className="text-[11.5px] text-crimson-500">{line.reason}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end gap-3 border-t border-gold-500/10 px-6 py-4">
+            <DivineButton variant="ghost" fullWidth={false} type="button" onClick={onCancel}>
+              Cancel
+            </DivineButton>
+            {availableCount > 0 && (
+              <DivineButton fullWidth={false} type="button" onClick={onProceed}>
+                Add {availableCount} Available Item{availableCount > 1 ? "s" : ""}
+              </DivineButton>
+            )}
           </div>
         </motion.div>
       </div>
