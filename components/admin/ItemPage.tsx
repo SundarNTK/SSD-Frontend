@@ -238,7 +238,7 @@ export default function ItemPage() {
       label: "GL Account",
       render: (i) => <span className="text-ink-500">{i.generalLedger?.name ?? "—"}</span>,
     },
-    { key: "salePrice", label: "Price", render: (i) => <span className="tabular-nums">₹{i.salePrice.toFixed(2)}</span> },
+    { key: "salePrice", label: "Price", render: (i) => <span className="tabular-nums">${i.salePrice.toFixed(2)}</span> },
     { key: "status", label: "Status", render: (i) => <StatusPill status={i.status} /> },
   ];
 

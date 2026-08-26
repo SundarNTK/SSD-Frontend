@@ -87,20 +87,20 @@ function BookingStatusPill({ status }: { status: "confirmed" | "cancelled" }) {
 function PortalPill({ portal }: { portal: "admin" | "pos" | "customer" }) {
   if (portal === "admin") {
     return (
-      <span className="rounded-full border border-gold-500/25 bg-gold-500/10 px-2.5 py-1 text-[11px] tracking-wide text-amber-700">
+      <span className="whitespace-nowrap rounded-full border border-gold-500/25 bg-gold-500/10 px-2.5 py-1 text-[11px] tracking-wide text-amber-700">
         Admin Panel
       </span>
     );
   }
   if (portal === "pos") {
     return (
-      <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-[11px] tracking-wide text-violet-600">
+      <span className="whitespace-nowrap rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-[11px] tracking-wide text-violet-600">
         POS Counter
       </span>
     );
   }
   return (
-    <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[11px] tracking-wide text-sky-600">
+    <span className="whitespace-nowrap rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[11px] tracking-wide text-sky-600">
       Customer
     </span>
   );
