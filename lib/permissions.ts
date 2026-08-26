@@ -24,6 +24,7 @@ export const MODULES = {
   paymentModes: "payment-modes",
   inventory: "inventory",
   adminBooking: "admin-booking",
+  posTransactions: "pos-transactions",
 } as const;
 
 /**

@@ -73,6 +73,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: <CartIcon />,
     children: [
       { label: "Admin Booking", to: "/admin/transactions/admin-booking", module: MODULES.adminBooking },
+      { label: "POS Transactions", to: "/admin/transactions/pos-transactions", module: MODULES.posTransactions },
     ],
   },
   {
