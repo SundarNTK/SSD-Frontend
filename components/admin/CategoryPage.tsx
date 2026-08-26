@@ -13,6 +13,7 @@ import DivineColorPicker from "../divine/DivineColorPicker";
 import DivineImageUpload from "../divine/DivineImageUpload";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
+import TamilNameField from "./TamilNameField";
 import { resolveImageUrl } from "../../lib/imageUrl";
 import { api } from "../../lib/api";
 import { useApiResource, type WriteBody } from "../../lib/useApiResource";
@@ -70,9 +71,13 @@ export default function CategoryPage() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     control,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  const nameValue = watch("name") ?? "";
+  const tamilNameValue = watch("tamilName") ?? "";
 
   function toPayload(values: FormValues, image: File | null): WriteBody {
     if (!image) return values;
@@ -220,7 +225,12 @@ export default function CategoryPage() {
         <form id="category-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <DivineInput label="Category Name" error={errors.name?.message} {...register("name")} />
-            <DivineInput label="Tamil Name" error={errors.tamilName?.message} {...register("tamilName")} />
+            <TamilNameField
+              englishName={nameValue}
+              value={tamilNameValue}
+              onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
+              error={errors.tamilName?.message}
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <DivineInput label="Category Code" error={errors.code?.message} {...register("code")} />
