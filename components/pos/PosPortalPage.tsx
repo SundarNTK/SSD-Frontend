@@ -751,26 +751,6 @@ export default function PosPortalPage() {
             )}
           </div>
 
-          {step === "payment" && cart.length > 0 && (
-            <div className="mt-3 space-y-2 border-t border-gold-500/10 pt-3">
-              <h3 className="text-[12.5px] font-semibold text-ink-300">Payment Mode</h3>
-              {paymentModes
-                .filter((m) => m.name.toLowerCase() === "cash")
-                .map((m) => (
-                  <label key={m._id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-gold-500/20 bg-ivory-100 px-3 py-2.5">
-                    <input
-                      type="radio"
-                      checked={selectedPaymentModeId === m._id}
-                      onChange={() => setSelectedPaymentModeId(m._id)}
-                      className="accent-amber-600"
-                    />
-                    <span className="text-[13px] font-medium text-ink-100">{m.name}</span>
-                  </label>
-                ))}
-              <p className="text-[11px] text-ink-500">Cash is confirmed immediately upon booking.</p>
-            </div>
-          )}
-
           <div className="mt-3 space-y-2 border-t border-gold-500/10 pt-3 text-[13px]">
             <div className="flex justify-between text-ink-500">
               <span>Sub Total (S$)</span>
@@ -793,26 +773,9 @@ export default function PosPortalPage() {
           )}
 
           <div className="mt-3 space-y-2">
-            {step === "cart" && (
-              <DivineButton fullWidth onClick={() => setStep("payment")} disabled={!canProceed}>
-                Proceed to Payment
-              </DivineButton>
-            )}
-            {step === "payment" && (
-              <>
-                <DivineButton
-                  fullWidth
-                  loading={bookingLoading}
-                  disabled={bookingLoading || !selectedPaymentModeId}
-                  onClick={handleConfirmBooking}
-                >
-                  Confirm Booking
-                </DivineButton>
-                <DivineButton fullWidth variant="ghost" onClick={() => setStep("cart")} disabled={bookingLoading}>
-                  Back
-                </DivineButton>
-              </>
-            )}
+            <DivineButton fullWidth onClick={() => setStep("payment")} disabled={!canProceed}>
+              Proceed to Payment
+            </DivineButton>
           </div>
         </div>
       </div>
@@ -844,6 +807,20 @@ export default function PosPortalPage() {
           total={modalTotal}
           onCancel={() => setModalOffering(null)}
           onConfirm={confirmAddToCart}
+        />
+      )}
+
+      {step === "payment" && (
+        <PaymentModal
+          paymentModes={paymentModes}
+          selectedPaymentModeId={selectedPaymentModeId}
+          onSelectPaymentMode={setSelectedPaymentModeId}
+          subtotal={summary?.subtotal ?? 0}
+          gstAmount={summary?.gstAmount ?? 0}
+          grandTotal={summary?.grandTotal ?? 0}
+          loading={bookingLoading}
+          onConfirm={handleConfirmBooking}
+          onCancel={() => setStep("cart")}
         />
       )}
     </PosShell>
@@ -1287,6 +1264,98 @@ function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCr
             </DivineButton>
             <DivineButton fullWidth={false} type="button" loading={submitting} onClick={submit}>
               Create
+            </DivineButton>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}
+
+/**
+ * Payment popup shown once "Proceed to Payment" is clicked — Cash is the
+ * only mode surfaced today (other gateways aren't wired up yet), confirmed
+ * immediately on submit rather than left in the 30-minute hold window.
+ */
+function PaymentModal({
+  paymentModes,
+  selectedPaymentModeId,
+  onSelectPaymentMode,
+  subtotal,
+  gstAmount,
+  grandTotal,
+  loading,
+  onConfirm,
+  onCancel,
+}: {
+  paymentModes: PaymentMode[];
+  selectedPaymentModeId: string;
+  onSelectPaymentMode: (id: string) => void;
+  subtotal: number;
+  gstAmount: number;
+  grandTotal: number;
+  loading: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const cashModes = paymentModes.filter((m) => m.name.toLowerCase() === "cash");
+
+  return (
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onCancel} className="fixed inset-0 z-40 bg-navy-950/60 backdrop-blur-sm" />
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 16, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 16, scale: 0.97 }}
+          className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border border-gold-500/20 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
+        >
+          <div className="border-b border-gold-500/10 px-6 py-5">
+            <h2 className="font-display text-[18px] font-bold text-ink-100">Payment Mode</h2>
+            <p className="text-[12.5px] text-ink-500">Choose how the devotee is paying.</p>
+          </div>
+
+          <div className="space-y-4 px-6 py-5">
+            <div className="space-y-2">
+              {cashModes.map((m) => (
+                <label key={m._id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-gold-500/20 bg-ivory-100 px-3 py-2.5">
+                  <input
+                    type="radio"
+                    checked={selectedPaymentModeId === m._id}
+                    onChange={() => onSelectPaymentMode(m._id)}
+                    className="accent-amber-600"
+                  />
+                  <span className="text-[13px] font-medium text-ink-100">{m.name}</span>
+                </label>
+              ))}
+              {cashModes.length === 0 && (
+                <p className="text-[12.5px] text-crimson-500">No active Cash payment mode is configured.</p>
+              )}
+              <p className="text-[11px] text-ink-500">Cash is confirmed immediately upon booking. Other payment modes will be added later.</p>
+            </div>
+
+            <div className="space-y-1.5 rounded-xl border border-gold-500/15 bg-ivory-50 px-3 py-3 text-[13px]">
+              <div className="flex justify-between text-ink-500">
+                <span>Sub Total (S$)</span>
+                <span>{formatCurrency(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-ink-500">
+                <span>GST (S$)</span>
+                <span>{formatCurrency(gstAmount)}</span>
+              </div>
+              <div className="flex justify-between border-t border-gold-500/10 pt-1.5 font-bold text-ink-100">
+                <span>Total Payable (S$)</span>
+                <span className="text-amber-600">{formatCurrency(grandTotal)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 border-t border-gold-500/10 px-6 py-4">
+            <DivineButton variant="ghost" fullWidth={false} type="button" onClick={onCancel} disabled={loading}>
+              Cancel
+            </DivineButton>
+            <DivineButton fullWidth={false} type="button" loading={loading} disabled={loading || !selectedPaymentModeId} onClick={onConfirm}>
+              Confirm Booking
             </DivineButton>
           </div>
         </motion.div>
