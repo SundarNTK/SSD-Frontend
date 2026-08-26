@@ -10,6 +10,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
+import TamilNameField from "./TamilNameField";
 import { api } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
@@ -76,9 +77,13 @@ export default function NakshathiramPage() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     control,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULT_VALUES });
+  const nameValue = watch("name") ?? "";
+  const tamilNameValue = watch("tamilName") ?? "";
 
   function openCreate() {
     setEditing(null);
@@ -213,7 +218,13 @@ export default function NakshathiramPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <DivineInput label="Nakshathiram" error={errors.name?.message} {...register("name")} />
-            <DivineInput label="Tamil" error={errors.tamilName?.message} {...register("tamilName")} />
+            <TamilNameField
+              label="Tamil"
+              englishName={nameValue}
+              value={tamilNameValue}
+              onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
+              error={errors.tamilName?.message}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

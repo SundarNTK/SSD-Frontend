@@ -16,6 +16,7 @@ import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineOptionGroup from "../divine/DivineOptionGroup";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
+import TamilNameField from "./TamilNameField";
 import { PlusIcon } from "../divine/icons";
 import { formatTempleDate } from "../../lib/datetime";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
@@ -173,6 +174,7 @@ export default function EventPage() {
     handleSubmit,
     reset,
     watch,
+    setValue,
     control,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULT_VALUES });
@@ -181,6 +183,8 @@ export default function EventPage() {
   const isSlotRequired = watch("isSlotRequired");
   const startDate = watch("startDate");
   const endDate = watch("endDate");
+  const nameValue = watch("name") ?? "";
+  const tamilNameValue = watch("tamilName") ?? "";
 
   function openCreate() {
     setEditing(null);
@@ -338,7 +342,12 @@ export default function EventPage() {
           <div className="grid grid-cols-3 gap-4">
             <DivineInput label="Event Code" error={errors.code?.message} {...register("code")} />
             <DivineInput label="Event Name" error={errors.name?.message} {...register("name")} />
-            <DivineInput label="Tamil Name" error={errors.tamilName?.message} {...register("tamilName")} />
+            <TamilNameField
+              englishName={nameValue}
+              value={tamilNameValue}
+              onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
+              error={errors.tamilName?.message}
+            />
           </div>
 
           <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />

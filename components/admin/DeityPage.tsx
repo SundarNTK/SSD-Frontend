@@ -11,6 +11,7 @@ import DivineInput from "../divine/DivineInput";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
+import TamilNameField from "./TamilNameField";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
@@ -69,9 +70,13 @@ export default function DeityPage() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     control,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  const nameValue = watch("name") ?? "";
+  const tamilNameValue = watch("tamilName") ?? "";
 
   function openCreate() {
     setEditing(null);
@@ -193,7 +198,12 @@ export default function DeityPage() {
         <form id="deity-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <DivineInput label="Name" error={errors.name?.message} {...register("name")} />
-            <DivineInput label="Tamil Name" error={errors.tamilName?.message} {...register("tamilName")} />
+            <TamilNameField
+              englishName={nameValue}
+              value={tamilNameValue}
+              onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
+              error={errors.tamilName?.message}
+            />
           </div>
           <Controller
             control={control}
