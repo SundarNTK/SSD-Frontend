@@ -7,11 +7,18 @@ import type { ReactNode } from "react";
 export default function DivineCard({
   children,
   maxWidthClassName = "max-w-md",
+  variant = "classic",
 }: {
   children: ReactNode;
   /** Login/Forgot/Set-Password stay at the default single-column width; a form with paired-column rows (Register) opts into something wider. */
   maxWidthClassName?: string;
+  /** "marigold" pairs with AuthShell's same variant — a warmer marigold/
+   *  crimson glow and border instead of the classic gold, for the POS
+   *  login's warmer background. Defaults to "classic" so every other
+   *  call site (Admin login, Forgot Password, Set Password) is unaffected. */
+  variant?: "classic" | "marigold";
 }) {
+  const isMarigold = variant === "marigold";
   return (
     <motion.div
       initial={{ opacity: 0, y: 28, scale: 0.98 }}
@@ -20,17 +27,31 @@ export default function DivineCard({
       className={`relative w-full ${maxWidthClassName}`}
     >
       {/* outer glow — a slow breathing halo, not just a static outline */}
-      <div className="animate-soft-pulse absolute -inset-1 rounded-[28px] bg-gradient-to-br from-gold-400/50 via-gold-500/20 to-transparent blur-md" />
+      <div
+        className={`animate-soft-pulse absolute -inset-1 rounded-[28px] blur-md ${
+          isMarigold
+            ? "bg-gradient-to-br from-[#E0396B]/45 via-[#F5A623]/25 to-transparent"
+            : "bg-gradient-to-br from-gold-400/50 via-gold-500/20 to-transparent"
+        }`}
+      />
 
-      <div className="relative overflow-hidden rounded-[26px] border border-gold-500/25 bg-navy-900/70 shadow-[0_20px_70px_-20px_rgba(0,0,0,0.7)] backdrop-blur-xl">
+      <div
+        className={`relative overflow-hidden rounded-[26px] border shadow-[0_20px_70px_-20px_rgba(0,0,0,0.7)] backdrop-blur-xl ${
+          isMarigold ? "border-[#F5A623]/30 bg-white/78" : "border-gold-500/25 bg-navy-900/70"
+        }`}
+      >
         {/* top hairline shimmer */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-300/80 to-transparent" />
+        <div
+          className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent to-transparent ${
+            isMarigold ? "via-[#F5A623]/80" : "via-gold-300/80"
+          }`}
+        />
 
         {/* corner flourishes */}
-        <CornerFlourish className="left-3 top-3" />
-        <CornerFlourish className="right-3 top-3 -scale-x-100" />
-        <CornerFlourish className="bottom-3 left-3 -scale-y-100" />
-        <CornerFlourish className="bottom-3 right-3 -scale-x-100 -scale-y-100" />
+        <CornerFlourish className="left-3 top-3" variant={variant} />
+        <CornerFlourish className="right-3 top-3 -scale-x-100" variant={variant} />
+        <CornerFlourish className="bottom-3 left-3 -scale-y-100" variant={variant} />
+        <CornerFlourish className="bottom-3 right-3 -scale-x-100 -scale-y-100" variant={variant} />
 
         <div className="relative px-8 py-10 sm:px-10">{children}</div>
       </div>
@@ -38,11 +59,11 @@ export default function DivineCard({
   );
 }
 
-function CornerFlourish({ className = "" }: { className?: string }) {
+function CornerFlourish({ className = "", variant = "classic" }: { className?: string; variant?: "classic" | "marigold" }) {
   return (
     <svg
       viewBox="0 0 40 40"
-      className={`pointer-events-none absolute h-8 w-8 text-amber-500/50 ${className}`}
+      className={`pointer-events-none absolute h-8 w-8 ${variant === "marigold" ? "text-[#E0396B]/45" : "text-amber-500/50"} ${className}`}
       aria-hidden="true"
     >
       <path
