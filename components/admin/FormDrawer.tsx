@@ -18,7 +18,8 @@ type FormDrawerProps = {
    * `error={create.error || update.error}` call sites don't need editing.
    */
   error?: string | null;
-  /** Defaults to max-w-lg — Item Master's larger form passes a wider class. */
+  /** Defaults to max-w-2xl — a master with an especially large form (Item,
+   *  Service) passes a wider class still. */
   maxWidthClassName?: string;
 };
 
@@ -39,7 +40,7 @@ export default function FormDrawer({
   onClose,
   children,
   footer,
-  maxWidthClassName = "max-w-lg",
+  maxWidthClassName = "max-w-2xl",
 }: FormDrawerProps) {
   return (
     <AnimatePresence>

@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
-import { EyeIcon, PencilIcon } from "../divine/icons";
+import { EyeIcon } from "../divine/icons";
 import { api } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
@@ -135,11 +135,7 @@ export default function PaymentModePage() {
             >
               <EyeIcon />
             </button>
-            {canEdit && (
-              <button onClick={() => openEdit(m)} aria-label="Edit payment mode" className="text-amber-600 hover:text-amber-700">
-                <PencilIcon />
-              </button>
-            )}
+            {canEdit && <EditIconButton onClick={() => openEdit(m)} label="Edit payment mode" />}
           </div>
         )}
       />

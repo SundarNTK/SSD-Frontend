@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -128,17 +128,9 @@ export default function PrintingGroupPage() {
         createLabel="Add Group"
         emptyMessage="No printing groups yet — create the first one."
         rowActions={(g) => (
-          <div className="flex justify-end gap-3">
-            {canEdit && (
-              <button onClick={() => openEdit(g)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
-                Edit
-              </button>
-            )}
-            {canCreate && (
-              <button onClick={() => setDeleting(g)} className="text-[12.5px] text-crimson-500 hover:underline">
-                Delete
-              </button>
-            )}
+          <div className="flex justify-end gap-2">
+            {canEdit && <EditIconButton onClick={() => openEdit(g)} />}
+            {canCreate && <DeleteIconButton onClick={() => setDeleting(g)} />}
           </div>
         )}
       />
