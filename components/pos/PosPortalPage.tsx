@@ -1227,35 +1227,31 @@ function PosShell({
   return (
     <div className="pos-flame-canvas relative flex h-screen w-full flex-col overflow-hidden">
       <div aria-hidden="true" className="h-1.5 shrink-0 bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145]" />
-      <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/70 bg-white/92 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.22)] backdrop-blur-md sm:px-6 sm:py-3">
+      <header className="relative z-10 grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-white/70 bg-white/92 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.22)] backdrop-blur-md sm:px-6 sm:py-3 md:grid-cols-[1fr_auto_1fr]">
         <div className="flex min-w-0 items-center">
           <img
             src="/SSD_Full_Logo.png"
             alt="Sri Siva Durga Temple"
-            className="h-12 w-auto max-w-[220px] shrink-0 object-contain sm:h-14 sm:max-w-[260px] lg:h-[60px] lg:max-w-[300px]"
+            className="h-14 w-auto max-w-[240px] shrink-0 object-contain sm:h-16 sm:max-w-[280px] lg:h-[68px] lg:max-w-[320px]"
           />
         </div>
 
-        <div className="hidden items-center gap-2 md:flex">
+        {/* Grouped and centered as one cluster — grid-cols-[1fr_auto_1fr] on
+            the header keeps this column mathematically centered regardless
+            of how wide the logo or the clock/avatar column end up being. */}
+        <div className="col-start-2 hidden items-center justify-center gap-2 md:flex">
           <FlameActionButton icon={<HistoryIcon />} chevron={false} onClick={() => toast.error("Transaction History isn't built yet.")}>
             Transaction History
           </FlameActionButton>
           <FlameActionButton icon={<PrinterIcon />} chevron={false} onClick={() => toast.error("Reprint isn't built yet.")}>
             Reprint
           </FlameActionButton>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <FlameActionButton icon={<PlusIcon />} onClick={onNewTransaction} className="hidden sm:flex">
+          <FlameActionButton icon={<PlusIcon />} onClick={onNewTransaction}>
             New Transaction
           </FlameActionButton>
-          <button
-            onClick={onNewTransaction}
-            aria-label="New Transaction"
-            className="flex items-center justify-center rounded-full border-2 border-red-900/30 bg-gradient-to-br from-red-600 via-orange-500 to-yellow-400 p-2.5 text-white shadow-[0_8px_20px_-8px_rgba(255,122,46,0.55)] transition-[border-color,box-shadow] duration-300 hover:border-[#FFD700] hover:shadow-[0_0_0_3px_rgba(255,215,0,0.3),0_8px_20px_-8px_rgba(255,122,46,0.55)] sm:hidden"
-          >
-            <PlusIcon />
-          </button>
+        </div>
+
+        <div className="col-start-3 flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
           <div className="hidden sm:block">
             <TempleClock />
           </div>
@@ -1324,12 +1320,18 @@ function FlameActionButton({
   tone?: "flame" | "crimson";
   className?: string;
 }) {
-  const gradient = tone === "crimson" ? "from-red-700 via-crimson-600 to-crimson-500" : "from-red-600 via-orange-500 to-yellow-400";
+  // Four-stop gold/orange/red/yellow gradient — Tailwind's from/via/to
+  // gradient utilities only carry one "via" stop, so a real 4-color blend
+  // needs an arbitrary background-image rather than the gradient-* classes.
+  const gradientBg =
+    tone === "crimson"
+      ? "bg-gradient-to-r from-red-700 via-crimson-600 to-crimson-500"
+      : "bg-[linear-gradient(to_right,#DC2626,#F97316,#F5A623,#FACC15)]";
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`group relative flex items-center gap-2.5 overflow-hidden rounded-full border-2 border-red-900/30 bg-gradient-to-r ${gradient} bg-[length:200%_200%] bg-left px-3.5 py-2 text-white shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] transition-[transform,box-shadow,background-position,border-color] duration-300 hover:-translate-y-0.5 hover:border-[#FFD700] hover:bg-right hover:shadow-[0_0_0_3px_rgba(255,215,0,0.3),0_18px_36px_-10px_rgba(255,90,30,0.7)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-red-900/30 disabled:hover:bg-left disabled:hover:shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] ${className}`}
+      className={`group relative flex items-center gap-2.5 overflow-hidden rounded-full border-2 border-red-900/30 ${gradientBg} bg-[length:200%_200%] bg-left px-3.5 py-1.5 text-white shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] transition-[transform,box-shadow,background-position,border-color] duration-300 hover:-translate-y-0.5 hover:border-[#FFD700] hover:bg-right hover:shadow-[0_0_0_3px_rgba(255,215,0,0.3),0_18px_36px_-10px_rgba(255,90,30,0.7)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-red-900/30 disabled:hover:bg-left disabled:hover:shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] ${className}`}
     >
       <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1/2 rounded-t-full bg-gradient-to-b from-white/35 to-transparent" />
       <span
