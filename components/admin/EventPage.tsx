@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -16,6 +16,7 @@ import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineOptionGroup from "../divine/DivineOptionGroup";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
+import TamilNameField from "./TamilNameField";
 import { PlusIcon } from "../divine/icons";
 import { formatTempleDate } from "../../lib/datetime";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
@@ -173,6 +174,7 @@ export default function EventPage() {
     handleSubmit,
     reset,
     watch,
+    setValue,
     control,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULT_VALUES });
@@ -181,6 +183,8 @@ export default function EventPage() {
   const isSlotRequired = watch("isSlotRequired");
   const startDate = watch("startDate");
   const endDate = watch("endDate");
+  const nameValue = watch("name") ?? "";
+  const tamilNameValue = watch("tamilName") ?? "";
 
   function openCreate() {
     setEditing(null);
@@ -287,17 +291,9 @@ export default function EventPage() {
         createLabel="Add Event"
         emptyMessage="No events yet — create the first one."
         rowActions={(e) => (
-          <div className="flex justify-end gap-3">
-            {canEdit && (
-              <button onClick={() => openEdit(e)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
-                Edit
-              </button>
-            )}
-            {canCreate && (
-              <button onClick={() => setDeleting(e)} className="text-[12.5px] text-crimson-500 hover:underline">
-                Delete
-              </button>
-            )}
+          <div className="flex justify-end gap-2">
+            {canEdit && <EditIconButton onClick={() => openEdit(e)} />}
+            {canCreate && <DeleteIconButton onClick={() => setDeleting(e)} />}
           </div>
         )}
       />
@@ -330,7 +326,7 @@ export default function EventPage() {
         title={editing ? "Edit Event" : "Add Event"}
         subtitle={editing ? `${editing.name} · ${editing.code}` : "Define a new temple event."}
         error={create.error || update.error}
-        maxWidthClassName="max-w-2xl"
+        maxWidthClassName="max-w-3xl"
         footer={
           <div className="flex justify-end gap-3">
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
@@ -346,7 +342,12 @@ export default function EventPage() {
           <div className="grid grid-cols-3 gap-4">
             <DivineInput label="Event Code" error={errors.code?.message} {...register("code")} />
             <DivineInput label="Event Name" error={errors.name?.message} {...register("name")} />
-            <DivineInput label="Tamil Name" error={errors.tamilName?.message} {...register("tamilName")} />
+            <TamilNameField
+              englishName={nameValue}
+              value={tamilNameValue}
+              onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
+              error={errors.tamilName?.message}
+            />
           </div>
 
           <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />

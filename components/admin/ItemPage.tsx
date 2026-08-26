@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -20,6 +20,7 @@ import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import TamilNameField from "./TamilNameField";
 
 type Ref = { _id: string; name: string };
 type GlRef = { _id: string; name: string; code: string };
@@ -170,6 +171,8 @@ export default function ItemPage() {
   const { fields, append, remove: removeRow } = useFieldArray({ control, name: "categoryDetails" });
   const isInventoryApplicable = watch("isInventoryApplicable");
   const isDeityMappingRequired = watch("isDeityMappingRequired");
+  const nameValue = watch("name");
+  const tamilNameValue = watch("tamilName");
 
   function openCreate() {
     setEditing(null);
@@ -271,17 +274,9 @@ export default function ItemPage() {
         createLabel="Add Item"
         emptyMessage="No items yet — create the first one."
         rowActions={(i) => (
-          <div className="flex justify-end gap-3">
-            {canEdit && (
-              <button onClick={() => openEdit(i)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
-                Edit
-              </button>
-            )}
-            {canCreate && (
-              <button onClick={() => setDeleting(i)} className="text-[12.5px] text-crimson-500 hover:underline">
-                Delete
-              </button>
-            )}
+          <div className="flex justify-end gap-2">
+            {canEdit && <EditIconButton onClick={() => openEdit(i)} />}
+            {canCreate && <DeleteIconButton onClick={() => setDeleting(i)} />}
           </div>
         )}
       />
@@ -314,7 +309,7 @@ export default function ItemPage() {
         title={editing ? "Edit Item" : "Add Item"}
         subtitle={editing ? `${editing.name} · ${editing.code}` : "Define a new sellable item."}
         error={create.error || update.error}
-        maxWidthClassName="max-w-4xl"
+        maxWidthClassName="max-w-5xl"
         footer={
           <div className="flex justify-end gap-3">
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
@@ -330,7 +325,12 @@ export default function ItemPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <DivineInput label="Item Code" error={errors.code?.message} {...register("code")} />
             <DivineInput label="Item Name" error={errors.name?.message} {...register("name")} />
-            <DivineInput label="Tamil Name" error={errors.tamilName?.message} {...register("tamilName")} />
+            <TamilNameField
+              englishName={nameValue}
+              value={tamilNameValue}
+              onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
+              error={errors.tamilName?.message}
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

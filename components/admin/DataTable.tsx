@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { PlusIcon } from "../divine/icons";
+import { PlusIcon, PencilIcon, TrashIcon } from "../divine/icons";
 import DivineListbox from "../divine/DivineListbox";
 
 const STATUS_OPTIONS = [
@@ -205,6 +205,38 @@ export default function DataTable<T>({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Vibrant, icon-only row-action buttons — used in place of plain "Edit" /
+ * "Delete" text links across every master's table (see rowActions on
+ * DataTable). No badge/background — just a bold, saturated glyph that lifts
+ * and deepens in color on hover: blue for edit, red for delete.
+ */
+export function EditIconButton({ onClick, label = "Edit" }: { onClick: () => void; label?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="flex h-8 w-8 items-center justify-center text-blue-600 transition-transform duration-200 hover:scale-110 hover:text-blue-700 active:scale-95"
+    >
+      <PencilIcon className="h-[19px] w-[19px]" />
+    </button>
+  );
+}
+
+export function DeleteIconButton({ onClick, label = "Delete" }: { onClick: () => void; label?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="flex h-8 w-8 items-center justify-center text-red-600 transition-transform duration-200 hover:scale-110 hover:text-red-700 active:scale-95"
+    >
+      <TrashIcon className="h-[19px] w-[19px]" />
+    </button>
   );
 }
 

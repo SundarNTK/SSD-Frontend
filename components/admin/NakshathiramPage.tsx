@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
+import TamilNameField from "./TamilNameField";
 import { api } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
@@ -76,9 +77,13 @@ export default function NakshathiramPage() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     control,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULT_VALUES });
+  const nameValue = watch("name") ?? "";
+  const tamilNameValue = watch("tamilName") ?? "";
 
   function openCreate() {
     setEditing(null);
@@ -154,17 +159,9 @@ export default function NakshathiramPage() {
         createLabel="Add Nakshathiram"
         emptyMessage="No nakshathirams yet — create the first one."
         rowActions={(n) => (
-          <div className="flex justify-end gap-3">
-            {canEdit && (
-              <button onClick={() => openEdit(n)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
-                Edit
-              </button>
-            )}
-            {canCreate && (
-              <button onClick={() => setDeleting(n)} className="text-[12.5px] text-crimson-500 hover:underline">
-                Delete
-              </button>
-            )}
+          <div className="flex justify-end gap-2">
+            {canEdit && <EditIconButton onClick={() => openEdit(n)} />}
+            {canCreate && <DeleteIconButton onClick={() => setDeleting(n)} />}
           </div>
         )}
       />
@@ -221,7 +218,13 @@ export default function NakshathiramPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <DivineInput label="Nakshathiram" error={errors.name?.message} {...register("name")} />
-            <DivineInput label="Tamil" error={errors.tamilName?.message} {...register("tamilName")} />
+            <TamilNameField
+              label="Tamil"
+              englishName={nameValue}
+              value={tamilNameValue}
+              onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
+              error={errors.tamilName?.message}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

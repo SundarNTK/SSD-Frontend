@@ -30,12 +30,15 @@ import { toast } from "../../lib/toastStore";
 import { useAuthStore, endSession } from "../../lib/authStore";
 import { USER_TYPE_LABEL } from "../../lib/userTypes";
 import TempleClock from "../admin/TempleClock";
+import { formatTempleDateTime } from "../../lib/datetime";
 import DivineInput from "../divine/DivineInput";
 import DivineButton from "../divine/DivineButton";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
+import DivineDatePicker from "../divine/DivineDatePicker";
 import {
   SearchIcon,
   TrashIcon,
+  PencilIcon,
   CartIcon,
   UserIcon,
   PhoneIcon,
@@ -125,6 +128,14 @@ type CartLine = {
   lineTotal?: number;
   inventory?: InventoryInfo;
   quantityExceedsStock?: boolean;
+  // The full offering this line was added from — kept so re-opening the
+  // Edit modal later doesn't depend on the offering still being in whatever
+  // catalogue list/search results happen to be loaded at that moment.
+  // Optional because "repeat a past booking" builds lines straight from a
+  // recheck-lines response, which doesn't carry full offering metadata
+  // (isDeityMappingRequired, maxFamilyMembers, ...) — those lines just
+  // don't offer an Edit button (see CartLineRow).
+  offering?: Offering;
 };
 
 type SummaryLine = {
@@ -148,9 +159,47 @@ type SummaryResponse = {
 
 type PaymentMode = { _id: string; name: string };
 
+type RecentBookingLine = {
+  refType: "Item" | "Service";
+  refId: string;
+  name: string;
+  code: string;
+  quantity: number;
+  unitPrice: number;
+  deities: DeityOption[];
+  devotees: Devotee[];
+  lineTotal: number;
+};
+
+type RecentBooking = {
+  _id: string;
+  bookingNumber: string;
+  orderNumber: string | null;
+  grandTotal: number;
+  bookedAt: string;
+  lines: RecentBookingLine[];
+};
+
+/** One line's outcome from POST /pos/booking/recheck-lines — `available`
+ *  decides whether it can be re-added to the cart as-is. */
+type RecheckedLine = {
+  refType: "Item" | "Service";
+  refId: string;
+  quantity: number;
+  deities: string[];
+  devotees: Devotee[];
+  available: boolean;
+  name?: string;
+  code?: string;
+  unitPrice?: number;
+  lineTotal?: number;
+  reason?: string;
+};
+
 type BookingConfirmation = {
   bookingNumber: string;
   orderNumber: string;
+  receiptNo: string;
   customer: Customer;
   lines: CartLine[];
   grandTotal: number;
@@ -410,6 +459,90 @@ export default function PosPortalPage() {
     setSelectedCustomer(null);
     setCustomerQuery("");
     setCustomerResults([]);
+    setRecentBookings([]);
+  }
+
+  // ── recent transactions (repeat a past booking) ─────────────────────────
+  const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
+  const [viewingRecentBooking, setViewingRecentBooking] = useState<RecentBooking | null>(null);
+  const [recheckingCart, setRecheckingCart] = useState(false);
+  const [unavailableLines, setUnavailableLines] = useState<RecheckedLine[] | null>(null);
+  const [pendingAvailableLines, setPendingAvailableLines] = useState<RecheckedLine[]>([]);
+
+  useEffect(() => {
+    if (!selectedCustomer) {
+      setRecentBookings([]);
+      return;
+    }
+    api
+      .get<ApiEnvelope<{ items: RecentBooking[] }>>(`/pos/booking/customers/${selectedCustomer._id}/recent-bookings`, {
+        params: { limit: 3 },
+      })
+      .then((r) => setRecentBookings(unwrap(r).items))
+      .catch(() => setRecentBookings([]));
+  }, [selectedCustomer]);
+
+  /** Re-adds a past booking's lines — checks live availability first via
+   *  recheck-lines, then either adds everything straight to the cart or,
+   *  if some lines are no longer valid, opens a confirmation dialog so
+   *  staff can proceed with just what's still available. */
+  async function addRecentBookingToCart(booking: RecentBooking) {
+    setRecheckingCart(true);
+    try {
+      const r = await api.post<ApiEnvelope<{ lines: RecheckedLine[] }>>("/pos/booking/recheck-lines", {
+        lines: booking.lines.map((l) => ({
+          refType: l.refType,
+          refId: l.refId,
+          quantity: l.quantity,
+          deities: l.deities.map((d) => d._id),
+          devotees: l.devotees,
+        })),
+      });
+      const { lines } = unwrap(r);
+      const available = lines.filter((l) => l.available);
+      const unavailable = lines.filter((l) => !l.available);
+
+      if (unavailable.length === 0) {
+        appendRecheckedLinesToCart(available);
+        setViewingRecentBooking(null);
+        toast.created(`${available.length} item(s) added to cart.`);
+        return;
+      }
+
+      // Some lines can't be re-added as-is — let staff decide rather than
+      // silently dropping them or failing the whole re-order.
+      setPendingAvailableLines(available);
+      setUnavailableLines(unavailable);
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setRecheckingCart(false);
+    }
+  }
+
+  function appendRecheckedLinesToCart(lines: RecheckedLine[]) {
+    const newLines: CartLine[] = lines.map((l) => ({
+      id: newLineId(),
+      refType: l.refType,
+      refId: l.refId,
+      name: l.name ?? "",
+      code: l.code ?? "",
+      quantity: l.quantity,
+      unitPrice: l.unitPrice ?? 0,
+      deities: l.deities,
+      devotees: l.devotees,
+    }));
+    setCart((prev) => [...prev, ...newLines]);
+  }
+
+  function confirmAddAvailableOnly() {
+    if (pendingAvailableLines.length > 0) {
+      appendRecheckedLinesToCart(pendingAvailableLines);
+      toast.created(`${pendingAvailableLines.length} available item(s) added to cart.`);
+    }
+    setUnavailableLines(null);
+    setPendingAvailableLines([]);
+    setViewingRecentBooking(null);
   }
 
   // ── add-to-cart modal ───────────────────────────────────────────────────
@@ -417,33 +550,44 @@ export default function PosPortalPage() {
   const [modalDeities, setModalDeities] = useState<string[]>([]);
   const [modalDevotees, setModalDevotees] = useState<Devotee[]>([{ name: "", nakshatra: "" }]);
   const [modalQuantity, setModalQuantity] = useState(1);
+  // Set while editing an existing cart line instead of adding a new one —
+  // confirmAddToCart() branches on this to update in place rather than append.
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
 
   function openAddModal(offering: Offering) {
+    setEditingLineId(null);
     setModalOffering(offering);
     setModalDeities([]);
-    // Deity-mapped offerings get one devotee row per selected deity (synced
-    // below). A family-only offering just starts at 1 and can be grown up
-    // to its configured maximum — there's no configured minimum any more.
-    setModalDevotees([{ name: "", nakshatra: "" }]);
+    // Family member details are their own independent count (the offering's
+    // configured max), not tied to how many deities get picked — selecting
+    // more deities only changes price/quantity, never how many devotee rows
+    // show. Starts fully populated at the configured maximum (so "Max
+    // Members: 2" actually shows 2 fields up front, not 1 with a hidden
+    // add button) and can be shrunk via removeDevoteeRow down to a floor of 1.
+    const startRows = offering.isFamilyMembersRequired ? Math.max(1, offering.maxFamilyMembers || 1) : 1;
+    setModalDevotees(Array.from({ length: startRows }, () => ({ name: "", nakshatra: "" })));
     setModalQuantity(1);
   }
 
-  const modalDeityCount = modalDeities.length || 1;
+  // Reopens the same modal pre-filled with what's already on this cart
+  // line, so the deity/devotee selections already made for it aren't lost
+  // just to change one of them.
+  function openEditModal(line: CartLine) {
+    const offering = line.offering;
+    if (!offering) return;
+    setEditingLineId(line.id);
+    setModalOffering(offering);
+    setModalDeities(line.deities);
+    const startRows = offering.isFamilyMembersRequired ? Math.max(1, offering.maxFamilyMembers || 1) : 1;
+    const rows = Array.from({ length: Math.max(startRows, line.devotees.length) }, (_, i) => line.devotees[i] ?? { name: "", nakshatra: "" });
+    setModalDevotees(rows);
+    setModalQuantity(line.quantity);
+  }
+
   const modalDevoteeRows = modalOffering?.isFamilyMembersRequired ? modalDevotees.length : 0;
   // Deity-mapped offerings: full active roster unless the offering has its
   // own curated deityMapping, in which case that takes precedence.
   const modalDeityChoices = modalOffering?.deityMapping?.length ? modalOffering.deityMapping : deityOptions;
-
-  useEffect(() => {
-    if (!modalOffering?.isFamilyMembersRequired || !modalOffering?.isDeityMappingRequired) return;
-    setModalDevotees((prev) => {
-      const rows = modalDeityCount;
-      if (prev.length === rows) return prev;
-      if (prev.length < rows) return [...prev, ...Array(rows - prev.length).fill({ name: "", nakshatra: "" })];
-      return prev.slice(0, rows);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalDeityCount, modalOffering?.isFamilyMembersRequired, modalOffering?.isDeityMappingRequired]);
 
   function addDevoteeRow() {
     if (!modalOffering) return;
@@ -470,12 +614,33 @@ export default function PosPortalPage() {
       toast.error("Please select at least one deity.");
       return;
     }
-    if (modalOffering.isFamilyMembersRequired) {
-      const empty = modalDevotees.some((d) => !d.name.trim());
-      if (empty) {
-        toast.error("Please fill all devotee names.");
-        return;
-      }
+    // Devotee name is optional, not required — the row count reflects the
+    // offering's configured max as a cap, not a mandatory headcount. Blank
+    // rows (an unused slot) are simply dropped rather than blocking Add to
+    // Cart or being sent to the backend, which rejects an empty name.
+    const filledDevotees = modalDevotees
+      .filter((d) => d.name.trim())
+      .map((d) => ({ name: d.name.trim(), nakshatra: d.nakshatra }));
+
+    if (editingLineId) {
+      const lineId = editingLineId;
+      setCart((prev) =>
+        prev.map((l) =>
+          l.id === lineId
+            ? {
+                ...l,
+                quantity: modalEffectiveQty || 1,
+                deities: modalDeities,
+                devotees: modalOffering.isFamilyMembersRequired ? filledDevotees : [],
+                offering: modalOffering,
+              }
+            : l
+        )
+      );
+      setModalOffering(null);
+      setEditingLineId(null);
+      toast.updated(`${modalOffering.name} updated.`);
+      return;
     }
 
     const newLine: CartLine = {
@@ -487,9 +652,8 @@ export default function PosPortalPage() {
       quantity: modalEffectiveQty || 1,
       unitPrice: modalOffering.salePrice,
       deities: modalDeities,
-      devotees: modalOffering.isFamilyMembersRequired
-        ? modalDevotees.map((d) => ({ name: d.name.trim(), nakshatra: d.nakshatra }))
-        : [],
+      devotees: modalOffering.isFamilyMembersRequired ? filledDevotees : [],
+      offering: modalOffering,
     };
     setCart((prev) => [...prev, newLine]);
     setModalOffering(null);
@@ -512,6 +676,10 @@ export default function PosPortalPage() {
 
   const hasStockIssues = cart.some((l) => l.quantityExceedsStock);
   const canProceed = selectedCustomer && cart.length > 0 && !hasStockIssues && !summaryLoading;
+  // Items are sitting in the cart with nobody to book them for — call it
+  // out right at the search box instead of only at the disabled checkout
+  // button, which is easy to miss until the very end.
+  const needsCustomerForCart = cart.length > 0 && !selectedCustomer;
 
   async function handleConfirmBooking() {
     if (!selectedCustomer) { toast.error("No customer selected."); return; }
@@ -572,7 +740,55 @@ export default function PosPortalPage() {
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
         <div className="flex flex-col gap-3 rounded-2xl border border-gold-500/15 bg-white p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.08)] lg:h-full lg:overflow-y-auto">
           <p className="font-display text-[15px] font-bold text-ink-100">Customer</p>
-          <div className="relative">
+          <div className={`relative rounded-xl transition-shadow duration-300 ${needsCustomerForCart ? "shadow-[0_0_0_3px_rgba(220,38,38,0.25)]" : ""}`}>
+            <AnimatePresence>
+              {needsCustomerForCart && (
+                <>
+                  {/* Colorful expanding wave rings — three staggered rings in
+                      alternating gold/crimson/amber ripple outward from the
+                      search box and fade, drawing the eye without a static shadow. */}
+                  <div className="pointer-events-none absolute inset-0 z-0 overflow-visible rounded-xl">
+                    {[
+                      { color: "#dc2626", delay: 0 },
+                      { color: "#d4af37", delay: 0.5 },
+                      { color: "#f59e0b", delay: 1 },
+                    ].map(({ color, delay }, i) => (
+                      <motion.span
+                        key={i}
+                        initial={{ opacity: 0.65, scale: 1 }}
+                        animate={{ opacity: [0.65, 0], scale: [1, 1.4] }}
+                        exit={{ opacity: 0 }}
+                        transition={{ repeat: Infinity, duration: 1.8, delay, ease: "easeOut" }}
+                        className="absolute inset-0 rounded-xl border-2"
+                        style={{ borderColor: color }}
+                      />
+                    ))}
+                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, y: -2 }}
+                    animate={{ opacity: 1, y: [0, -6, 0] }}
+                    exit={{ opacity: 0 }}
+                    transition={{ y: { repeat: Infinity, duration: 1.1, ease: "easeInOut" }, opacity: { duration: 0.2 } }}
+                    className="pointer-events-none absolute -top-9 left-1/2 z-10 -translate-x-1/2"
+                  >
+                    <svg className="h-7 w-7 drop-shadow-[0_2px_5px_rgba(220,38,38,0.45)]" viewBox="0 0 24 24" fill="none" strokeWidth="2.5">
+                      <defs>
+                        <linearGradient id="customerArrowGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#dc2626" />
+                          <stop offset="100%" stopColor="#d4af37" />
+                        </linearGradient>
+                      </defs>
+                      <path
+                        d="M12 3v15M12 18l-5-5M12 18l5-5"
+                        stroke="url(#customerArrowGradient)"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
             <DivineInput
               label="Search customer…"
               icon={<SearchIcon />}
@@ -630,6 +846,28 @@ export default function PosPortalPage() {
             >
               <UserIcon /> Create Customer
             </button>
+          )}
+
+          {selectedCustomer && recentBookings.length > 0 && (
+            <div className="space-y-2">
+              <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-amber-600">
+                <HistoryIcon /> Recent Transactions
+              </p>
+              {recentBookings.map((b) => (
+                <button
+                  key={b._id}
+                  type="button"
+                  onClick={() => setViewingRecentBooking(b)}
+                  className="flex w-full flex-col items-start gap-0.5 rounded-xl border border-gold-500/15 bg-white px-3 py-2.5 text-left hover:border-gold-400/50 hover:bg-ivory-100"
+                >
+                  <span className="flex w-full items-center justify-between text-[12.5px] font-medium text-ink-100">
+                    <span className="tabular-nums">{b.bookingNumber}</span>
+                    <span className="text-amber-600">{formatCurrency(b.grandTotal)}</span>
+                  </span>
+                  <span className="text-[11px] text-ink-500">{formatTempleDateTime(b.bookedAt)} · {b.lines.length} item(s)</span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
@@ -692,11 +930,37 @@ export default function PosPortalPage() {
 
             {!catalogueLoading && !showingSearch && showingFolder && activeFolder && (
               <div>
-                <div className="mb-4 flex items-center gap-2">
-                  <FolderIcon />
-                  <p className="font-display text-[16px] font-bold text-ink-100">{activeFolder.subCategoryName}</p>
-                  <button onClick={() => setActiveFolder(null)} className="ml-2 text-[12.5px] text-crimson-500 hover:underline">
-                    Back
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5 text-[12.5px]">
+                    <button
+                      onClick={() => {
+                        setActiveFolder(null);
+                        setSelectedCategoryId("");
+                      }}
+                      className="text-ink-500 transition-colors hover:text-amber-600"
+                    >
+                      All Categories
+                    </button>
+                    <ChevronIcon className="-rotate-90 text-ink-400" />
+                    <button
+                      onClick={() => {
+                        setActiveFolder(null);
+                        setSelectedCategoryId(activeFolder.categoryId);
+                      }}
+                      className="text-ink-500 transition-colors hover:text-amber-600"
+                    >
+                      {activeFolder.categoryName}
+                    </button>
+                    <ChevronIcon className="-rotate-90 text-ink-400" />
+                    <span className="flex items-center gap-1.5 font-display text-[15px] font-bold text-ink-100">
+                      <FolderIcon /> {activeFolder.subCategoryName}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setActiveFolder(null)}
+                    className="flex shrink-0 items-center gap-1 text-[12.5px] font-medium text-crimson-500 hover:underline"
+                  >
+                    <ChevronIcon className="rotate-90" /> Back
                   </button>
                 </div>
                 {folderLoading ? (
@@ -746,8 +1010,12 @@ export default function PosPortalPage() {
               <CartIcon /> Cart <span className="rounded-full bg-gold-500/15 px-2 py-0.5 text-[11px] text-amber-700">{cart.length}</span>
             </p>
             {cart.length > 0 && (
-              <button onClick={clearCart} className="text-[12px] text-ink-500 hover:text-crimson-400">
-                Clear Cart
+              <button
+                onClick={clearCart}
+                aria-label="Clear cart"
+                className="flex items-center gap-1.5 rounded-full border border-red-700/20 bg-gradient-to-b from-red-400 via-red-500 to-red-600 px-3 py-1.5 text-[11.5px] font-semibold text-white shadow-[0_2px_6px_-1px_rgba(220,38,38,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_16px_-4px_rgba(220,38,38,0.6)] active:translate-y-0"
+              >
+                <TrashIcon /> Clear Cart
               </button>
             )}
           </div>
@@ -762,7 +1030,7 @@ export default function PosPortalPage() {
             ) : (
               <div className="space-y-2">
                 {cart.map((line) => (
-                  <CartLineRow key={line.id} line={line} onRemove={() => removeCartLine(line.id)} />
+                  <CartLineRow key={line.id} line={line} onEdit={() => openEditModal(line)} onRemove={() => removeCartLine(line.id)} />
                 ))}
               </div>
             )}
@@ -820,6 +1088,27 @@ export default function PosPortalPage() {
         />
       )}
 
+      {viewingRecentBooking && (
+        <RecentBookingModal
+          booking={viewingRecentBooking}
+          loading={recheckingCart}
+          onClose={() => setViewingRecentBooking(null)}
+          onAddToCart={() => addRecentBookingToCart(viewingRecentBooking)}
+        />
+      )}
+
+      {unavailableLines && (
+        <UnavailableLinesDialog
+          unavailableLines={unavailableLines}
+          availableCount={pendingAvailableLines.length}
+          onCancel={() => {
+            setUnavailableLines(null);
+            setPendingAvailableLines([]);
+          }}
+          onProceed={confirmAddAvailableOnly}
+        />
+      )}
+
       {modalOffering && (
         <AddToCartModal
           offering={modalOffering}
@@ -835,7 +1124,11 @@ export default function PosPortalPage() {
           quantity={modalQuantity}
           onQuantityChange={setModalQuantity}
           total={modalTotal}
-          onCancel={() => setModalOffering(null)}
+          isEditing={!!editingLineId}
+          onCancel={() => {
+            setModalOffering(null);
+            setEditingLineId(null);
+          }}
           onConfirm={confirmAddToCart}
         />
       )}
@@ -1041,7 +1334,7 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
   );
 }
 
-function CartLineRow({ line, onRemove }: { line: CartLine; onRemove: () => void }) {
+function CartLineRow({ line, onEdit, onRemove }: { line: CartLine; onEdit: () => void; onRemove: () => void }) {
   return (
     <div className={`rounded-xl border p-3 ${line.quantityExceedsStock ? "border-crimson-500/30 bg-crimson-500/5" : "border-gold-500/15 bg-white"}`}>
       <div className="flex items-start justify-between gap-2">
@@ -1059,7 +1352,20 @@ function CartLineRow({ line, onRemove }: { line: CartLine; onRemove: () => void 
           <span className="whitespace-nowrap text-[13px] font-semibold text-amber-600">
             {formatCurrency(line.lineTotal ?? line.unitPrice * line.quantity)}
           </span>
-          <button onClick={onRemove} aria-label={`Remove ${line.name}`} className="text-ink-500 hover:text-crimson-500">
+          {line.offering && (
+            <button
+              onClick={onEdit}
+              aria-label={`Edit ${line.name}`}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-blue-700/20 bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600 text-white shadow-[0_2px_5px_-1px_rgba(37,99,235,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_14px_-3px_rgba(37,99,235,0.6)] active:translate-y-0"
+            >
+              <PencilIcon />
+            </button>
+          )}
+          <button
+            onClick={onRemove}
+            aria-label={`Remove ${line.name}`}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-red-700/20 bg-gradient-to-b from-red-400 via-red-500 to-red-600 text-white shadow-[0_2px_5px_-1px_rgba(220,38,38,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_14px_-3px_rgba(220,38,38,0.6)] active:translate-y-0"
+          >
             <TrashIcon />
           </button>
         </div>
@@ -1082,6 +1388,7 @@ function AddToCartModal({
   quantity,
   onQuantityChange,
   total,
+  isEditing,
   onCancel,
   onConfirm,
 }: {
@@ -1098,6 +1405,7 @@ function AddToCartModal({
   quantity: number;
   onQuantityChange: (v: number) => void;
   total: number;
+  isEditing?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -1117,6 +1425,7 @@ function AddToCartModal({
         >
           <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
             <div>
+              {isEditing && <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-blue-600">Editing cart line</p>}
               <h2 className="font-display text-[19px] font-bold text-ink-100">{offering.name}</h2>
               {offering.tamilName && <p className="text-[13px] text-ink-500">{offering.tamilName}</p>}
             </div>
@@ -1168,9 +1477,7 @@ function AddToCartModal({
             {offering.isFamilyMembersRequired && devoteeRows > 0 && (
               <div className="space-y-3">
                 <p className="text-[11px] uppercase tracking-wide text-amber-600">
-                  {offering.isDeityMappingRequired
-                    ? `Devotee Details (${devoteeRows} row${devoteeRows > 1 ? "s" : ""} — applies to all selected deities) *`
-                    : `Devotee Details (max ${offering.maxFamilyMembers}) *`}
+                  Devotee Details (max {offering.maxFamilyMembers}) *
                 </p>
                 {devotees.map((devotee, idx) => (
                   <div key={idx} className="grid grid-cols-[1fr_140px_auto] items-start gap-2">
@@ -1193,7 +1500,7 @@ function AddToCartModal({
                       options={nakshatraOptions}
                       placeholder="Nakshatra"
                     />
-                    {!offering.isDeityMappingRequired && devotees.length > 1 && (
+                    {devotees.length > 1 && (
                       <button
                         type="button"
                         onClick={() => onRemoveDevotee(idx)}
@@ -1205,7 +1512,7 @@ function AddToCartModal({
                     )}
                   </div>
                 ))}
-                {!offering.isDeityMappingRequired && devotees.length < offering.maxFamilyMembers && (
+                {devotees.length < offering.maxFamilyMembers && (
                   <button
                     type="button"
                     onClick={onAddDevotee}
@@ -1228,7 +1535,7 @@ function AddToCartModal({
                 Cancel
               </DivineButton>
               <DivineButton fullWidth={false} type="button" onClick={onConfirm}>
-                Add to Cart
+                {isEditing ? "Save Changes" : "Add to Cart"}
               </DivineButton>
             </div>
           </div>
@@ -1238,14 +1545,88 @@ function AddToCartModal({
   );
 }
 
+const CREATE_CUSTOMER_GENDER_OPTIONS: ListboxOption[] = [
+  { value: "", label: "Not specified" },
+  { value: "MALE", label: "Male" },
+  { value: "FEMALE", label: "Female" },
+  { value: "OTHER", label: "Other" },
+];
+
+type WalkInMatch = {
+  _id: string;
+  customerCode: string;
+  name: string;
+  email: string;
+  mobileNumber: string | null;
+  dateOfBirth: string | null;
+  gender: string | null;
+};
+
+/**
+ * Captures the same fields the Admin Panel's Customer master can edit
+ * (name, email, mobile, date of birth, gender) — a walk-in profile created
+ * at the counter shouldn't be a lesser record than one created any other
+ * way, and staff can later find/edit this exact profile from Customers.
+ *
+ * As the mobile number is typed, it's checked (debounced) against existing
+ * *unregistered* walk-in profiles — a repeat visitor on the same mobile
+ * auto-fills from their earlier profile instead of hitting the
+ * mobile-uniqueness error on a second create, and the button just selects
+ * that existing profile rather than posting a duplicate. A profile that's
+ * already fully registered is never matched this way (see the backend's
+ * isRegistered field) — reusing one of those goes through customer search.
+ */
 function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCreated: (c: Customer) => void }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [gender, setGender] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [matched, setMatched] = useState<WalkInMatch | null>(null);
+  const [checkingMobile, setCheckingMobile] = useState(false);
+
+  useEffect(() => {
+    const mobile = mobileNumber.trim();
+    if (mobile.length < 6) {
+      setMatched(null);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setCheckingMobile(true);
+      try {
+        const r = await api.get<ApiEnvelope<WalkInMatch | null>>("/pos/booking/customers/lookup", { params: { mobileNumber: mobile } });
+        const found = unwrap(r);
+        setMatched(found);
+        if (found) {
+          setName(found.name);
+          setEmail(found.email);
+          setDateOfBirth(found.dateOfBirth ? found.dateOfBirth.slice(0, 10) : "");
+          setGender(found.gender ?? "");
+        }
+      } catch {
+        // A failed lookup shouldn't block manual entry — just proceed uncached.
+      } finally {
+        setCheckingMobile(false);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [mobileNumber]);
+
+  function clearMatch() {
+    setMatched(null);
+    setName("");
+    setEmail("");
+    setDateOfBirth("");
+    setGender("");
+  }
 
   async function submit() {
+    if (matched) {
+      onCreated(matched);
+      return;
+    }
     if (!name.trim() || !email.trim()) {
       setError("Name and email are required.");
       return;
@@ -1257,6 +1638,8 @@ function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCr
         name: name.trim(),
         email: email.trim(),
         mobileNumber: mobileNumber.trim() || undefined,
+        dateOfBirth: dateOfBirth || undefined,
+        gender: gender || undefined,
       });
       const customer = unwrap(r);
       toast.created("Devotee profile created.");
@@ -1276,25 +1659,185 @@ function CreateCustomerModal({ onClose, onCreated }: { onClose: () => void; onCr
           initial={{ opacity: 0, y: 16, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.97 }}
-          className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border border-gold-500/20 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
+          className="pointer-events-auto w-full max-w-xl overflow-hidden rounded-2xl border border-gold-500/20 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
         >
           <div className="border-b border-gold-500/10 px-6 py-5">
             <h2 className="font-display text-[18px] font-bold text-ink-100">Create Customer</h2>
             <p className="text-[12.5px] text-ink-500">Quick walk-in profile — no login required.</p>
           </div>
-          <div className="space-y-4 px-6 py-5">
-            <DivineInput label="Full Name" icon={<UserIcon />} value={name} onChange={(e) => setName(e.target.value)} />
-            <DivineInput label="Email" icon={<MailIcon />} value={email} onChange={(e) => setEmail(e.target.value)} />
-            <DivineInput label="Mobile Number" icon={<PhoneIcon />} value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} />
-            {error && <p className="text-[12.5px] text-crimson-500">{error}</p>}
+          <div className="px-6 py-5">
+            {matched && (
+              <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-gold-500/25 bg-gold-500/5 px-3.5 py-2.5">
+                <p className="text-[12.5px] text-amber-700">
+                  Existing profile found for this mobile number ({matched.customerCode}) — details filled in below.
+                </p>
+                <button type="button" onClick={clearMatch} className="whitespace-nowrap text-[12px] text-crimson-500 hover:underline">
+                  Not this person?
+                </button>
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <DivineInput label="Full Name" icon={<UserIcon />} value={name} onChange={(e) => setName(e.target.value)} disabled={!!matched} />
+              <DivineInput label="Email" icon={<MailIcon />} value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!matched} />
+              <DivineInput
+                label="Mobile Number"
+                icon={<PhoneIcon />}
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
+                hint={checkingMobile ? "Checking…" : undefined}
+              />
+              <DivineDatePicker label="Date of birth" value={dateOfBirth} onChange={setDateOfBirth} placeholder="Not recorded" />
+              <DivineListbox label="Gender" value={gender} onChange={setGender} options={CREATE_CUSTOMER_GENDER_OPTIONS} disabled={!!matched} />
+            </div>
+            {error && <p className="mt-3 text-[12.5px] text-crimson-500">{error}</p>}
           </div>
           <div className="flex justify-end gap-3 border-t border-gold-500/10 px-6 py-4">
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={onClose}>
               Cancel
             </DivineButton>
             <DivineButton fullWidth={false} type="button" loading={submitting} onClick={submit}>
-              Create
+              {matched ? "Use This Customer" : "Create"}
             </DivineButton>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}
+
+/**
+ * Shows a past booking's line items in a center-screen popup — "repeat this
+ * booking" for the counter. Add to Cart re-checks live availability before
+ * doing anything (see addRecentBookingToCart); this component only renders
+ * what was originally bought and triggers that check.
+ */
+function RecentBookingModal({
+  booking,
+  loading,
+  onClose,
+  onAddToCart,
+}: {
+  booking: RecentBooking;
+  loading: boolean;
+  onClose: () => void;
+  onAddToCart: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-40 bg-navy-950/60 backdrop-blur-sm" />
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 16, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 16, scale: 0.97 }}
+          className="pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-gold-500/20 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
+        >
+          <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
+            <div>
+              <h2 className="font-display text-[19px] font-bold text-ink-100">{booking.orderNumber ?? booking.bookingNumber}</h2>
+              <p className="text-[13px] text-ink-500">{formatTempleDateTime(booking.bookedAt)}</p>
+            </div>
+            <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-ink-500 hover:bg-ivory-100">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-2 overflow-y-auto px-6 py-5">
+            {booking.lines.map((line, idx) => (
+              <div key={idx} className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[13px] font-medium text-ink-100">{line.name}</p>
+                    <p className="text-[11.5px] text-ink-500">
+                      {line.refType} · {line.code} · Qty {line.quantity}
+                    </p>
+                    {line.deities.length > 0 && (
+                      <p className="mt-1 text-[11.5px] text-ink-500">Deities: {line.deities.map((d) => d.name).join(", ")}</p>
+                    )}
+                    {line.devotees.length > 0 && (
+                      <p className="text-[11.5px] text-ink-500">Devotees: {line.devotees.map((d) => d.name).join(", ")}</p>
+                    )}
+                  </div>
+                  <span className="whitespace-nowrap font-semibold text-amber-600">{formatCurrency(line.lineTotal)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between border-t border-gold-500/10 px-6 py-4">
+            <p className="text-[14px]">
+              <span className="text-ink-500">Total: </span>
+              <span className="font-bold text-amber-600">{formatCurrency(booking.grandTotal)}</span>
+            </p>
+            <div className="flex gap-3">
+              <DivineButton variant="ghost" fullWidth={false} type="button" onClick={onClose} disabled={loading}>
+                Cancel
+              </DivineButton>
+              <DivineButton fullWidth={false} type="button" loading={loading} onClick={onAddToCart}>
+                Add to Cart
+              </DivineButton>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}
+
+/**
+ * Shown when re-adding a past booking finds some lines no longer valid
+ * (deactivated, out of stock, ...) — lists exactly what's unavailable and
+ * why, and lets staff proceed with just the still-available lines instead
+ * of failing the whole re-order.
+ */
+function UnavailableLinesDialog({
+  unavailableLines,
+  availableCount,
+  onCancel,
+  onProceed,
+}: {
+  unavailableLines: RecheckedLine[];
+  availableCount: number;
+  onCancel: () => void;
+  onProceed: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onCancel} className="fixed inset-0 z-40 bg-navy-950/60 backdrop-blur-sm" />
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 16, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 16, scale: 0.97 }}
+          className="pointer-events-auto w-full max-w-md overflow-hidden rounded-2xl border border-gold-500/20 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
+        >
+          <div className="border-b border-gold-500/10 px-6 py-5">
+            <h2 className="font-display text-[18px] font-bold text-ink-100">Some items aren&apos;t available</h2>
+            <p className="text-[12.5px] text-ink-500">
+              {availableCount > 0
+                ? `${availableCount} item(s) from this booking are still available. The rest can't be re-added right now:`
+                : "None of this booking's items can be re-added right now:"}
+            </p>
+          </div>
+          <div className="max-h-[40vh] space-y-2 overflow-y-auto px-6 py-5">
+            {unavailableLines.map((line, idx) => (
+              <div key={idx} className="rounded-xl border border-crimson-500/25 bg-crimson-500/5 px-3 py-2.5">
+                <p className="text-[13px] font-medium text-ink-100">{line.name ?? "Unknown item"}</p>
+                <p className="text-[11.5px] text-crimson-500">{line.reason}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end gap-3 border-t border-gold-500/10 px-6 py-4">
+            <DivineButton variant="ghost" fullWidth={false} type="button" onClick={onCancel}>
+              Cancel
+            </DivineButton>
+            {availableCount > 0 && (
+              <DivineButton fullWidth={false} type="button" onClick={onProceed}>
+                Add {availableCount} Available Item{availableCount > 1 ? "s" : ""}
+              </DivineButton>
+            )}
           </div>
         </motion.div>
       </div>
@@ -1413,6 +1956,7 @@ function BookingSuccessView({ confirmation, onNewTransaction }: { confirmation: 
         <div className="my-6 space-y-2 rounded-xl border border-gold-500/15 bg-ivory-100 px-5 py-4 text-left text-[13px]">
           <Row label="Booking No." value={confirmation.bookingNumber} highlight />
           <Row label="Order No." value={confirmation.orderNumber} />
+          <Row label="Receipt No." value={confirmation.receiptNo} />
           <Row label="Customer" value={`${confirmation.customer.name} (${confirmation.customer.customerCode})`} />
           <Row label="Payment" value={`${confirmation.paymentModeName} — ${confirmation.paymentStatus}`} />
           <div className="border-t border-gold-500/10 pt-2">

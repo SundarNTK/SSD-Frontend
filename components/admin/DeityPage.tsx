@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
+import TamilNameField from "./TamilNameField";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
@@ -69,9 +70,13 @@ export default function DeityPage() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     control,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  const nameValue = watch("name") ?? "";
+  const tamilNameValue = watch("tamilName") ?? "";
 
   function openCreate() {
     setEditing(null);
@@ -144,17 +149,9 @@ export default function DeityPage() {
         createLabel="Add Deity"
         emptyMessage="No deities yet — create the first one."
         rowActions={(d) => (
-          <div className="flex justify-end gap-3">
-            {canEdit && (
-              <button onClick={() => openEdit(d)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
-                Edit
-              </button>
-            )}
-            {canCreate && (
-              <button onClick={() => setDeleting(d)} className="text-[12.5px] text-crimson-500 hover:underline">
-                Delete
-              </button>
-            )}
+          <div className="flex justify-end gap-2">
+            {canEdit && <EditIconButton onClick={() => openEdit(d)} />}
+            {canCreate && <DeleteIconButton onClick={() => setDeleting(d)} />}
           </div>
         )}
       />
@@ -199,8 +196,15 @@ export default function DeityPage() {
         }
       >
         <form id="deity-form" onSubmit={submit} noValidate className="space-y-5">
-          <DivineInput label="Name" error={errors.name?.message} {...register("name")} />
-          <DivineInput label="Tamil Name" error={errors.tamilName?.message} {...register("tamilName")} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DivineInput label="Name" error={errors.name?.message} {...register("name")} />
+            <TamilNameField
+              englishName={nameValue}
+              value={tamilNameValue}
+              onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
+              error={errors.tamilName?.message}
+            />
+          </div>
           <Controller
             control={control}
             name="printingGroup"

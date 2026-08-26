@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -152,17 +152,9 @@ export default function GstPage() {
         createLabel="Add GST"
         emptyMessage="No GST rates yet — create the first one."
         rowActions={(g) => (
-          <div className="flex justify-end gap-3">
-            {canEdit && (
-              <button onClick={() => openEdit(g)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
-                Edit
-              </button>
-            )}
-            {canCreate && (
-              <button onClick={() => setDeleting(g)} className="text-[12.5px] text-crimson-500 hover:underline">
-                Delete
-              </button>
-            )}
+          <div className="flex justify-end gap-2">
+            {canEdit && <EditIconButton onClick={() => openEdit(g)} />}
+            {canCreate && <DeleteIconButton onClick={() => setDeleting(g)} />}
           </div>
         )}
       />
@@ -207,48 +199,54 @@ export default function GstPage() {
         }
       >
         <form id="gst-form" onSubmit={submit} noValidate className="space-y-5">
-          <DivineInput label="Type" error={errors.type?.message} {...register("type")} />
-          <DivineInput label="Code" error={errors.code?.message} {...register("code")} />
-          <DivineInput
-            label="Percentage"
-            type="number"
-            step="0.01"
-            error={errors.percentage?.message}
-            {...register("percentage", { valueAsNumber: true })}
-          />
-          <Controller
-            control={control}
-            name="effectiveStartDate"
-            render={({ field }) => (
-              <DivineDatePicker
-                label="Effective start date"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.effectiveStartDate?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="effectiveEndDate"
-            render={({ field }) => (
-              <DivineDatePicker
-                label="Effective end date"
-                value={field.value}
-                onChange={field.onChange}
-                placeholder="Ongoing"
-                hint="Leave empty for a rate with no end date."
-                error={errors.effectiveEndDate?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="status"
-            render={({ field }) => (
-              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
-            )}
-          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DivineInput label="Type" error={errors.type?.message} {...register("type")} />
+            <DivineInput label="Code" error={errors.code?.message} {...register("code")} />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DivineInput
+              label="Percentage"
+              type="number"
+              step="0.01"
+              error={errors.percentage?.message}
+              {...register("percentage", { valueAsNumber: true })}
+            />
+            <Controller
+              control={control}
+              name="effectiveStartDate"
+              render={({ field }) => (
+                <DivineDatePicker
+                  label="Effective start date"
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={errors.effectiveStartDate?.message}
+                />
+              )}
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Controller
+              control={control}
+              name="effectiveEndDate"
+              render={({ field }) => (
+                <DivineDatePicker
+                  label="Effective end date"
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Ongoing"
+                  hint="Leave empty for a rate with no end date."
+                  error={errors.effectiveEndDate?.message}
+                />
+              )}
+            />
+            <Controller
+              control={control}
+              name="status"
+              render={({ field }) => (
+                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+              )}
+            />
+          </div>
         </form>
       </FormDrawer>
     </>

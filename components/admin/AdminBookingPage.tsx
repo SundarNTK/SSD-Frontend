@@ -137,6 +137,7 @@ type BookingConfirmation = {
   _id: string;
   bookingNumber: string;
   orderNumber: string;
+  receiptNo: string;
   customer: Customer;
   lines: CartLine[];
   subtotal: number;
@@ -399,27 +400,13 @@ export default function AdminBookingPage() {
   const effectiveQuantity = needsDeity ? selectedDeities.length : quantity;
   const lineTotal = unitPrice * effectiveQuantity;
 
-  const deityCount = selectedDeities.length || 1;
-
-  // Deity-mapped: one devotee row per selected deity. Family-only (no
-  // deity): rows are grown/shrunk manually via addDevoteeRow/
-  // removeDevoteeRow, starting at 1 and capped at the configured maximum —
-  // there's no configured minimum any more.
+  // Family member details are their own independent count (the offering's
+  // configured max), never tied to how many deities get picked — selecting
+  // more deities only changes price/quantity, never how many devotee rows
+  // show. Rows are grown/shrunk manually via addDevoteeRow/removeDevoteeRow,
+  // starting fully populated at the configured maximum (see the reset
+  // effect below) and floored at 1.
   const devoteeRowCount = needsDevotees ? devotees.length : 0;
-
-  useEffect(() => {
-    if (!needsDevotees) {
-      setDevotees([{ name: "", nakshatra: "" }]);
-      return;
-    }
-    if (!needsDeity) return;
-    setDevotees((prev) => {
-      const rows = deityCount;
-      if (prev.length === rows) return prev;
-      if (prev.length < rows) return [...prev, ...Array(rows - prev.length).fill({ name: "", nakshatra: "" })];
-      return prev.slice(0, rows);
-    });
-  }, [deityCount, needsDevotees, needsDeity]);
 
   function addDevoteeRow() {
     if (devotees.length >= maxFamilyMembers) return;
@@ -433,10 +420,14 @@ export default function AdminBookingPage() {
 
   // Picking a different item/service starts a clean line: previous deity
   // selection and devotee rows don't carry over to an unrelated offering.
+  // When family members are required, the devotee section starts fully
+  // populated at the offering's configured max (so "Max Members: 2" shows
+  // 2 fields up front, not 1 with a hidden add button) — shrinkable down to 1.
   useEffect(() => {
     setQuantity(1);
     setSelectedDeities([]);
-    setDevotees([{ name: "", nakshatra: "" }]);
+    const startRows = needsDevotees ? Math.max(1, maxFamilyMembers) : 1;
+    setDevotees(Array.from({ length: startRows }, () => ({ name: "", nakshatra: "" })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedItemId, selectedServiceId]);
 
@@ -459,16 +450,16 @@ export default function AdminBookingPage() {
       toast.error("Please select at least one deity.");
       return;
     }
-    if (needsDevotees) {
-      const empty = devotees.some((d) => !d.name.trim());
-      if (empty) {
-        toast.error("Please fill all devotee names.");
-        return;
-      }
-    }
-
     const name = refType === "Item" ? (selectedItem?.name ?? "") : (selectedService?.name ?? "");
     const code = refType === "Item" ? (selectedItem?.code ?? "") : (selectedService?.code ?? "");
+
+    // Devotee name is optional, not required — the row count reflects the
+    // offering's configured max as a cap, not a mandatory headcount. Blank
+    // rows (an unused slot) are simply dropped rather than blocking Add to
+    // Cart or being sent to the backend, which rejects an empty name.
+    const filledDevotees = devotees
+      .filter((d) => d.name.trim())
+      .map((d) => ({ name: d.name.trim(), nakshatra: d.nakshatra }));
 
     const newLine: CartLine = {
       id: newLineId(),
@@ -479,7 +470,7 @@ export default function AdminBookingPage() {
       quantity: effectiveQuantity,
       unitPrice,
       deities: selectedDeities,
-      devotees: needsDevotees ? devotees.map((d) => ({ name: d.name.trim(), nakshatra: d.nakshatra })) : [],
+      devotees: needsDevotees ? filledDevotees : [],
     };
 
     setCart((prev) => [...prev, newLine]);
@@ -742,11 +733,7 @@ export default function AdminBookingPage() {
             {/* Devotee rows */}
             {needsDevotees && devotees.length > 0 && (
               <div className="space-y-3">
-                <p className="text-[12.5px] text-ink-500">
-                  {needsDeity
-                    ? `Devotee details — ${devotees.length} row(s) · same devotees apply to all selected deities`
-                    : `Devotee details (max ${maxFamilyMembers})`}
-                </p>
+                <p className="text-[12.5px] text-ink-500">Devotee details (max {maxFamilyMembers})</p>
                 {devotees.map((devotee, idx) => (
                   <div key={idx} className="grid grid-cols-[1fr_auto] items-end gap-3 sm:grid-cols-[1fr_180px_auto]">
                     <DivineInput
@@ -769,7 +756,7 @@ export default function AdminBookingPage() {
                       }}
                       options={nakshatraOptions}
                     />
-                    {!needsDeity && devotees.length > 1 && (
+                    {devotees.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeDevoteeRow(idx)}
@@ -781,7 +768,7 @@ export default function AdminBookingPage() {
                     )}
                   </div>
                 ))}
-                {!needsDeity && devotees.length < maxFamilyMembers && (
+                {devotees.length < maxFamilyMembers && (
                   <button
                     type="button"
                     onClick={addDevoteeRow}
@@ -1116,6 +1103,7 @@ function BookingSuccessView({
         <div className="my-6 space-y-2 rounded-xl border border-gold-500/15 bg-navy-800/60 px-5 py-4 text-left text-[13px]">
           <Row label="Booking No." value={confirmation.bookingNumber} highlight />
           <Row label="Order No." value={confirmation.orderNumber} />
+          <Row label="Receipt No." value={confirmation.receiptNo} />
           <Row label="Customer" value={`${confirmation.customer.name} (${confirmation.customer.customerCode})`} />
           <Row label="Payment" value={`${confirmation.paymentModeName} — ${confirmation.paymentStatus}`} />
           <Row label="Items / Services" value={`${confirmation.lines.length} line(s)`} />

@@ -14,6 +14,7 @@ import { toast } from "../../lib/toastStore";
 type BookingListItem = {
   _id: string;
   bookingNumber: string;
+  receiptNo: string | null;
   orderNumber: string | null;
   customer: { _id: string; customerCode: string; name: string } | null;
   lineType: string;
@@ -61,7 +62,7 @@ type BookingDetail = {
   transaction: {
     receiptNo: string;
     amount: number;
-    status: string;
+    paymentStatus: string;
     paymentModeName: string;
     transactionDate: string;
   } | null;
@@ -125,9 +126,9 @@ const COLUMNS: DataTableColumn<BookingListItem>[] = [
     render: (b) => <span className="font-medium tabular-nums text-amber-700">{b.orderNumber ?? "—"}</span>,
   },
   {
-    key: "bookingNumber",
+    key: "receiptNo",
     label: "Receipt No",
-    render: (b) => <span className="tabular-nums">{b.bookingNumber}</span>,
+    render: (b) => <span className="tabular-nums">{b.receiptNo ?? "—"}</span>,
   },
   { key: "customer", label: "Customer", render: (b) => b.customer?.name ?? "—" },
   { key: "lineType", label: "Type", render: (b) => <span className="text-ink-500">{b.lineType}</span> },
@@ -153,8 +154,9 @@ const DEFAULT_PAGE_SIZE = 10;
  * Read-only ledger of every confirmed/cancelled booking (see
  * GET /pos/booking/bookings) — mirrors Inventory History's shape: search +
  * filters + pagination, no create/edit/delete of its own. "Portal" defaults
- * to unfiltered (shows both) since today every booking is staff-created via
- * POS Portal or Admin Booking (both "Admin") — the "Customer" option is
+ * to unfiltered (shows all three) — "Admin Panel" and "POS Counter" both
+ * happen today (stamped server-side from which route tree took the
+ * request, see controllers/pos/index.js's setPortal()); "Customer" is
  * forward-looking infrastructure for the Customer Portal's eventual
  * self-service booking flow.
  */
@@ -252,17 +254,7 @@ export default function PosTransactionsPage() {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         title={detail ? `Booking ${detail.bookingNumber}` : "Booking Details"}
-        subtitle={
-          detail
-            ? [
-                detail.orderId?.orderNumber ? `Order ${detail.orderId.orderNumber}` : null,
-                detail.transaction?.receiptNo ? `Receipt ${detail.transaction.receiptNo}` : null,
-              ]
-                .filter(Boolean)
-                .join(" · ") || undefined
-            : undefined
-        }
-        maxWidthClassName="max-w-2xl"
+        maxWidthClassName="max-w-4xl"
         footer={
           <div className="flex justify-end">
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDetailOpen(false)}>
@@ -274,18 +266,34 @@ export default function PosTransactionsPage() {
         {detailLoading && <p className="py-8 text-center text-[13px] text-ink-500">Loading…</p>}
 
         {!detailLoading && detail && (
-          <div className="space-y-5 text-[13.5px]">
+          <div className="space-y-6 text-[13.5px]">
+            {/* ── Receipt masthead: Order No. / Receipt No. get real weight ── */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
+                <p className="text-[11px] uppercase tracking-wide text-ink-500">Order No.</p>
+                <p className="mt-0.5 font-display text-[18px] font-bold tabular-nums tracking-wide text-amber-700">
+                  {detail.orderId?.orderNumber ?? "—"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
+                <p className="text-[11px] uppercase tracking-wide text-ink-500">Receipt No.</p>
+                <p className="mt-0.5 font-display text-[18px] font-bold tabular-nums tracking-wide text-amber-700">
+                  {detail.transaction?.receiptNo ?? "—"}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-xl border border-gold-500/15 bg-white px-4 py-3.5 sm:grid-cols-4">
               <DetailRow label="Status" value={<BookingStatusPill status={detail.bookingStatus} />} />
               <DetailRow label="Portal" value={<PortalPill portal={detail.portal} />} />
               <DetailRow label="Date & Time" value={formatTempleDateTime(detail.bookedAt)} />
               <DetailRow label="Booked By" value={detail.bookedBy?.name ?? "—"} />
             </div>
 
-            <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
-              <p className="mb-1 text-[11px] uppercase tracking-wide text-amber-600">Customer</p>
+            <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3.5">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-600">Customer</p>
               <p className="font-medium text-ink-100">{detail.customer?.name ?? "—"}</p>
-              <p className="text-[12px] text-ink-500">
+              <p className="mt-0.5 text-[12px] text-ink-500">
                 {detail.customer?.customerCode}
                 {detail.customer?.email ? ` · ${detail.customer.email}` : ""}
                 {detail.customer?.mobileNumber ? ` · ${detail.customer.mobileNumber}` : ""}
@@ -293,14 +301,14 @@ export default function PosTransactionsPage() {
             </div>
 
             <div>
-              <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Line Items</p>
-              <div className="space-y-2">
+              <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-amber-600">Line Items</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {detail.lines.map((line, idx) => (
-                  <div key={idx} className="rounded-xl border border-gold-500/15 bg-white px-4 py-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
+                  <div key={idx} className="rounded-xl border border-gold-500/15 bg-white px-4 py-3.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
                         <p className="font-medium text-ink-100">{line.name}</p>
-                        <p className="text-[11.5px] text-ink-500">
+                        <p className="mt-0.5 text-[11.5px] text-ink-500">
                           {line.refType} · {line.code} · Qty {line.quantity} &times; {formatCurrency(line.unitPrice)}
                         </p>
                         {line.deities.length > 0 && (
@@ -321,12 +329,13 @@ export default function PosTransactionsPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
-              <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Payment</p>
-              <DetailRow label="Receipt No." value={detail.transaction?.receiptNo ?? "—"} />
-              <DetailRow label="Payment Mode" value={detail.paymentModeName} />
-              <DetailRow label="Payment Status" value={detail.paymentStatus === "paid" ? "Paid" : "Pending"} />
-              <div className="mt-2 space-y-1 border-t border-gold-500/10 pt-2">
+            <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3.5">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-600">Payment</p>
+              <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+                <DetailRow label="Payment Mode" value={detail.paymentModeName} />
+                <DetailRow label="Payment Status" value={detail.paymentStatus === "paid" ? "Paid" : "Pending"} />
+              </div>
+              <div className="mt-2.5 space-y-1 border-t border-gold-500/10 pt-2.5">
                 <div className="flex justify-between text-ink-500">
                   <span>Sub Total</span>
                   <span>{formatCurrency(detail.subtotal)}</span>
@@ -335,7 +344,7 @@ export default function PosTransactionsPage() {
                   <span>GST</span>
                   <span>{formatCurrency(detail.gstAmount)}</span>
                 </div>
-                <div className="flex justify-between border-t border-gold-500/10 pt-1.5 font-bold text-ink-100">
+                <div className="flex justify-between border-t border-gold-500/10 pt-1.5 text-[15px] font-bold text-ink-100">
                   <span>Grand Total</span>
                   <span className="text-amber-600">{formatCurrency(detail.grandTotal)}</span>
                 </div>
@@ -350,8 +359,8 @@ export default function PosTransactionsPage() {
 
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-0.5">
-      <span className="text-ink-500">{label}</span>
+    <div className="flex flex-col gap-0.5 py-0.5">
+      <span className="text-[11px] uppercase tracking-wide text-ink-500">{label}</span>
       <span className="font-medium text-ink-100">{value}</span>
     </div>
   );

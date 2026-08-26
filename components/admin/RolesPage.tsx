@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import DataTable, { StatusPill, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -153,7 +153,7 @@ export default function RolesPage() {
               System managed
             </span>
           ) : (
-            <div className="flex justify-end gap-3">
+            <div className="flex items-center justify-end gap-2">
               {canCreate && (
                 <button
                   onClick={() => router.push(`/admin/permissions?role=${r._id}`)}
@@ -162,19 +162,8 @@ export default function RolesPage() {
                   <ShieldIcon /> Permissions
                 </button>
               )}
-              {canEdit && (
-                <button onClick={() => openEdit(r)} className="text-[12.5px] text-ink-300 hover:text-ink-100 hover:underline">
-                  Edit
-                </button>
-              )}
-              {canCreate && (
-                <button
-                  onClick={() => setDeleting(r)}
-                  className="text-[12.5px] text-crimson-500 hover:underline"
-                >
-                  Delete
-                </button>
-              )}
+              {canEdit && <EditIconButton onClick={() => openEdit(r)} />}
+              {canCreate && <DeleteIconButton onClick={() => setDeleting(r)} />}
             </div>
           )
         }
