@@ -22,6 +22,10 @@ type DivineDatePickerProps = {
   /** Blocks selection before this date — pass startOfToday() for "future only". */
   minDate?: Date | null;
   placeholder?: string;
+  /** Extra classes appended to the trigger button — e.g. a page that wants
+   *  this field to carry a themed border/shadow at rest, not just on focus.
+   *  Empty by default, so every existing call site is unaffected. */
+  containerClassName?: string;
 };
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -66,6 +70,7 @@ export default function DivineDatePicker({
   hint,
   minDate,
   placeholder = "Select a date",
+  containerClassName = "",
 }: DivineDatePickerProps) {
   const selected = parseISODateString(value);
   const today = startOfToday();
@@ -146,7 +151,7 @@ export default function DivineDatePicker({
             : open
               ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
               : "border-gold-500/20 hover:border-gold-400/40"
-        }`}
+        } ${containerClassName}`}
       >
         <div className="flex items-center gap-2 px-4 pt-5 pb-2">
           <span className={`shrink-0 transition-colors ${open ? "text-amber-600" : "text-ink-500"}`}>
