@@ -10,6 +10,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
+import DivineMultiSelect from "../divine/DivineMultiSelect";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineToggle from "../divine/DivineToggle";
@@ -32,6 +33,7 @@ export type Item = {
   salePrice: number;
   description: string;
   isDeityMappingRequired: boolean;
+  deityMapping: Ref[];
   printingGroup: Ref | null;
   categoryDetails: { category: Ref | null; subCategory: Ref | null; displayOrder: number }[];
   isInventoryApplicable: boolean;
@@ -42,6 +44,8 @@ export type Item = {
   quantityReduction: number;
   futureBookingCutOffDate: string | null;
   isFamilyMembersRequired: boolean;
+  minFamilyMembers: number;
+  maxFamilyMembers: number;
   posAvailability: boolean;
   customerPortalAvailability: boolean;
   status: number;
@@ -55,28 +59,40 @@ const categoryDetailSchema = z.object({
   displayOrder: z.number().int().min(0),
 });
 
-const schema = z.object({
-  code: z.string().trim().min(1, "Code is required").max(30),
-  name: z.string().trim().min(1, "Name is required").max(150),
-  tamilName: z.string().trim(),
-  generalLedger: z.string().min(1, "GL account is required"),
-  salePrice: z.number().min(0, "Must be 0 or more"),
-  description: z.string().trim().max(500),
-  isDeityMappingRequired: z.boolean(),
-  printingGroup: z.string().min(1, "Printing group is required"),
-  categoryDetails: z.array(categoryDetailSchema),
-  isInventoryApplicable: z.boolean(),
-  unitOfMeasure: z.string(),
-  threshold: z.number().int().min(0),
-  minQuantity: z.number().int().min(1),
-  maxQuantity: z.number().int().min(0),
-  quantityReduction: z.number().int().min(1),
-  futureBookingCutOffDate: z.string(),
-  isFamilyMembersRequired: z.boolean(),
-  posAvailability: z.boolean(),
-  customerPortalAvailability: z.boolean(),
-  status: z.number(),
-});
+const schema = z
+  .object({
+    code: z.string().trim().min(1, "Code is required").max(30),
+    name: z.string().trim().min(1, "Name is required").max(150),
+    tamilName: z.string().trim(),
+    generalLedger: z.string().min(1, "GL account is required"),
+    salePrice: z.number().min(0, "Must be 0 or more"),
+    description: z.string().trim().max(500),
+    isDeityMappingRequired: z.boolean(),
+    deityMapping: z.array(z.string()),
+    printingGroup: z.string().min(1, "Printing group is required"),
+    categoryDetails: z.array(categoryDetailSchema),
+    isInventoryApplicable: z.boolean(),
+    unitOfMeasure: z.string(),
+    threshold: z.number().int().min(0),
+    minQuantity: z.number().int().min(1),
+    maxQuantity: z.number().int().min(0),
+    quantityReduction: z.number().int().min(1),
+    futureBookingCutOffDate: z.string(),
+    isFamilyMembersRequired: z.boolean(),
+    minFamilyMembers: z.number().int().min(0),
+    maxFamilyMembers: z.number().int().min(0),
+    posAvailability: z.boolean(),
+    customerPortalAvailability: z.boolean(),
+    status: z.number(),
+  })
+  .refine((data) => !data.isDeityMappingRequired || data.deityMapping.length > 0, {
+    message: "Select at least one deity",
+    path: ["deityMapping"],
+  })
+  .refine((data) => data.maxFamilyMembers >= data.minFamilyMembers, {
+    message: "Can't be less than the minimum",
+    path: ["maxFamilyMembers"],
+  });
 
 type FormValues = z.infer<typeof schema>;
 
@@ -90,6 +106,7 @@ const DEFAULT_VALUES: FormValues = {
   salePrice: 0,
   description: "",
   isDeityMappingRequired: false,
+  deityMapping: [],
   printingGroup: "",
   categoryDetails: [],
   isInventoryApplicable: true,
@@ -100,6 +117,8 @@ const DEFAULT_VALUES: FormValues = {
   quantityReduction: 1,
   futureBookingCutOffDate: "",
   isFamilyMembersRequired: false,
+  minFamilyMembers: 1,
+  maxFamilyMembers: 1,
   posAvailability: true,
   customerPortalAvailability: true,
   status: 1,
@@ -119,6 +138,7 @@ export default function ItemPage() {
   const { items, total, list, create, update, remove } = useApiResource<Item>(api, "/masters/items");
 
   const [glOptions, setGlOptions] = useState<ListboxOption[]>([]);
+  const [deityOptions, setDeityOptions] = useState<ListboxOption[]>([]);
   const [printingGroupOptions, setPrintingGroupOptions] = useState<ListboxOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<ListboxOption[]>([]);
   const [subCategoryOptions, setSubCategoryOptions] = useState<ListboxOption[]>([]);
@@ -133,6 +153,7 @@ export default function ItemPage() {
 
   useEffect(() => {
     fetchOptions("/masters/general-ledgers").then(setGlOptions);
+    fetchOptions("/masters/deities").then(setDeityOptions);
     fetchOptions("/masters/printing-groups").then(setPrintingGroupOptions);
     fetchOptions("/masters/categories").then(setCategoryOptions);
     fetchOptions("/masters/sub-categories").then(setSubCategoryOptions);
@@ -154,6 +175,7 @@ export default function ItemPage() {
 
   const { fields, append, remove: removeRow } = useFieldArray({ control, name: "categoryDetails" });
   const isInventoryApplicable = watch("isInventoryApplicable");
+  const isDeityMappingRequired = watch("isDeityMappingRequired");
 
   function openCreate() {
     setEditing(null);
@@ -172,6 +194,7 @@ export default function ItemPage() {
       salePrice: item.salePrice,
       description: item.description,
       isDeityMappingRequired: item.isDeityMappingRequired,
+      deityMapping: item.deityMapping.map((d) => d._id),
       printingGroup: item.printingGroup?._id ?? "",
       categoryDetails: item.categoryDetails.map((c) => ({
         category: c.category?._id ?? "",
@@ -186,6 +209,8 @@ export default function ItemPage() {
       quantityReduction: item.quantityReduction,
       futureBookingCutOffDate: item.futureBookingCutOffDate ? item.futureBookingCutOffDate.slice(0, 10) : "",
       isFamilyMembersRequired: item.isFamilyMembersRequired,
+      minFamilyMembers: item.minFamilyMembers,
+      maxFamilyMembers: item.maxFamilyMembers,
       posAvailability: item.posAvailability,
       customerPortalAvailability: item.customerPortalAvailability,
       status: item.status,
@@ -197,6 +222,7 @@ export default function ItemPage() {
   const submit = handleSubmit(async (values) => {
     const payload = {
       ...values,
+      deityMapping: values.isDeityMappingRequired ? values.deityMapping : [],
       unitOfMeasure: values.isInventoryApplicable && values.unitOfMeasure ? values.unitOfMeasure : null,
       futureBookingCutOffDate: values.futureBookingCutOffDate || null,
     };
@@ -347,21 +373,38 @@ export default function ItemPage() {
               name="isDeityMappingRequired"
               render={({ field }) => <DivineRadioGroup label="Deity Mapping Required" value={field.value} onChange={field.onChange} />}
             />
-            <Controller
-              control={control}
-              name="printingGroup"
-              render={({ field }) => (
-                <DivineListbox
-                  label="Printing Group"
-                  value={field.value}
-                  onChange={field.onChange}
-                  options={printingGroupOptions}
-                  placeholder="Select Printing Group"
-                  error={errors.printingGroup?.message}
-                />
-              )}
-            />
+            {isDeityMappingRequired && (
+              <Controller
+                control={control}
+                name="deityMapping"
+                render={({ field }) => (
+                  <DivineMultiSelect
+                    label="Deity Mapping"
+                    values={field.value}
+                    onChange={field.onChange}
+                    options={deityOptions}
+                    placeholder="Select deities"
+                    error={errors.deityMapping?.message as string | undefined}
+                  />
+                )}
+              />
+            )}
           </div>
+
+          <Controller
+            control={control}
+            name="printingGroup"
+            render={({ field }) => (
+              <DivineListbox
+                label="Printing Group"
+                value={field.value}
+                onChange={field.onChange}
+                options={printingGroupOptions}
+                placeholder="Select Printing Group"
+                error={errors.printingGroup?.message}
+              />
+            )}
+          />
 
           <div>
             <div className="mb-2 flex items-center justify-between">
@@ -492,18 +535,31 @@ export default function ItemPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Controller
-              control={control}
-              name="futureBookingCutOffDate"
-              render={({ field }) => (
-                <DivineDatePicker label="Future Booking Cut-off Date" value={field.value} onChange={field.onChange} placeholder="No cut-off" />
-              )}
-            />
+          <Controller
+            control={control}
+            name="futureBookingCutOffDate"
+            render={({ field }) => (
+              <DivineDatePicker label="Future Booking Cut-off Date" value={field.value} onChange={field.onChange} placeholder="No cut-off" />
+            )}
+          />
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Controller
               control={control}
               name="isFamilyMembersRequired"
               render={({ field }) => <DivineRadioGroup label="Family Members Required" value={field.value} onChange={field.onChange} />}
+            />
+            <DivineInput
+              label="Min Members"
+              type="number"
+              error={errors.minFamilyMembers?.message}
+              {...register("minFamilyMembers", { valueAsNumber: true })}
+            />
+            <DivineInput
+              label="Max Members"
+              type="number"
+              error={errors.maxFamilyMembers?.message}
+              {...register("maxFamilyMembers", { valueAsNumber: true })}
             />
           </div>
 

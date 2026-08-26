@@ -82,7 +82,10 @@ type PosItem = {
   tamilName: string;
   salePrice: number;
   isDeityMappingRequired: boolean;
+  deityMapping: DeityOption[];
   isFamilyMembersRequired: boolean;
+  minFamilyMembers: number;
+  maxFamilyMembers: number;
   inventory: InventoryInfo;
 };
 
@@ -93,7 +96,10 @@ type PosService = {
   tamilName: string;
   defaultSalePrice: number;
   isDeityMappingRequired: boolean;
+  deityMapping: DeityOption[];
   isFamilyMembersRequired: boolean;
+  minFamilyMembers: number;
+  maxFamilyMembers: number;
   inventory: InventoryInfo;
 };
 
@@ -403,23 +409,47 @@ export default function PosPortalPage() {
   function openAddModal(offering: Offering) {
     setModalOffering(offering);
     setModalDeities([]);
-    setModalDevotees([{ name: "", nakshatra: "" }]);
+    // Deity-mapped offerings still get one devotee row per selected deity
+    // (synced below). A family-only offering starts at its configured
+    // minimum and can be grown/shrunk up to its configured maximum.
+    const startRows =
+      offering.isFamilyMembersRequired && !offering.isDeityMappingRequired
+        ? Math.max(1, offering.minFamilyMembers || 1)
+        : 1;
+    setModalDevotees(Array.from({ length: startRows }, () => ({ name: "", nakshatra: "" })));
     setModalQuantity(1);
   }
 
   const modalDeityCount = modalDeities.length || 1;
-  const modalDevoteeRows = modalOffering?.isFamilyMembersRequired ? Math.max(1, modalDeityCount) : 0;
+  const modalDevoteeRows = modalOffering?.isFamilyMembersRequired ? modalDevotees.length : 0;
+  // Deity-mapped offerings: full active roster unless the offering has its
+  // own curated deityMapping, in which case that takes precedence.
+  const modalDeityChoices = modalOffering?.deityMapping?.length ? modalOffering.deityMapping : deityOptions;
 
   useEffect(() => {
-    if (!modalOffering?.isFamilyMembersRequired) return;
+    if (!modalOffering?.isFamilyMembersRequired || !modalOffering?.isDeityMappingRequired) return;
     setModalDevotees((prev) => {
-      const rows = Math.max(1, modalDeityCount);
+      const rows = Math.max(modalDeityCount, modalOffering.minFamilyMembers || 1);
       if (prev.length === rows) return prev;
       if (prev.length < rows) return [...prev, ...Array(rows - prev.length).fill({ name: "", nakshatra: "" })];
       return prev.slice(0, rows);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalDeityCount, modalOffering?.isFamilyMembersRequired]);
+  }, [modalDeityCount, modalOffering?.isFamilyMembersRequired, modalOffering?.isDeityMappingRequired]);
+
+  function addDevoteeRow() {
+    if (!modalOffering) return;
+    const max = modalOffering.maxFamilyMembers || modalDevotees.length + 1;
+    if (modalDevotees.length >= max) return;
+    setModalDevotees((prev) => [...prev, { name: "", nakshatra: "" }]);
+  }
+
+  function removeDevoteeRow(idx: number) {
+    if (!modalOffering) return;
+    const min = modalOffering.minFamilyMembers || 1;
+    if (modalDevotees.length <= min) return;
+    setModalDevotees((prev) => prev.filter((_, i) => i !== idx));
+  }
 
   const modalEffectiveQty = modalOffering?.isDeityMappingRequired
     ? modalDeities.length || 0
@@ -811,13 +841,15 @@ export default function PosPortalPage() {
       {modalOffering && (
         <AddToCartModal
           offering={modalOffering}
-          deityOptions={deityOptions}
+          deityOptions={modalDeityChoices}
           nakshatraOptions={nakshatraOptions}
           deities={modalDeities}
           onDeitiesChange={setModalDeities}
           devotees={modalDevotees}
           onDevoteesChange={setModalDevotees}
           devoteeRows={modalDevoteeRows}
+          onAddDevotee={addDevoteeRow}
+          onRemoveDevotee={removeDevoteeRow}
           quantity={modalQuantity}
           onQuantityChange={setModalQuantity}
           total={modalTotal}
@@ -848,13 +880,12 @@ function PosShell({
     <div className="flex h-screen w-full flex-col overflow-hidden bg-ivory-50">
       <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-gold-500/15 bg-white px-4 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.1)] sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-b from-gold-300 to-gold-600">
-            <img src="/SSD_Logo.png" alt="" className="h-6 w-6 object-contain" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate font-accent text-[13px] font-semibold text-ink-100">Sri Siva Durga Temple</p>
-            <p className="truncate text-[11px] text-ink-500">POS Counter · {formatTempleDateTime(now)}</p>
-          </div>
+          <img
+            src="/SSD_Full_Logo.png"
+            alt="Sri Siva Durga Temple"
+            className="h-10 w-auto max-w-[160px] shrink-0 object-contain sm:max-w-[188px]"
+          />
+          <p className="hidden truncate text-[11px] text-ink-500 sm:block">POS Counter · {formatTempleDateTime(now)}</p>
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
@@ -1050,6 +1081,8 @@ function AddToCartModal({
   devotees,
   onDevoteesChange,
   devoteeRows,
+  onAddDevotee,
+  onRemoveDevotee,
   quantity,
   onQuantityChange,
   total,
@@ -1064,6 +1097,8 @@ function AddToCartModal({
   devotees: Devotee[];
   onDevoteesChange: (v: Devotee[]) => void;
   devoteeRows: number;
+  onAddDevotee: () => void;
+  onRemoveDevotee: (idx: number) => void;
   quantity: number;
   onQuantityChange: (v: number) => void;
   total: number;
@@ -1137,10 +1172,12 @@ function AddToCartModal({
             {offering.isFamilyMembersRequired && devoteeRows > 0 && (
               <div className="space-y-3">
                 <p className="text-[11px] uppercase tracking-wide text-amber-600">
-                  Devotee Details ({devoteeRows} row{devoteeRows > 1 ? "s" : ""} — applies to all selected deities) *
+                  {offering.isDeityMappingRequired
+                    ? `Devotee Details (${devoteeRows} row${devoteeRows > 1 ? "s" : ""} — applies to all selected deities) *`
+                    : `Devotee Details (min ${offering.minFamilyMembers}, max ${offering.maxFamilyMembers}) *`}
                 </p>
                 {devotees.map((devotee, idx) => (
-                  <div key={idx} className="grid grid-cols-[1fr_140px] items-start gap-2">
+                  <div key={idx} className="grid grid-cols-[1fr_140px_auto] items-start gap-2">
                     <DivineInput
                       label={`${idx + 1}.`}
                       value={devotee.name}
@@ -1160,8 +1197,27 @@ function AddToCartModal({
                       options={nakshatraOptions}
                       placeholder="Nakshatra"
                     />
+                    {!offering.isDeityMappingRequired && devotees.length > offering.minFamilyMembers && (
+                      <button
+                        type="button"
+                        onClick={() => onRemoveDevotee(idx)}
+                        aria-label="Remove family member"
+                        className="mt-2 text-ink-500 hover:text-crimson-500"
+                      >
+                        <TrashIcon />
+                      </button>
+                    )}
                   </div>
                 ))}
+                {!offering.isDeityMappingRequired && devotees.length < offering.maxFamilyMembers && (
+                  <button
+                    type="button"
+                    onClick={onAddDevotee}
+                    className="flex items-center gap-1.5 text-[12.5px] font-medium text-amber-700 hover:underline"
+                  >
+                    <PlusIcon /> Add family member
+                  </button>
+                )}
               </div>
             )}
           </div>

@@ -70,7 +70,10 @@ type PosItem = {
   name: string;
   salePrice: number;
   isDeityMappingRequired: boolean;
+  deityMapping: { _id: string; name: string }[];
   isFamilyMembersRequired: boolean;
+  minFamilyMembers: number;
+  maxFamilyMembers: number;
   minQuantity: number;
   maxQuantity: number;
   inventory: InventoryInfo;
@@ -359,10 +362,8 @@ export default function AdminBookingPage() {
   const unitPrice =
     refType === "Item" ? (selectedItem?.salePrice ?? 0) : (selectedService?.defaultSalePrice ?? 0);
 
-  const deityOptions: ListboxOption[] =
-    refType === "Service" && selectedService?.deityMapping
-      ? selectedService.deityMapping.map((d) => ({ value: d._id, label: d.name }))
-      : [];
+  const curatedDeityMapping = refType === "Item" ? selectedItem?.deityMapping : selectedService?.deityMapping;
+  const deityOptions: ListboxOption[] = curatedDeityMapping?.map((d) => ({ value: d._id, label: d.name })) ?? [];
 
   const needsDeity =
     refType === "Item"
@@ -374,6 +375,11 @@ export default function AdminBookingPage() {
       ? (selectedItem?.isFamilyMembersRequired ?? false)
       : (selectedService?.isFamilyMembersRequired ?? false);
 
+  const minFamilyMembers =
+    (refType === "Item" ? selectedItem?.minFamilyMembers : selectedService?.minFamilyMembers) ?? 1;
+  const maxFamilyMembers =
+    (refType === "Item" ? selectedItem?.maxFamilyMembers : selectedService?.maxFamilyMembers) ?? minFamilyMembers;
+
   // Deity-mapped lines are priced (and reserved) per selected deity, not a
   // separately-typed quantity — the backend enforces this too
   // (effectiveQuantity() in controllers/pos/index.js), so the two can never
@@ -384,21 +390,44 @@ export default function AdminBookingPage() {
 
   const deityCount = selectedDeities.length || 1;
 
-  // For services, row count = deities × 1 devotee each (simplified for now)
-  const devoteeRowCount = needsDevotees ? Math.max(1, deityCount) : 0;
+  // Deity-mapped: one devotee row per selected deity, floored at the
+  // configured minimum. Family-only (no deity): rows are grown/shrunk
+  // manually via addDevoteeRow/removeDevoteeRow, bounded by min/max.
+  const devoteeRowCount = needsDevotees ? devotees.length : 0;
 
   useEffect(() => {
     if (!needsDevotees) {
       setDevotees([{ name: "", nakshatra: "" }]);
       return;
     }
+    if (!needsDeity) return;
     setDevotees((prev) => {
-      const rows = Math.max(1, deityCount);
+      const rows = Math.max(deityCount, minFamilyMembers);
       if (prev.length === rows) return prev;
       if (prev.length < rows) return [...prev, ...Array(rows - prev.length).fill({ name: "", nakshatra: "" })];
       return prev.slice(0, rows);
     });
-  }, [deityCount, needsDevotees]);
+  }, [deityCount, needsDevotees, needsDeity, minFamilyMembers]);
+
+  function addDevoteeRow() {
+    if (devotees.length >= maxFamilyMembers) return;
+    setDevotees((prev) => [...prev, { name: "", nakshatra: "" }]);
+  }
+
+  function removeDevoteeRow(idx: number) {
+    if (devotees.length <= minFamilyMembers) return;
+    setDevotees((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  // Picking a different item/service starts a clean line: previous deity
+  // selection and devotee rows don't carry over to an unrelated offering.
+  useEffect(() => {
+    setQuantity(1);
+    setSelectedDeities([]);
+    const startRows = needsDevotees && !needsDeity ? Math.max(1, minFamilyMembers) : 1;
+    setDevotees(Array.from({ length: startRows }, () => ({ name: "", nakshatra: "" })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItemId, selectedServiceId]);
 
   // ─── add to cart ──────────────────────────────────────────────────────────
   function addToCart() {
@@ -687,7 +716,7 @@ export default function AdminBookingPage() {
             )}
 
             {/* Deity multi-select (if applicable) */}
-            {needsDeity && refType === "Service" && selectedService && (
+            {needsDeity && currentRef && (
               <DivineMultiSelect
                 label="Deities (Multi-Select)"
                 values={selectedDeities}
@@ -701,10 +730,12 @@ export default function AdminBookingPage() {
             {needsDevotees && devotees.length > 0 && (
               <div className="space-y-3">
                 <p className="text-[12.5px] text-ink-500">
-                  Devotee details — {devotees.length} row(s) · same devotees apply to all selected deities
+                  {needsDeity
+                    ? `Devotee details — ${devotees.length} row(s) · same devotees apply to all selected deities`
+                    : `Devotee details (min ${minFamilyMembers}, max ${maxFamilyMembers})`}
                 </p>
                 {devotees.map((devotee, idx) => (
-                  <div key={idx} className="grid grid-cols-[1fr_auto] gap-3 sm:grid-cols-[1fr_180px]">
+                  <div key={idx} className="grid grid-cols-[1fr_auto] items-end gap-3 sm:grid-cols-[1fr_180px_auto]">
                     <DivineInput
                       label={`Devotee ${idx + 1} Name`}
                       icon={<UserIcon />}
@@ -725,8 +756,27 @@ export default function AdminBookingPage() {
                       }}
                       options={nakshatraOptions}
                     />
+                    {!needsDeity && devotees.length > minFamilyMembers && (
+                      <button
+                        type="button"
+                        onClick={() => removeDevoteeRow(idx)}
+                        aria-label="Remove family member"
+                        className="pb-2.5 text-ink-500 hover:text-crimson-400"
+                      >
+                        <TrashIcon />
+                      </button>
+                    )}
                   </div>
                 ))}
+                {!needsDeity && devotees.length < maxFamilyMembers && (
+                  <button
+                    type="button"
+                    onClick={addDevoteeRow}
+                    className="flex items-center gap-1.5 text-[12.5px] font-medium text-amber-600 hover:underline"
+                  >
+                    <PlusIcon /> Add family member
+                  </button>
+                )}
               </div>
             )}
 
