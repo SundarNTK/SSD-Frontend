@@ -557,9 +557,9 @@ export default function PosPortalPage() {
 
   return (
     <PosShell user={user} onNewTransaction={startNewTransaction}>
-      <div className="grid h-full grid-cols-1 gap-0 lg:grid-cols-[260px_1fr_360px]">
+      <div className="grid grid-cols-1 gap-4 p-4 lg:h-full lg:grid-cols-[260px_1fr_360px]">
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
-        <div className="space-y-3 border-b border-gold-500/15 p-4 lg:border-b-0 lg:border-r">
+        <div className="flex flex-col gap-3 rounded-2xl border border-gold-500/15 bg-white p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.08)] lg:h-full lg:overflow-y-auto">
           <p className="font-display text-[15px] font-bold text-ink-100">Customer</p>
           <div className="relative">
             <DivineInput
@@ -623,8 +623,8 @@ export default function PosPortalPage() {
         </div>
 
         {/* ── CENTER: catalogue ────────────────────────────────────────── */}
-        <div className="flex min-w-0 flex-col overflow-hidden">
-          <div className="space-y-3 border-b border-gold-500/15 p-4">
+        <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-gold-500/15 bg-white shadow-[0_2px_10px_-4px_rgba(0,0,0,0.08)] lg:h-full">
+          <div className="space-y-3 border-b border-gold-500/10 p-4">
             <DivineInput
               label="Search offerings…"
               icon={<SearchIcon />}
@@ -664,7 +664,7 @@ export default function PosPortalPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="bg-ivory-50/60 p-4 lg:flex-1 lg:overflow-y-auto">
             {catalogueLoading && <p className="py-12 text-center text-[13px] text-ink-500">Loading catalogue…</p>}
 
             {!catalogueLoading && showingSearch && (
@@ -729,7 +729,7 @@ export default function PosPortalPage() {
         </div>
 
         {/* ── RIGHT: cart ──────────────────────────────────────────────── */}
-        <div className="flex flex-col border-t border-gold-500/15 p-4 lg:border-l lg:border-t-0">
+        <div className="flex flex-col overflow-hidden rounded-2xl border border-gold-500/15 bg-white p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.08)] lg:h-full">
           <div className="mb-3 flex items-center justify-between">
             <p className="flex items-center gap-2 font-display text-[15px] font-bold text-ink-100">
               <CartIcon /> Cart <span className="rounded-full bg-gold-500/15 px-2 py-0.5 text-[11px] text-amber-700">{cart.length}</span>
@@ -741,7 +741,7 @@ export default function PosPortalPage() {
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="lg:flex-1 lg:overflow-y-auto">
             {cart.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 py-10 text-center">
                 <CartIcon />
@@ -870,23 +870,17 @@ function PosShell({
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden bg-ivory-50">
-      <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-gold-500/15 bg-white px-4 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.1)] sm:px-6">
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-ivory-100">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gold-500/15 bg-white px-3 py-2.5 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.1)] sm:px-6 sm:py-3">
         <div className="flex min-w-0 items-center">
           <img
             src="/SSD_Full_Logo.png"
             alt="Sri Siva Durga Temple"
-            className="h-12 w-auto max-w-[200px] shrink-0 object-contain sm:h-[52px] sm:max-w-[240px]"
+            className="h-12 w-auto max-w-[220px] shrink-0 object-contain sm:h-14 sm:max-w-[260px] lg:h-[60px] lg:max-w-[300px]"
           />
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
-          <button
-            onClick={onNewTransaction}
-            className="flex items-center gap-1.5 rounded-lg bg-crimson-500/10 px-3 py-2 text-[12.5px] font-medium text-crimson-500 hover:bg-crimson-500/15"
-          >
-            <PlusIcon /> New Transaction
-          </button>
           <button
             onClick={() => toast.error("Transaction History isn't built yet.")}
             className="rounded-lg px-3 py-2 text-[12.5px] font-medium text-ink-300 hover:bg-ivory-100"
@@ -901,7 +895,13 @@ function PosShell({
           </button>
         </div>
 
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <button
+            onClick={onNewTransaction}
+            className="flex items-center gap-1.5 rounded-lg bg-crimson-500/10 px-2.5 py-2 text-[12.5px] font-medium text-crimson-500 hover:bg-crimson-500/15 sm:px-3"
+          >
+            <PlusIcon /> <span className="hidden sm:inline">New Transaction</span>
+          </button>
           <div className="hidden sm:block">
             <TempleClock />
           </div>
@@ -937,7 +937,7 @@ function PosShell({
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+      <main className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">{children}</main>
     </div>
   );
 }
