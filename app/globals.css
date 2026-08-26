@@ -377,6 +377,37 @@ select option {
   }
 }
 
+/* Soft drifting glow blobs — the replacement for the gopuram illustration
+   in the Customer panel and empty cart. Three different drift paths so a
+   trio of them never all move in lockstep. */
+@keyframes pos-blob-drift-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(26px, -20px) scale(1.12);
+  }
+}
+@keyframes pos-blob-drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-22px, 18px) scale(1.08);
+  }
+}
+@keyframes pos-blob-drift-c {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(16px, 22px) scale(1.14);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
