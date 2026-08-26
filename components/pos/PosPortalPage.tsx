@@ -52,6 +52,12 @@ import {
   HomeIcon,
 } from "../divine/icons";
 
+// Shared by every search field on the counter screen (Customer, Offerings) —
+// a themed border/shadow at rest, with its own distinct hover state, on top
+// of DivineInput's existing gold focus glow.
+const SEARCH_FIELD_ACCENT =
+  "ring-1 ring-orange-200/70 shadow-[0_4px_16px_-8px_rgba(255,122,46,0.35)] hover:ring-orange-400/80 hover:shadow-[0_6px_22px_-6px_rgba(255,122,46,0.5)]";
+
 // ─── types ────────────────────────────────────────────────────────────────────
 
 type Customer = {
@@ -852,7 +858,7 @@ export default function PosPortalPage() {
                 if (selectedCustomer) clearCustomer();
               }}
               disabled={!!selectedCustomer}
-              containerClassName="ring-1 ring-orange-200/70 shadow-[0_4px_16px_-8px_rgba(255,122,46,0.35)]"
+              containerClassName={SEARCH_FIELD_ACCENT}
             />
             <AnimatePresence>
               {customerResults.length > 0 && !selectedCustomer && (
@@ -930,6 +936,7 @@ export default function PosPortalPage() {
               icon={<SearchIcon />}
               value={offeringSearch}
               onChange={(e) => setOfferingSearch(e.target.value)}
+              containerClassName={SEARCH_FIELD_ACCENT}
             />
             <div className="flex flex-wrap gap-2">
               <button
@@ -965,7 +972,7 @@ export default function PosPortalPage() {
           </div>
 
           <div className="px-4">
-            <SectionWaveDivider />
+            <SectionScreenDivider />
           </div>
 
           <div className="p-4 pt-2 lg:flex-1 lg:overflow-y-auto">
@@ -1245,7 +1252,7 @@ function PosShell({
           <button
             onClick={onNewTransaction}
             aria-label="New Transaction"
-            className="flex items-center justify-center rounded-full bg-gradient-to-br from-crimson-600 via-flame-500 to-[#FFC145] p-2.5 text-white shadow-[0_8px_20px_-8px_rgba(255,122,46,0.55)] sm:hidden"
+            className="flex items-center justify-center rounded-full border-2 border-red-900/30 bg-gradient-to-br from-red-600 via-orange-500 to-yellow-400 p-2.5 text-white shadow-[0_8px_20px_-8px_rgba(255,122,46,0.55)] transition-[border-color,box-shadow] duration-300 hover:border-[#FFD700] hover:shadow-[0_0_0_3px_rgba(255,215,0,0.3),0_8px_20px_-8px_rgba(255,122,46,0.55)] sm:hidden"
           >
             <PlusIcon />
           </button>
@@ -1294,10 +1301,11 @@ function PosShell({
 /**
  * The pill-shaped action button used across the counter screen's topbar,
  * Customer panel, and Cart footer — an icon badge, a divider, a bold label,
- * a dot-grid texture, and a chevron, all on the crimson -> flame -> gold
- * gradient (or a plain red one for the one destructive action, Clear Cart).
- * Hover brightens the gradient, rings the icon badge, sweeps a shine across,
- * and fades in a few twinkling sparks at the corners.
+ * and a chevron, on the red -> orange -> yellow gradient (or a plain red
+ * one for the one destructive action, Clear Cart). Idle and hover carry
+ * two visibly different border treatments — a dim red ring at rest, a
+ * glowing gold ring on hover — plus the gradient itself brightens, a shine
+ * sweeps across, and a few sparks fade in at the corners.
  */
 function FlameActionButton({
   icon,
@@ -1316,15 +1324,14 @@ function FlameActionButton({
   tone?: "flame" | "crimson";
   className?: string;
 }) {
-  const gradient = tone === "crimson" ? "from-red-700 via-crimson-600 to-crimson-500" : "from-crimson-600 via-flame-500 to-[#FFC145]";
+  const gradient = tone === "crimson" ? "from-red-700 via-crimson-600 to-crimson-500" : "from-red-600 via-orange-500 to-yellow-400";
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`group relative flex items-center gap-2.5 overflow-hidden rounded-full bg-gradient-to-r ${gradient} bg-[length:200%_200%] bg-left px-3.5 py-2.5 text-white shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] transition-[transform,box-shadow,background-position] duration-300 hover:-translate-y-0.5 hover:bg-right hover:shadow-[0_18px_36px_-10px_rgba(255,90,30,0.7)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-left disabled:hover:shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] ${className}`}
+      className={`group relative flex items-center gap-2.5 overflow-hidden rounded-full border-2 border-red-900/30 bg-gradient-to-r ${gradient} bg-[length:200%_200%] bg-left px-3.5 py-2 text-white shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] transition-[transform,box-shadow,background-position,border-color] duration-300 hover:-translate-y-0.5 hover:border-[#FFD700] hover:bg-right hover:shadow-[0_0_0_3px_rgba(255,215,0,0.3),0_18px_36px_-10px_rgba(255,90,30,0.7)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-red-900/30 disabled:hover:bg-left disabled:hover:shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] ${className}`}
     >
       <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1/2 rounded-t-full bg-gradient-to-b from-white/35 to-transparent" />
-      <DotGrid className="right-2 top-1/2 h-8 w-16 -translate-y-1/2 opacity-70" />
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/45 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
@@ -1333,7 +1340,7 @@ function FlameActionButton({
       <Spark className="absolute -right-2 -top-1 h-3.5 w-3.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" delay={0.3} duration={2.1} />
       <Spark className="absolute -bottom-2 right-6 h-2.5 w-2.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" delay={0.6} duration={1.6} />
 
-      <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/18 ring-2 ring-white/0 transition-[box-shadow] duration-300 group-hover:ring-white/40">
+      <span className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black/18 ring-2 ring-white/0 transition-[box-shadow] duration-300 group-hover:ring-[#FFD700]/70">
         {icon}
       </span>
       <span aria-hidden="true" className="h-4 w-px bg-white/35" />
@@ -1436,30 +1443,21 @@ function BannerWave({ className = "" }: { className?: string }) {
 
 /**
  * The section break between the category pill row and the folder/offering
- * grid below it — a slim animated gradient wave with a continuous shimmer
- * traveling along it, instead of plain vertical spacing.
+ * grid below it — a glowing trapezoid "screen" bar (a hint of perspective
+ * via clip-path) with a pulsing ambient light spill beneath it and a
+ * traveling scan-line shine across it, instead of a plain border/line.
  */
-function SectionWaveDivider() {
+function SectionScreenDivider() {
   return (
-    <div aria-hidden="true" className="relative -mx-1 my-1 h-5 w-[calc(100%+8px)] overflow-hidden">
-      <svg viewBox="0 0 400 20" preserveAspectRatio="none" className="h-full w-full">
-        <defs>
-          <linearGradient id="section-wave-grad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#E11D2E" />
-            <stop offset="50%" stopColor="#FF7A2E" />
-            <stop offset="100%" stopColor="#F5A623" />
-          </linearGradient>
-        </defs>
-        <path
-          d="M0 10 Q50 0 100 10 T200 10 T300 10 T400 10"
-          fill="none"
-          stroke="url(#section-wave-grad)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          opacity="0.5"
-        />
-      </svg>
-      <span className="pointer-events-none absolute inset-0 animate-[shimmer-sweep_3.4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+    <div aria-hidden="true" className="relative my-2 flex h-7 items-center justify-center">
+      <div className="absolute inset-x-6 top-1/2 h-6 -translate-y-1/2 animate-soft-pulse rounded-full bg-gradient-to-r from-red-500/25 via-orange-400/35 to-yellow-300/25 blur-xl" />
+      <div
+        className="relative h-2 w-full overflow-hidden bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 shadow-[0_0_18px_2px_rgba(255,140,0,0.55)]"
+        style={{ clipPath: "polygon(6% 0%, 94% 0%, 100% 100%, 0% 100%)" }}
+      >
+        <span className="pointer-events-none absolute inset-0 -translate-x-[140%] animate-[shimmer-sweep_3s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+      </div>
+      <div className="pointer-events-none absolute inset-x-0 -top-0.5 h-0.5 bg-gradient-to-r from-transparent via-black/15 to-transparent" />
     </div>
   );
 }
