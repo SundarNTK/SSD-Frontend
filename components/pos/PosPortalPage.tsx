@@ -1028,33 +1028,16 @@ export default function PosPortalPage() {
             {!catalogueLoading && !showingSearch && !showingFolder && (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {visibleFolders.map((f) => (
-                  <button
+                  <CatalogueCard
                     key={`${f.categoryId}::${f.subCategoryId}`}
                     onClick={() => openFolder(f)}
-                    className="group relative rounded-[22px] bg-gradient-to-br from-[#E11D2E]/45 via-[#E11D2E]/15 to-transparent p-[1.5px] text-left shadow-[0_10px_26px_-16px_rgba(225,29,46,0.5)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:shadow-[0_24px_46px_-16px_rgba(225,29,46,0.55)]"
-                  >
-                    <div className="flex h-full flex-col overflow-hidden rounded-[20.5px] bg-white">
-                      <div className="relative flex h-28 items-center justify-center overflow-hidden bg-gradient-to-br from-rose-200 via-rose-100 to-white bg-[length:220%_220%] animate-[flame-wave_9s_ease-in-out_infinite]">
-                        <span
-                          aria-hidden="true"
-                          className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
-                        />
-                        <span className="relative flex h-14 w-14 items-center justify-center">
-                          <span aria-hidden="true" className="absolute inset-0 animate-soft-pulse rounded-full bg-[#E11D2E]/35 blur-md" />
-                          <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_18px_-6px_rgba(225,29,46,0.4)] transition-transform duration-300 group-hover:scale-110">
-                            <FolderIcon />
-                          </span>
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-start gap-1.5 px-4 py-3.5 text-left">
-                        <p className="text-[14px] font-semibold text-ink-100">{f.subCategoryName}</p>
-                        <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[10.5px] font-semibold text-[#E11D2E]">
-                          Folder
-                        </span>
-                        <p className="text-[11px] text-ink-500">{f.total} offering(s)</p>
-                      </div>
-                    </div>
-                  </button>
+                    iconKind="folder"
+                    title={f.subCategoryName}
+                    typeLabel="Folder"
+                    theme={CATALOGUE_CARD_THEME.folder}
+                    rowIcon={<ListRowIcon className={CATALOGUE_CARD_THEME.folder.rowText} />}
+                    rowLabel={`${f.total} offering(s)`}
+                  />
                 ))}
                 {visibleUncategorizedServices.map((s) => (
                   <OfferingCard key={s._id} offering={{ refType: "Service", salePrice: s.defaultSalePrice, ...s }} onPick={openAddModal} />
@@ -1354,11 +1337,202 @@ function SparkleIcon({ color = "gold" }: { color?: IconColor } = {}) {
   );
 }
 
-function BoxGlyph({ color = "flame" }: { color?: IconColor } = {}) {
+function BoxGlyph({ color = "crimson" }: { color?: IconColor } = {}) {
   return (
     <svg className={`h-8 w-8 ${ICON_COLOR_CLASS[color]}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
+  );
+}
+
+/** One twinkling 4-point star — the "sparks" scattered across a catalogue
+ *  card's banner. Reuses the existing twinkle keyframe (opacity only) with a
+ *  per-instance delay/duration so a cluster of them never blinks in unison. */
+function Spark({ className = "", delay = 0, duration = 2.6 }: { className?: string; delay?: number; duration?: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={`animate-twinkle text-white ${className}`}
+      style={{ animationDelay: `${delay}s`, "--dur": `${duration}s` } as React.CSSProperties}
+      fill="currentColor"
+    >
+      <path d="M12 2l1.8 7.2L21 11l-7.2 1.8L12 20l-1.8-7.2L3 11l7.2-1.8z" />
+    </svg>
+  );
+}
+
+/** Small halftone dot-grid, tucked into a banner corner for texture. */
+function DotGrid({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`pointer-events-none absolute opacity-40 ${className}`}
+      style={{ backgroundImage: "radial-gradient(circle, white 1.4px, transparent 1.4px)", backgroundSize: "9px 9px" }}
+    />
+  );
+}
+
+/** The S-curve seam between a card's colored banner and its white body —
+ *  an SVG wave rather than a straight edge. */
+function BannerWave({ className = "" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 200 36" preserveAspectRatio="none" className={`absolute inset-x-0 bottom-0 h-9 w-full ${className}`}>
+      <path d="M0 20 Q50 2 100 18 T200 14 V36 H0 Z" fill="white" />
+    </svg>
+  );
+}
+
+/** The little document glyph in a Folder card's "X offering(s)" row. */
+function ListRowIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={`h-3.5 w-3.5 ${className}`} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M6 3.5h9l3 3V20a1 1 0 01-1 1H6a1 1 0 01-1-1V4.5a1 1 0 011-1z" strokeLinejoin="round" />
+      <path d="M9 12h6M9 15.5h6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** The little price-tag glyph in an Item/Service card's price row. */
+function PriceTagRowIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={`h-3.5 w-3.5 ${className}`} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M11.3 3.5H5a1.5 1.5 0 00-1.5 1.5v6.3c0 .4.16.78.44 1.06l8.6 8.6a1.5 1.5 0 002.12 0l6.3-6.3a1.5 1.5 0 000-2.12l-8.6-8.6a1.5 1.5 0 00-1.06-.44z" strokeLinejoin="round" />
+      <circle cx="8" cy="8" r="1.3" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+type CatalogueCardTheme = {
+  banner: string;
+  border: string;
+  glow: string;
+  pill: string;
+  rowBg: string;
+  rowText: string;
+  iconColor: IconColor;
+};
+
+const CATALOGUE_CARD_THEME: Record<"folder" | "item" | "service", CatalogueCardTheme> = {
+  folder: {
+    banner: "from-orange-300 via-orange-400 to-red-500",
+    border: "from-orange-400 via-orange-500 to-red-500",
+    glow: "bg-orange-400/45",
+    pill: "from-orange-400 to-red-500",
+    rowBg: "bg-orange-50",
+    rowText: "text-orange-700",
+    iconColor: "flame",
+  },
+  item: {
+    banner: "from-rose-300 via-rose-400 to-red-500",
+    border: "from-rose-400 via-rose-500 to-red-500",
+    glow: "bg-rose-400/45",
+    pill: "from-rose-400 to-red-500",
+    rowBg: "bg-rose-50",
+    rowText: "text-rose-700",
+    iconColor: "crimson",
+  },
+  service: {
+    banner: "from-amber-300 via-amber-400 to-[#F5A623]",
+    border: "from-amber-400 via-[#F5A623] to-[#D97706]",
+    glow: "bg-[#F5A623]/45",
+    pill: "from-amber-400 to-[#F5A623]",
+    rowBg: "bg-amber-50",
+    rowText: "text-[#B45309]",
+    iconColor: "gold",
+  },
+};
+
+/**
+ * One shared card shell for Folder / Item / Service in the catalogue grid —
+ * colored banner (icon, sparks, dot-grid, wave seam) over a white body
+ * (title, a gradient-filled type pill, and a secondary row for either the
+ * folder's offering count or the item/service's price). Folder, Item, and
+ * Service differ only by `theme`, `icon`, `typeLabel`, and the row content —
+ * the structure itself is identical, per the reference this was built from.
+ */
+function CatalogueCard({
+  onClick,
+  disabled,
+  iconKind,
+  title,
+  tamilName,
+  typeLabel,
+  theme,
+  rowIcon,
+  rowLabel,
+  extraBadges,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  iconKind: "folder" | "item" | "service";
+  title: string;
+  tamilName?: string;
+  typeLabel: string;
+  theme: CatalogueCardTheme;
+  rowIcon: React.ReactNode;
+  rowLabel: string;
+  extraBadges?: React.ReactNode;
+}) {
+  // The pill needs a white icon regardless of the big circle's colored one —
+  // built here per-kind rather than reusing the colored node.
+  const bigIcon =
+    iconKind === "folder" ? <FolderIcon large color={theme.iconColor} /> : iconKind === "service" ? <SparkleIcon color={theme.iconColor} /> : <BoxGlyph color={theme.iconColor} />;
+  const pillIcon =
+    iconKind === "folder" ? <FolderIcon color="white" /> : iconKind === "service" ? <SparkleIcon color="white" /> : <BoxGlyph color="white" />;
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`group relative rounded-[26px] bg-gradient-to-br ${theme.border} p-[2.5px] text-left shadow-[0_12px_30px_-18px_rgba(0,0,0,0.4)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:shadow-[0_26px_50px_-18px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none`}
+    >
+      <div className="flex h-full flex-col overflow-hidden rounded-[23.5px] bg-white">
+        <div className={`relative h-32 overflow-hidden bg-gradient-to-br bg-[length:220%_220%] animate-[flame-wave_9s_ease-in-out_infinite] ${theme.banner}`}>
+          <DotGrid className="bottom-2 left-2 h-14 w-14" />
+          <Spark className="left-6 top-4 h-3 w-3" delay={0} duration={2.4} />
+          <Spark className="right-8 top-8 h-4 w-4" delay={0.7} duration={3} />
+          <Spark className="bottom-11 right-14 h-2.5 w-2.5" delay={1.4} duration={2.2} />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span aria-hidden="true" className="absolute h-20 w-20 animate-soft-pulse rounded-full bg-white/50 blur-xl" />
+            <span className="relative flex h-[70px] w-[70px] items-center justify-center rounded-full bg-white/25 ring-4 ring-white/50">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-[0_10px_24px_-8px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:scale-110">
+                {bigIcon}
+              </span>
+            </span>
+          </div>
+          <BannerWave />
+        </div>
+        <div className="flex flex-col items-start gap-2.5 px-4 py-4">
+          <div>
+            <p className="text-[17px] font-bold leading-tight text-ink-100">{title}</p>
+            {tamilName && <p className="text-[11.5px] text-ink-500">{tamilName}</p>}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_4px_10px_-4px_rgba(0,0,0,0.3)] ${theme.pill}`}
+            >
+              <span className="[&_svg]:h-3.5 [&_svg]:w-3.5">{pillIcon}</span>
+              {typeLabel}
+            </span>
+            {extraBadges}
+          </div>
+          <div className={`flex w-full items-center justify-between rounded-xl px-3 py-2 ${theme.rowBg}`}>
+            <span className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-[0_2px_6px_-2px_rgba(0,0,0,0.2)]">
+                {rowIcon}
+              </span>
+              <span className={`text-[12.5px] font-semibold ${theme.rowText}`}>{rowLabel}</span>
+            </span>
+            <ChevronIcon className={`-rotate-90 ${theme.rowText}`} />
+          </div>
+        </div>
+      </div>
+    </button>
   );
 }
 
@@ -1394,69 +1568,38 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
     offering.inventory.isApplicable &&
     (offering.inventory.availableQty ?? 0) <= (offering.inventory.threshold ?? 0) + 1;
 
-  // Item and Service each get their own accent family (flame orange vs.
-  // gold) instead of sharing one look, matching Folder's crimson — three
-  // offering "types" throughout the catalogue now read as visibly distinct.
+  // Item and Service each get their own accent family (rose vs. gold)
+  // instead of sharing one look, matching Folder's orange — three offering
+  // "types" throughout the catalogue now read as visibly distinct.
   const isService = offering.refType === "Service";
-  const theme = isService
-    ? {
-        border: "from-[#F5A623]/45 via-[#F5A623]/15 to-transparent",
-        shadow: "shadow-[0_10px_26px_-16px_rgba(245,166,35,0.5)] hover:shadow-[0_24px_46px_-16px_rgba(245,166,35,0.55)]",
-        banner: "from-amber-200 via-amber-100 to-white",
-        glow: "bg-[#F5A623]/35",
-        iconShadow: "shadow-[0_8px_18px_-6px_rgba(245,166,35,0.4)]",
-        tag: "bg-amber-100 text-[#F5A623]",
-      }
-    : {
-        border: "from-flame-500/45 via-flame-500/15 to-transparent",
-        shadow: "shadow-[0_10px_26px_-16px_rgba(255,122,46,0.5)] hover:shadow-[0_24px_46px_-16px_rgba(255,122,46,0.55)]",
-        banner: "from-orange-200 via-orange-100 to-white",
-        glow: "bg-flame-500/35",
-        iconShadow: "shadow-[0_8px_18px_-6px_rgba(255,122,46,0.4)]",
-        tag: "bg-orange-100 text-flame-600",
-      };
+  const theme = isService ? CATALOGUE_CARD_THEME.service : CATALOGUE_CARD_THEME.item;
 
   return (
-    <button
+    <CatalogueCard
       onClick={() => onPick(offering)}
       disabled={outOfStock}
-      className={`group relative rounded-[22px] bg-gradient-to-br p-[1.5px] text-left transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none ${theme.border} ${theme.shadow}`}
-    >
-      <div className="flex h-full flex-col overflow-hidden rounded-[20.5px] bg-white">
-        <div className={`relative flex h-28 items-center justify-center overflow-hidden bg-gradient-to-br bg-[length:220%_220%] animate-[flame-wave_9s_ease-in-out_infinite] ${theme.banner}`}>
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
-          />
-          <span className="relative flex h-14 w-14 items-center justify-center">
-            <span aria-hidden="true" className={`absolute inset-0 animate-soft-pulse rounded-full blur-md ${theme.glow}`} />
-            <span className={`relative flex h-12 w-12 items-center justify-center rounded-full bg-white transition-transform duration-300 group-hover:scale-110 ${theme.iconShadow}`}>
-              {isService ? <SparkleIcon /> : <BoxGlyph />}
+      iconKind={isService ? "service" : "item"}
+      title={offering.name}
+      tamilName={offering.tamilName}
+      typeLabel={offering.refType}
+      theme={theme}
+      rowIcon={<PriceTagRowIcon className={theme.rowText} />}
+      rowLabel={formatCurrency(offering.salePrice)}
+      extraBadges={
+        <>
+          {outOfStock && (
+            <span className="rounded-full border border-crimson-500/30 bg-crimson-500/10 px-2.5 py-0.5 text-[10.5px] font-semibold text-crimson-500">
+              Out of Stock
             </span>
-          </span>
-        </div>
-        <div className="flex flex-col items-start gap-1.5 px-4 py-3.5 text-left">
-          <div>
-            <p className="text-[14px] font-semibold text-ink-100">{offering.name}</p>
-            {offering.tamilName && <p className="text-[11.5px] text-ink-500">{offering.tamilName}</p>}
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            <span className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-semibold ${theme.tag}`}>{offering.refType}</span>
-            {outOfStock && (
-              <span className="rounded-full border border-crimson-500/30 bg-crimson-500/10 px-2.5 py-0.5 text-[10.5px] text-crimson-500">
-                Out of Stock
-              </span>
-            )}
-            {!outOfStock && lowStock && (
-              <span className="rounded-full border border-flame-500/30 bg-flame-500/10 px-2.5 py-0.5 text-[10.5px] text-flame-500">
-                Low Stock
-              </span>
-            )}
-          </div>
-          <p className="text-[16px] font-bold text-[#E11D2E]">{formatCurrency(offering.salePrice)}</p>
-        </div>
-      </div>
-    </button>
+          )}
+          {!outOfStock && lowStock && (
+            <span className="rounded-full border border-flame-500/30 bg-flame-500/10 px-2.5 py-0.5 text-[10.5px] font-semibold text-flame-500">
+              Low Stock
+            </span>
+          )}
+        </>
+      }
+    />
   );
 }
 
