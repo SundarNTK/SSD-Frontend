@@ -1031,23 +1031,29 @@ export default function PosPortalPage() {
                   <button
                     key={`${f.categoryId}::${f.subCategoryId}`}
                     onClick={() => openFolder(f)}
-                    className="group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br from-rose-100 via-red-50 to-white bg-[length:220%_220%] p-4 text-center animate-[flame-wave_9s_ease-in-out_infinite] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:border-[#E11D2E]/50 hover:shadow-[0_22px_44px_-16px_rgba(225,29,46,0.5)]"
+                    className="group relative rounded-[22px] bg-gradient-to-br from-[#E11D2E]/45 via-[#E11D2E]/15 to-transparent p-[1.5px] text-left shadow-[0_10px_26px_-16px_rgba(225,29,46,0.5)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:shadow-[0_24px_46px_-16px_rgba(225,29,46,0.55)]"
                   >
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
-                    />
-                    <span className="relative flex h-16 w-16 items-center justify-center">
-                      <span aria-hidden="true" className="absolute inset-0 animate-soft-pulse rounded-full bg-[#E11D2E]/35 blur-md" />
-                      <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_18px_-6px_rgba(225,29,46,0.4)] transition-transform duration-300 group-hover:scale-110">
-                        <FolderIcon />
-                      </span>
-                    </span>
-                    <span className="text-[13px] font-medium text-ink-100">{f.subCategoryName}</span>
-                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10.5px] font-semibold text-[#E11D2E]">
-                      Folder
-                    </span>
-                    <span className="text-[11px] text-ink-500">{f.total} offering(s)</span>
+                    <div className="flex h-full flex-col overflow-hidden rounded-[20.5px] bg-white">
+                      <div className="relative flex h-28 items-center justify-center overflow-hidden bg-gradient-to-br from-rose-200 via-rose-100 to-white bg-[length:220%_220%] animate-[flame-wave_9s_ease-in-out_infinite]">
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
+                        />
+                        <span className="relative flex h-14 w-14 items-center justify-center">
+                          <span aria-hidden="true" className="absolute inset-0 animate-soft-pulse rounded-full bg-[#E11D2E]/35 blur-md" />
+                          <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_18px_-6px_rgba(225,29,46,0.4)] transition-transform duration-300 group-hover:scale-110">
+                            <FolderIcon />
+                          </span>
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-start gap-1.5 px-4 py-3.5 text-left">
+                        <p className="text-[14px] font-semibold text-ink-100">{f.subCategoryName}</p>
+                        <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[10.5px] font-semibold text-[#E11D2E]">
+                          Folder
+                        </span>
+                        <p className="text-[11px] text-ink-500">{f.total} offering(s)</p>
+                      </div>
+                    </div>
                   </button>
                 ))}
                 {visibleUncategorizedServices.map((s) => (
@@ -1394,13 +1400,17 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
   const isService = offering.refType === "Service";
   const theme = isService
     ? {
-        card: "from-amber-100 via-yellow-50 to-white hover:border-[#F5A623]/50 hover:shadow-[0_22px_44px_-16px_rgba(245,166,35,0.5)]",
+        border: "from-[#F5A623]/45 via-[#F5A623]/15 to-transparent",
+        shadow: "shadow-[0_10px_26px_-16px_rgba(245,166,35,0.5)] hover:shadow-[0_24px_46px_-16px_rgba(245,166,35,0.55)]",
+        banner: "from-amber-200 via-amber-100 to-white",
         glow: "bg-[#F5A623]/35",
         iconShadow: "shadow-[0_8px_18px_-6px_rgba(245,166,35,0.4)]",
         tag: "bg-amber-100 text-[#F5A623]",
       }
     : {
-        card: "from-orange-100 via-amber-50 to-white hover:border-flame-500/50 hover:shadow-[0_22px_44px_-16px_rgba(255,122,46,0.5)]",
+        border: "from-flame-500/45 via-flame-500/15 to-transparent",
+        shadow: "shadow-[0_10px_26px_-16px_rgba(255,122,46,0.5)] hover:shadow-[0_24px_46px_-16px_rgba(255,122,46,0.55)]",
+        banner: "from-orange-200 via-orange-100 to-white",
         glow: "bg-flame-500/35",
         iconShadow: "shadow-[0_8px_18px_-6px_rgba(255,122,46,0.4)]",
         tag: "bg-orange-100 text-flame-600",
@@ -1410,38 +1420,42 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
     <button
       onClick={() => onPick(offering)}
       disabled={outOfStock}
-      className={`group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br bg-[length:220%_220%] p-4 text-center animate-[flame-wave_9s_ease-in-out_infinite] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none ${theme.card}`}
+      className={`group relative rounded-[22px] bg-gradient-to-br p-[1.5px] text-left transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none ${theme.border} ${theme.shadow}`}
     >
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
-      />
-      <span className="relative flex h-16 w-16 items-center justify-center">
-        <span aria-hidden="true" className={`absolute inset-0 animate-soft-pulse rounded-full blur-md ${theme.glow}`} />
-        <span className={`relative flex h-12 w-12 items-center justify-center rounded-full bg-white transition-transform duration-300 group-hover:scale-110 ${theme.iconShadow}`}>
-          {isService ? <SparkleIcon /> : <BoxGlyph />}
-        </span>
-      </span>
-      <div>
-        <p className="text-[13px] font-medium text-ink-100">{offering.name}</p>
-        {offering.tamilName && <p className="text-[11.5px] text-ink-500">{offering.tamilName}</p>}
-      </div>
-      <div className="flex flex-wrap justify-center gap-1.5">
-        <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${theme.tag}`}>{offering.refType}</span>
-        {outOfStock && (
-          <span className="rounded-full border border-crimson-500/30 bg-crimson-500/10 px-2 py-0.5 text-[10.5px] text-crimson-500">
-            Out of Stock
+      <div className="flex h-full flex-col overflow-hidden rounded-[20.5px] bg-white">
+        <div className={`relative flex h-28 items-center justify-center overflow-hidden bg-gradient-to-br bg-[length:220%_220%] animate-[flame-wave_9s_ease-in-out_infinite] ${theme.banner}`}>
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
+          />
+          <span className="relative flex h-14 w-14 items-center justify-center">
+            <span aria-hidden="true" className={`absolute inset-0 animate-soft-pulse rounded-full blur-md ${theme.glow}`} />
+            <span className={`relative flex h-12 w-12 items-center justify-center rounded-full bg-white transition-transform duration-300 group-hover:scale-110 ${theme.iconShadow}`}>
+              {isService ? <SparkleIcon /> : <BoxGlyph />}
+            </span>
           </span>
-        )}
-        {!outOfStock && lowStock && (
-          <span className="rounded-full border border-flame-500/30 bg-flame-500/10 px-2 py-0.5 text-[10.5px] text-flame-500">
-            Low Stock
-          </span>
-        )}
+        </div>
+        <div className="flex flex-col items-start gap-1.5 px-4 py-3.5 text-left">
+          <div>
+            <p className="text-[14px] font-semibold text-ink-100">{offering.name}</p>
+            {offering.tamilName && <p className="text-[11.5px] text-ink-500">{offering.tamilName}</p>}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <span className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-semibold ${theme.tag}`}>{offering.refType}</span>
+            {outOfStock && (
+              <span className="rounded-full border border-crimson-500/30 bg-crimson-500/10 px-2.5 py-0.5 text-[10.5px] text-crimson-500">
+                Out of Stock
+              </span>
+            )}
+            {!outOfStock && lowStock && (
+              <span className="rounded-full border border-flame-500/30 bg-flame-500/10 px-2.5 py-0.5 text-[10.5px] text-flame-500">
+                Low Stock
+              </span>
+            )}
+          </div>
+          <p className="text-[16px] font-bold text-[#E11D2E]">{formatCurrency(offering.salePrice)}</p>
+        </div>
       </div>
-      <p className="bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FF8C1A] bg-clip-text font-semibold text-transparent">
-        {formatCurrency(offering.salePrice)}
-      </p>
     </button>
   );
 }
