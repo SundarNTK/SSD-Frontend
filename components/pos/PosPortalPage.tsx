@@ -799,7 +799,7 @@ export default function PosPortalPage() {
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
         <div className="relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-white/70 bg-white/90 p-4 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-md lg:h-full lg:overflow-y-auto">
           <PanelGlow />
-          <p className="font-display text-[15px] font-bold text-ink-100">Customer</p>
+          <p className="font-accent text-[16px] font-extrabold tracking-tight text-ink-100">Customer</p>
           <div className={`relative rounded-xl transition-shadow duration-300 ${needsCustomerForCart ? "shadow-[0_0_0_3px_rgba(220,38,38,0.25)]" : ""}`}>
             <AnimatePresence>
               {needsCustomerForCart && (
@@ -947,7 +947,7 @@ export default function PosPortalPage() {
                 className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium transition-[transform,box-shadow,background-color,color] duration-200 hover:-translate-y-0.5 ${
                   !selectedCategoryId
                     ? "border-transparent bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145] text-white shadow-[0_8px_18px_-8px_rgba(255,122,46,0.55)]"
-                    : "border-white/70 bg-white/40 text-ink-300 hover:bg-white/75 hover:shadow-[0_8px_18px_-10px_rgba(255,122,46,0.4)]"
+                    : "border-orange-200/70 bg-white/60 text-ink-300 shadow-[0_2px_10px_-6px_rgba(255,122,46,0.35)] hover:border-flame-500/70 hover:bg-white/80 hover:text-flame-600 hover:shadow-[0_8px_18px_-10px_rgba(255,122,46,0.5)]"
                 }`}
               >
                 All Categories ({totalOfferingCount})
@@ -962,7 +962,7 @@ export default function PosPortalPage() {
                   className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium transition-[transform,box-shadow,background-color,color] duration-200 hover:-translate-y-0.5 ${
                     selectedCategoryId === c._id
                       ? "border-transparent bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145] text-white shadow-[0_8px_18px_-8px_rgba(255,122,46,0.55)]"
-                      : "border-white/70 bg-white/40 text-ink-300 hover:bg-white/75 hover:shadow-[0_8px_18px_-10px_rgba(255,122,46,0.4)]"
+                      : "border-orange-200/70 bg-white/60 text-ink-300 shadow-[0_2px_10px_-6px_rgba(255,122,46,0.35)] hover:border-flame-500/70 hover:bg-white/80 hover:text-flame-600 hover:shadow-[0_8px_18px_-10px_rgba(255,122,46,0.5)]"
                   }`}
                 >
                   {c.name} ({c.count})
@@ -1014,7 +1014,7 @@ export default function PosPortalPage() {
                       {activeFolder.categoryName}
                     </button>
                     <ChevronIcon className="-rotate-90 text-ink-400" />
-                    <span className="flex items-center gap-1.5 font-display text-[15px] font-bold text-ink-100">
+                    <span className="flex items-center gap-1.5 font-accent text-[16px] font-extrabold tracking-tight text-ink-100">
                       <FolderIcon /> {activeFolder.subCategoryName}
                     </span>
                   </div>
@@ -1064,7 +1064,7 @@ export default function PosPortalPage() {
         {/* ── RIGHT: cart ──────────────────────────────────────────────── */}
         <div className="flex flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-md lg:h-full">
           <div className="flex shrink-0 items-center justify-between bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145] px-4 py-3">
-            <p className="flex items-center gap-2 font-display text-[15px] font-bold text-white">
+            <p className="flex items-center gap-2 font-accent text-[16px] font-extrabold tracking-tight text-white">
               <CartIcon /> Cart <span className="rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-semibold text-white">{cart.length}</span>
             </p>
             {cart.length > 0 && (
@@ -1223,11 +1223,13 @@ function PosShell({
   children: React.ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   return (
     <div className="pos-flame-canvas relative flex h-screen w-full flex-col overflow-hidden">
+      <AnimatePresence>{signingOut && <SignOutOverlay />}</AnimatePresence>
       <div aria-hidden="true" className="h-1.5 shrink-0 bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145]" />
-      <header className="relative z-10 grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-white/70 bg-white/92 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.22)] backdrop-blur-md sm:px-6 sm:py-3 md:grid-cols-[1fr_auto_1fr]">
+      <header className="relative z-20 grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-white/70 bg-white/92 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.22)] backdrop-blur-md sm:px-6 sm:py-3 md:grid-cols-[1fr_auto_1fr]">
         <div className="flex min-w-0 items-center">
           <img
             src="/SSD_Full_Logo.png"
@@ -1275,7 +1277,10 @@ function PosShell({
                   className="absolute right-0 top-[calc(100%+8px)] z-30 w-44 overflow-hidden rounded-xl border border-gold-500/20 bg-white shadow-[0_20px_50px_-15px_rgba(0,0,0,0.3)]"
                 >
                   <button
-                    onClick={() => endSession("signed-out")}
+                    onClick={() => {
+                      setSigningOut(true);
+                      endSession("signed-out");
+                    }}
                     className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-[13px] text-ink-300 hover:bg-crimson-500/10 hover:text-crimson-500"
                   >
                     <LogoutIcon /> Sign out
@@ -1289,6 +1294,37 @@ function PosShell({
 
       <main className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">{children}</main>
     </div>
+  );
+}
+
+/**
+ * Covers the whole screen the instant Sign out is clicked. `endSession()`
+ * clears the store synchronously and only then triggers the redirect — a
+ * paint can slip in between those two steps and briefly show "Unknown"
+ * where the user's name was. This overlay sits above that gap so nothing
+ * shows through, and stays up until the browser navigates away.
+ */
+function SignOutOverlay() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="pos-flame-canvas fixed inset-0 z-50 flex flex-col items-center justify-center gap-5"
+    >
+      <div className="relative flex h-20 w-20 items-center justify-center">
+        <span className="absolute inset-0 animate-soft-pulse rounded-full bg-[#FFC145]/40 blur-2xl" />
+        <span className="absolute inset-0 rounded-full border-4 border-white/40" />
+        <span className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-[#FFC145] border-r-flame-500" style={{ animationDuration: "0.9s" }} />
+        <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white text-flame-600 shadow-[0_8px_20px_-6px_rgba(255,122,46,0.5)]">
+          <LogoutIcon />
+        </span>
+      </div>
+      <div className="text-center">
+        <p className="font-accent text-[15px] font-extrabold tracking-tight text-ink-100">Signing you out…</p>
+        <p className="mt-1 text-[12.5px] text-ink-500">Taking you back to the login screen.</p>
+      </div>
+    </motion.div>
   );
 }
 
