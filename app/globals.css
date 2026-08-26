@@ -377,6 +377,40 @@ select option {
   }
 }
 
+/* POS login's "Marigold Aurora" backdrop — deliberately more saturated and
+   colorful than pos-flame-canvas above (crimson/coral/gold/magenta rather
+   than pastel peach), and kept as its own class so the counter screen's
+   own wave is untouched. */
+@keyframes marigold-aurora-wave {
+  0% {
+    background-position: 0% 30%;
+  }
+  50% {
+    background-position: 100% 70%;
+  }
+  100% {
+    background-position: 0% 30%;
+  }
+}
+.pos-login-marigold-canvas {
+  background-image: linear-gradient(
+    125deg,
+    #ff5f6d 0%,
+    #ff8a3d 18%,
+    #ffb703 36%,
+    #ff5f9e 54%,
+    #ff8a3d 72%,
+    #ffd23f 88%,
+    #ff5f6d 100%
+  );
+  background-size: 340% 340%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pos-login-marigold-canvas {
+    animation: marigold-aurora-wave 16s ease-in-out infinite;
+  }
+}
+
 /* Soft drifting glow blobs — the replacement for the gopuram illustration
    in the Customer panel and empty cart. Three different drift paths so a
    trio of them never all move in lockstep. */
