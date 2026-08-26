@@ -271,13 +271,13 @@ export default function PosTransactionsPage() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
                 <p className="text-[11px] uppercase tracking-wide text-ink-500">Order No.</p>
-                <p className="mt-0.5 font-display text-[15px] font-bold tabular-nums text-amber-700">
+                <p className="mt-0.5 text-[15px] font-bold tabular-nums text-ink-100">
                   {detail.orderId?.orderNumber ?? "—"}
                 </p>
               </div>
               <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
                 <p className="text-[11px] uppercase tracking-wide text-ink-500">Receipt No.</p>
-                <p className="mt-0.5 font-display text-[15px] font-bold tabular-nums text-amber-700">
+                <p className="mt-0.5 text-[15px] font-bold tabular-nums text-ink-100">
                   {detail.transaction?.receiptNo ?? "—"}
                 </p>
               </div>
