@@ -802,7 +802,7 @@ export default function PosPortalPage() {
       <div className="relative z-10 grid grid-cols-1 gap-4 p-4 lg:h-full lg:grid-cols-[260px_1fr_360px]">
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
         <div className="relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-white/70 bg-white/90 p-4 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-md lg:h-full lg:overflow-y-auto">
-          <PanelGlow />
+          {!selectedCustomer && <PanelGlow />}
           <p className="font-accent text-[16px] font-extrabold tracking-tight text-ink-100">Customer</p>
           <div className={`relative rounded-xl transition-shadow duration-300 ${needsCustomerForCart ? "shadow-[0_0_0_3px_rgba(220,38,38,0.25)]" : ""}`}>
             <AnimatePresence>
@@ -1962,7 +1962,7 @@ function AddToCartModal({
                         type="button"
                         onClick={() => onRemoveDevotee(idx)}
                         aria-label="Remove family member"
-                        className="mt-2 text-ink-500 hover:text-crimson-500"
+                        className="mt-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-red-700/20 bg-gradient-to-b from-red-400 via-red-500 to-red-600 text-white shadow-[0_2px_5px_-1px_rgba(220,38,38,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_14px_-3px_rgba(220,38,38,0.6)] active:translate-y-0"
                       >
                         <TrashIcon />
                       </button>
