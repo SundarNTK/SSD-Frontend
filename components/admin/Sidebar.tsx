@@ -68,8 +68,24 @@ const NAV_ITEMS: NavItem[] = [
       { label: "Payment Mode", to: "/admin/masters/payment-modes", module: MODULES.paymentModes },
     ],
   },
-  { label: "POS Transactions", icon: <CartIcon /> },
-  { label: "Inventory", icon: <BoxIcon /> },
+  {
+    label: "Transactions",
+    icon: <CartIcon />,
+    children: [
+      { label: "Admin Booking", to: "/admin/transactions/admin-booking", module: MODULES.adminBooking },
+      { label: "POS Transactions", to: "/admin/transactions/pos-transactions", module: MODULES.posTransactions },
+    ],
+  },
+  {
+    label: "Inventory",
+    icon: <BoxIcon />,
+    children: [
+      { label: "Inventory Adjustment", to: "/admin/inventory/adjustments", module: MODULES.inventory },
+      { label: "Available Stock", to: "/admin/inventory/available-stock", module: MODULES.inventory },
+      { label: "Inventory History", to: "/admin/inventory/history", module: MODULES.inventory },
+      { label: "Low Stock Report", to: "/admin/inventory/low-stock", module: MODULES.inventory },
+    ],
+  },
   { label: "Reports", icon: <ChartIcon /> },
 ];
 

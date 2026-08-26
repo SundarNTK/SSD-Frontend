@@ -29,8 +29,15 @@ type DataTableProps<T> = {
   search: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder?: string;
-  statusFilter: string;
-  onStatusFilterChange: (value: string) => void;
+  /** Omit both to drop the Active/Inactive filter — report-style screens
+   *  (Inventory's Available Stock, History, Low Stock) have no status
+   *  concept of their own to filter by. */
+  statusFilter?: string;
+  onStatusFilterChange?: (value: string) => void;
+  /** Extra filter control(s) rendered next to search/status — e.g. Available
+   *  Stock's "Type: Item/Service" dropdown, which DataTable has no built-in
+   *  equivalent for. */
+  extraFilters?: ReactNode;
   page: number;
   pageSize: number;
   total: number;
@@ -61,6 +68,7 @@ export default function DataTable<T>({
   searchPlaceholder = "Search…",
   statusFilter,
   onStatusFilterChange,
+  extraFilters,
   page,
   pageSize,
   total,
@@ -101,12 +109,15 @@ export default function DataTable<T>({
           placeholder={searchPlaceholder}
           className="w-full max-w-xs rounded-xl border border-gold-500/20 bg-white px-4 py-2.5 text-[13.5px] text-ink-100 outline-none placeholder:text-ink-500 focus:border-gold-400/60"
         />
-        <DivineListbox
-          value={statusFilter}
-          onChange={onStatusFilterChange}
-          options={STATUS_OPTIONS}
-          className="w-40"
-        />
+        {onStatusFilterChange && (
+          <DivineListbox
+            value={statusFilter ?? ""}
+            onChange={onStatusFilterChange}
+            options={STATUS_OPTIONS}
+            className="w-40"
+          />
+        )}
+        {extraFilters}
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-gold-500/15 bg-navy-900">

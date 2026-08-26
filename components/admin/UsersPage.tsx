@@ -35,6 +35,7 @@ type AdminUser = {
   profileImage: string | null;
   userType: string;
   status: number;
+  posAccess: boolean;
   accessUpto: string | null;
   passwordSetAt: string | null;
   hasSetPassword: boolean;
@@ -50,6 +51,7 @@ const createSchema = z.object({
   roleIds: z.array(z.string()),
   accessUpto: z.string(),
   status: z.number(),
+  posAccess: z.boolean(),
 });
 
 const editSchema = z.object({
@@ -59,6 +61,7 @@ const editSchema = z.object({
   roleIds: z.array(z.string()),
   accessUpto: z.string(),
   status: z.number(),
+  posAccess: z.boolean(),
 });
 
 type CreateValues = z.infer<typeof createSchema>;
@@ -107,13 +110,13 @@ export default function UsersPage() {
 
   const createForm = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
-    defaultValues: { roleIds: [], status: 1 },
+    defaultValues: { roleIds: [], status: 1, posAccess: false },
   });
   const editForm = useForm<EditValues>({ resolver: zodResolver(editSchema) });
 
   function openCreate() {
     setEditing(null);
-    createForm.reset({ name: "", email: "", mobileNumber: "", roleIds: [], accessUpto: "", status: 1 });
+    createForm.reset({ name: "", email: "", mobileNumber: "", roleIds: [], accessUpto: "", status: 1, posAccess: false });
     setCreateImage(null);
     create.setError(null);
     setDrawerOpen(true);
@@ -129,6 +132,7 @@ export default function UsersPage() {
       roleIds: assignedRoleIds,
       accessUpto: user.accessUpto ? user.accessUpto.slice(0, 10) : "",
       status: user.status,
+      posAccess: user.posAccess,
     });
     setEditImage(null);
     update.setError(null);
@@ -293,13 +297,22 @@ export default function UsersPage() {
               />
             )}
           />
-          <Controller
-            control={createForm.control}
-            name="status"
-            render={({ field }) => (
-              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
-            )}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <Controller
+              control={createForm.control}
+              name="status"
+              render={({ field }) => (
+                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+              )}
+            />
+            <Controller
+              control={createForm.control}
+              name="posAccess"
+              render={({ field }) => (
+                <DivineToggle label="POS Access" checked={field.value} onChange={field.onChange} />
+              )}
+            />
+          </div>
           <Controller
             control={createForm.control}
             name="accessUpto"
@@ -365,13 +378,22 @@ export default function UsersPage() {
               />
             )}
           />
-          <Controller
-            control={editForm.control}
-            name="status"
-            render={({ field }) => (
-              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
-            )}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <Controller
+              control={editForm.control}
+              name="status"
+              render={({ field }) => (
+                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+              )}
+            />
+            <Controller
+              control={editForm.control}
+              name="posAccess"
+              render={({ field }) => (
+                <DivineToggle label="POS Access" checked={field.value} onChange={field.onChange} />
+              )}
+            />
+          </div>
         </form>
       </FormDrawer>
     </>
