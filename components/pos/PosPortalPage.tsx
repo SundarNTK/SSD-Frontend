@@ -625,6 +625,10 @@ export default function PosPortalPage() {
 
   const hasStockIssues = cart.some((l) => l.quantityExceedsStock);
   const canProceed = selectedCustomer && cart.length > 0 && !hasStockIssues && !summaryLoading;
+  // Items are sitting in the cart with nobody to book them for — call it
+  // out right at the search box instead of only at the disabled checkout
+  // button, which is easy to miss until the very end.
+  const needsCustomerForCart = cart.length > 0 && !selectedCustomer;
 
   async function handleConfirmBooking() {
     if (!selectedCustomer) { toast.error("No customer selected."); return; }
@@ -685,7 +689,22 @@ export default function PosPortalPage() {
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
         <div className="flex flex-col gap-3 rounded-2xl border border-gold-500/15 bg-white p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.08)] lg:h-full lg:overflow-y-auto">
           <p className="font-display text-[15px] font-bold text-ink-100">Customer</p>
-          <div className="relative">
+          <div className={`relative rounded-xl transition-shadow duration-300 ${needsCustomerForCart ? "shadow-[0_0_0_3px_rgba(220,38,38,0.25)]" : ""}`}>
+            <AnimatePresence>
+              {needsCustomerForCart && (
+                <motion.div
+                  initial={{ opacity: 0, y: -2 }}
+                  animate={{ opacity: 1, y: [0, -6, 0] }}
+                  exit={{ opacity: 0 }}
+                  transition={{ y: { repeat: Infinity, duration: 1.1, ease: "easeInOut" }, opacity: { duration: 0.2 } }}
+                  className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 text-crimson-500"
+                >
+                  <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 3v15M12 18l-5-5M12 18l5-5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </motion.div>
+              )}
+            </AnimatePresence>
             <DivineInput
               label="Search customer…"
               icon={<SearchIcon />}
