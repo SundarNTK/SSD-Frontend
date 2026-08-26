@@ -20,6 +20,7 @@ import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { useTamilAutoTranslate } from "../../lib/useTamilAutoTranslate";
 
 type Ref = { _id: string; name: string };
 type GlRef = { _id: string; name: string; code: string };
@@ -152,6 +153,9 @@ export default function ServicePage() {
   const { fields, append, remove: removeRow } = useFieldArray({ control, name: "categoryDetails" });
   const isDeityMappingRequired = watch("isDeityMappingRequired");
   const isInventoryRequired = watch("isInventoryRequired");
+  const nameValue = watch("name");
+  const tamilNameValue = watch("tamilName");
+  useTamilAutoTranslate(nameValue, tamilNameValue, (v) => setValue("tamilName", v, { shouldDirty: true }), drawerOpen);
 
   function openCreate() {
     setEditing(null);

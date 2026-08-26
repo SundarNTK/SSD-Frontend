@@ -693,17 +693,50 @@ export default function PosPortalPage() {
           <div className={`relative rounded-xl transition-shadow duration-300 ${needsCustomerForCart ? "shadow-[0_0_0_3px_rgba(220,38,38,0.25)]" : ""}`}>
             <AnimatePresence>
               {needsCustomerForCart && (
-                <motion.div
-                  initial={{ opacity: 0, y: -2 }}
-                  animate={{ opacity: 1, y: [0, -6, 0] }}
-                  exit={{ opacity: 0 }}
-                  transition={{ y: { repeat: Infinity, duration: 1.1, ease: "easeInOut" }, opacity: { duration: 0.2 } }}
-                  className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 text-crimson-500"
-                >
-                  <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 3v15M12 18l-5-5M12 18l5-5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </motion.div>
+                <>
+                  {/* Colorful expanding wave rings — three staggered rings in
+                      alternating gold/crimson/amber ripple outward from the
+                      search box and fade, drawing the eye without a static shadow. */}
+                  <div className="pointer-events-none absolute inset-0 z-0 overflow-visible rounded-xl">
+                    {[
+                      { color: "#dc2626", delay: 0 },
+                      { color: "#d4af37", delay: 0.5 },
+                      { color: "#f59e0b", delay: 1 },
+                    ].map(({ color, delay }, i) => (
+                      <motion.span
+                        key={i}
+                        initial={{ opacity: 0.65, scale: 1 }}
+                        animate={{ opacity: [0.65, 0], scale: [1, 1.4] }}
+                        exit={{ opacity: 0 }}
+                        transition={{ repeat: Infinity, duration: 1.8, delay, ease: "easeOut" }}
+                        className="absolute inset-0 rounded-xl border-2"
+                        style={{ borderColor: color }}
+                      />
+                    ))}
+                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, y: -2 }}
+                    animate={{ opacity: 1, y: [0, -6, 0] }}
+                    exit={{ opacity: 0 }}
+                    transition={{ y: { repeat: Infinity, duration: 1.1, ease: "easeInOut" }, opacity: { duration: 0.2 } }}
+                    className="pointer-events-none absolute -top-9 left-1/2 z-10 -translate-x-1/2"
+                  >
+                    <svg className="h-7 w-7 drop-shadow-[0_2px_5px_rgba(220,38,38,0.45)]" viewBox="0 0 24 24" fill="none" strokeWidth="2.5">
+                      <defs>
+                        <linearGradient id="customerArrowGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#dc2626" />
+                          <stop offset="100%" stopColor="#d4af37" />
+                        </linearGradient>
+                      </defs>
+                      <path
+                        d="M12 3v15M12 18l-5-5M12 18l5-5"
+                        stroke="url(#customerArrowGradient)"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </motion.div>
+                </>
               )}
             </AnimatePresence>
             <DivineInput
