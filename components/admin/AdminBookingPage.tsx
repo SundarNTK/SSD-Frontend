@@ -972,9 +972,24 @@ export default function AdminBookingPage() {
             )}
 
             {/* Payment summary note when on cart step */}
-            {step === "cart" && cart.length > 0 && (
+            {step === "cart" && cart.length > 0 && !hasStockIssues && canProceed && (
               <p className="mt-4 text-center text-[12px] text-ink-500">
                 Payment mode will be selected in the payment screen.
+              </p>
+            )}
+
+            {/* The button below disables silently otherwise — this spells
+                out exactly what's missing. Stock issues get their own
+                message above already. */}
+            {step === "cart" && !canProceed && !hasStockIssues && (
+              <p className="mt-4 text-center text-[12px] text-crimson-400">
+                {!canBook
+                  ? "You don't have permission to complete bookings."
+                  : !selectedCustomer
+                    ? "Select a customer above to proceed."
+                    : cart.length === 0
+                      ? "Add an item or service to the cart to proceed."
+                      : "Calculating totals…"}
               </p>
             )}
 

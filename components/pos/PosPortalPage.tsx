@@ -789,6 +789,19 @@ export default function PosPortalPage() {
             </p>
           )}
 
+          {/* The button below disables silently otherwise — this spells out
+              exactly what's missing so "why can't I proceed" never needs a
+              guess. Stock issues already get their own message above. */}
+          {!canProceed && !hasStockIssues && (
+            <p className="mt-2 text-center text-[11.5px] text-crimson-500">
+              {!selectedCustomer
+                ? "Select a customer above to proceed."
+                : cart.length === 0
+                  ? "Add an item or service to the cart to proceed."
+                  : "Calculating totals…"}
+            </p>
+          )}
+
           <div className="mt-3 space-y-2">
             <DivineButton fullWidth onClick={() => setStep("payment")} disabled={!canProceed}>
               Proceed to Payment
