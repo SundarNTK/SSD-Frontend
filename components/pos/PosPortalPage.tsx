@@ -48,6 +48,8 @@ import {
   ChevronIcon,
   HistoryIcon,
   PrinterIcon,
+  LockIcon,
+  HomeIcon,
 } from "../divine/icons";
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -789,7 +791,7 @@ export default function PosPortalPage() {
     <PosShell user={user} onNewTransaction={startNewTransaction}>
       <div className="relative z-10 grid grid-cols-1 gap-4 p-4 lg:h-full lg:grid-cols-[260px_1fr_360px]">
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
-        <div className="relative flex flex-col gap-3 rounded-2xl border border-white/60 bg-white/40 p-4 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-2xl backdrop-saturate-150 lg:h-full lg:overflow-y-auto">
+        <div className="relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-white/70 bg-white/90 p-4 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-md lg:h-full lg:overflow-y-auto">
           <TempleIllustration />
           <p className="font-display text-[15px] font-bold text-ink-100">Customer</p>
           <div className={`relative rounded-xl transition-shadow duration-300 ${needsCustomerForCart ? "shadow-[0_0_0_3px_rgba(220,38,38,0.25)]" : ""}`}>
@@ -924,7 +926,7 @@ export default function PosPortalPage() {
         </div>
 
         {/* ── CENTER: catalogue ────────────────────────────────────────── */}
-        <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/60 bg-white/50 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-xl backdrop-saturate-150 lg:h-full">
+        <div className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-md lg:h-full">
           <div className="space-y-3 border-b border-white/50 p-4">
             <DivineInput
               label="Search offerings…"
@@ -989,9 +991,9 @@ export default function PosPortalPage() {
                         setActiveFolder(null);
                         setSelectedCategoryId("");
                       }}
-                      className="text-ink-500 transition-colors hover:text-amber-600"
+                      className="flex items-center gap-1 text-ink-500 transition-colors hover:text-flame-600"
                     >
-                      All Categories
+                      <HomeIcon /> All Categories
                     </button>
                     <ChevronIcon className="-rotate-90 text-ink-400" />
                     <button
@@ -1029,7 +1031,7 @@ export default function PosPortalPage() {
                   <button
                     key={`${f.categoryId}::${f.subCategoryId}`}
                     onClick={() => openFolder(f)}
-                    className="group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/60 bg-gradient-to-br from-white/75 via-rose-50/55 to-orange-50/55 p-4 text-center backdrop-blur-xl transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:border-flame-500/50 hover:shadow-[0_22px_44px_-16px_rgba(255,122,46,0.55)]"
+                    className="group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br from-rose-100/70 via-orange-50/70 to-amber-50/70 p-4 text-center transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:border-flame-500/50 hover:shadow-[0_22px_44px_-16px_rgba(255,122,46,0.55)]"
                   >
                     <span
                       aria-hidden="true"
@@ -1038,10 +1040,10 @@ export default function PosPortalPage() {
                     <span className="relative flex h-16 w-16 items-center justify-center">
                       <span
                         aria-hidden="true"
-                        className="absolute inset-0 rounded-full bg-gradient-to-br from-crimson-500 via-flame-500 to-[#FFC145] opacity-40 blur-md transition-opacity duration-300 group-hover:opacity-70"
+                        className="absolute inset-0 rounded-full bg-gradient-to-br from-crimson-500 via-flame-500 to-[#FFC145] opacity-30 blur-md transition-opacity duration-300 group-hover:opacity-60"
                       />
-                      <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-crimson-600 via-flame-500 to-[#FFC145] shadow-[0_8px_18px_-6px_rgba(255,122,46,0.6)]">
-                        <FolderIcon white />
+                      <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_18px_-6px_rgba(255,122,46,0.45)] transition-transform duration-300 group-hover:scale-110">
+                        <FolderIcon />
                       </span>
                     </span>
                     <span className="text-[13px] font-medium text-ink-100">{f.subCategoryName}</span>
@@ -1066,75 +1068,81 @@ export default function PosPortalPage() {
         </div>
 
         {/* ── RIGHT: cart ──────────────────────────────────────────────── */}
-        <div className="flex flex-col overflow-hidden rounded-2xl border border-white/60 bg-white/55 p-4 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-xl backdrop-saturate-150 lg:h-full">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="flex items-center gap-2 font-display text-[15px] font-bold text-ink-100">
-              <CartIcon /> Cart <span className="rounded-full bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145] px-2 py-0.5 text-[11px] font-semibold text-white">{cart.length}</span>
+        <div className="flex flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-md lg:h-full">
+          <div className="flex shrink-0 items-center justify-between bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145] px-4 py-3">
+            <p className="flex items-center gap-2 font-display text-[15px] font-bold text-white">
+              <CartIcon /> Cart <span className="rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-semibold text-white">{cart.length}</span>
             </p>
             {cart.length > 0 && (
               <button
                 onClick={clearCart}
                 aria-label="Clear cart"
-                className="flex items-center gap-1.5 rounded-full border border-red-700/20 bg-gradient-to-b from-red-400 via-red-500 to-red-600 px-3 py-1.5 text-[11.5px] font-semibold text-white shadow-[0_2px_6px_-1px_rgba(220,38,38,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_16px_-4px_rgba(220,38,38,0.6)] active:translate-y-0"
+                className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/20 px-3 py-1.5 text-[11.5px] font-semibold text-white transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-white/35"
               >
                 <TrashIcon /> Clear Cart
               </button>
             )}
           </div>
 
-          <div className="lg:flex-1 lg:overflow-y-auto">
-            {cart.length === 0 ? (
-              <div className="relative flex h-full flex-col items-center justify-center gap-2 py-10 text-center">
-                <TempleIllustration className="inset-4 max-w-[160px] opacity-[0.14]" />
-                <CartIcon />
-                <p className="text-[13px] font-medium text-ink-300">No items or services added</p>
-                <p className="text-[11.5px] text-ink-500">Select an offering to begin the transaction.</p>
+          <div className="flex min-h-0 flex-1 flex-col p-4">
+            <div className="lg:flex-1 lg:overflow-y-auto">
+              {cart.length === 0 ? (
+                <div className="relative flex h-full flex-col items-center justify-center gap-2 py-10 text-center">
+                  <TempleIllustration className="inset-4 max-w-[170px] opacity-[0.22]" />
+                  <HangingLampIcon className="absolute left-6 top-1 text-flame-500/50" />
+                  <HangingLampIcon className="absolute right-6 top-1 text-flame-500/50" />
+                  <span className="relative z-0 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-[0_8px_18px_-6px_rgba(255,122,46,0.4)]">
+                    <CartIcon />
+                  </span>
+                  <p className="text-[13px] font-medium text-ink-300">No items or services added</p>
+                  <p className="text-[11.5px] text-ink-500">Select an offering to begin the transaction.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {cart.map((line) => (
+                    <CartLineRow key={line.id} line={line} onEdit={() => openEditModal(line)} onRemove={() => removeCartLine(line.id)} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-3 space-y-2 border-t border-gold-500/10 pt-3 text-[13px]">
+              <div className="flex justify-between text-ink-500">
+                <span>Sub Total (S$)</span>
+                <span>{formatCurrency(summary?.subtotal ?? 0)}</span>
               </div>
-            ) : (
-              <div className="space-y-2">
-                {cart.map((line) => (
-                  <CartLineRow key={line.id} line={line} onEdit={() => openEditModal(line)} onRemove={() => removeCartLine(line.id)} />
-                ))}
+              <div className="flex justify-between border-t border-gold-500/10 pt-2 font-bold text-ink-100">
+                <span>Total Payable (S$)</span>
+                <span className="bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FF8C1A] bg-clip-text text-transparent">
+                  {formatCurrency(summary?.grandTotal ?? 0)}
+                </span>
               </div>
+            </div>
+
+            {hasStockIssues && (
+              <p className="mt-2 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-[11.5px] text-crimson-500">
+                One or more lines exceed available stock.
+              </p>
             )}
-          </div>
 
-          <div className="mt-3 space-y-2 border-t border-white/50 pt-3 text-[13px]">
-            <div className="flex justify-between text-ink-500">
-              <span>Sub Total (S$)</span>
-              <span>{formatCurrency(summary?.subtotal ?? 0)}</span>
+            {/* The button below disables silently otherwise — this spells out
+                exactly what's missing so "why can't I proceed" never needs a
+                guess. Stock issues already get their own message above. */}
+            {!canProceed && !hasStockIssues && (
+              <p className="mt-2 rounded-lg bg-crimson-500/10 py-2 text-center text-[11.5px] font-medium text-crimson-500">
+                {!selectedCustomer
+                  ? "Select a customer above to proceed."
+                  : cart.length === 0
+                    ? "Add an item or service to the cart to proceed."
+                    : "Calculating totals…"}
+              </p>
+            )}
+
+            <div className="mt-3 space-y-2">
+              <DivineButton fullWidth onClick={() => setStep("payment")} disabled={!canProceed}>
+                <LockIcon /> Proceed to Payment
+              </DivineButton>
             </div>
-            <div className="flex justify-between border-t border-white/50 pt-2 font-bold text-ink-100">
-              <span>Total Payable (S$)</span>
-              <span className="bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FF8C1A] bg-clip-text text-transparent">
-                {formatCurrency(summary?.grandTotal ?? 0)}
-              </span>
-            </div>
-          </div>
-
-          {hasStockIssues && (
-            <p className="mt-2 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-[11.5px] text-crimson-500">
-              One or more lines exceed available stock.
-            </p>
-          )}
-
-          {/* The button below disables silently otherwise — this spells out
-              exactly what's missing so "why can't I proceed" never needs a
-              guess. Stock issues already get their own message above. */}
-          {!canProceed && !hasStockIssues && (
-            <p className="mt-2 text-center text-[11.5px] text-crimson-500">
-              {!selectedCustomer
-                ? "Select a customer above to proceed."
-                : cart.length === 0
-                  ? "Add an item or service to the cart to proceed."
-                  : "Calculating totals…"}
-            </p>
-          )}
-
-          <div className="mt-3 space-y-2">
-            <DivineButton fullWidth onClick={() => setStep("payment")} disabled={!canProceed}>
-              Proceed to Payment
-            </DivineButton>
           </div>
         </div>
       </div>
@@ -1227,7 +1235,7 @@ function PosShell({
   return (
     <div className="pos-flame-canvas relative flex h-screen w-full flex-col overflow-hidden">
       <div aria-hidden="true" className="h-1.5 shrink-0 bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145]" />
-      <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/60 bg-white/45 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.22)] backdrop-blur-2xl backdrop-saturate-150 sm:px-6 sm:py-3">
+      <header className="relative z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/70 bg-white/92 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.22)] backdrop-blur-md sm:px-6 sm:py-3">
         <div className="flex min-w-0 items-center">
           <img
             src="/SSD_Full_Logo.png"
@@ -1239,13 +1247,13 @@ function PosShell({
         <div className="hidden items-center gap-2 md:flex">
           <button
             onClick={() => toast.error("Transaction History isn't built yet.")}
-            className="flex items-center gap-1.5 rounded-xl border border-white/70 bg-white/50 px-3 py-2 text-[12.5px] font-medium text-ink-300 transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-[0_10px_22px_-10px_rgba(255,122,46,0.4)]"
+            className="flex items-center gap-1.5 rounded-xl border border-flame-500/25 bg-white px-3 py-2 text-[12.5px] font-medium text-ink-300 transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-ivory-100 hover:shadow-[0_10px_22px_-10px_rgba(255,122,46,0.4)]"
           >
             <HistoryIcon /> Transaction History
           </button>
           <button
             onClick={() => toast.error("Reprint isn't built yet.")}
-            className="flex items-center gap-1.5 rounded-xl border border-white/70 bg-white/50 px-3 py-2 text-[12.5px] font-medium text-ink-300 transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-[0_10px_22px_-10px_rgba(255,122,46,0.4)]"
+            className="flex items-center gap-1.5 rounded-xl border border-flame-500/25 bg-white px-3 py-2 text-[12.5px] font-medium text-ink-300 transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-ivory-100 hover:shadow-[0_10px_22px_-10px_rgba(255,122,46,0.4)]"
           >
             <PrinterIcon /> Reprint
           </button>
@@ -1307,7 +1315,7 @@ function PosShell({
  * it. `useId()` keeps the gradient's id collision-free across the two
  * places this renders (Customer panel, empty cart).
  */
-function TempleIllustration({ className = "inset-x-0 bottom-0 max-w-[220px] opacity-[0.16]" }: { className?: string }) {
+function TempleIllustration({ className = "inset-x-0 bottom-0 max-w-[220px] opacity-[0.24]" }: { className?: string }) {
   const gradId = `temple-illustration-grad-${useId()}`;
   return (
     <svg
@@ -1337,10 +1345,21 @@ function TempleIllustration({ className = "inset-x-0 bottom-0 max-w-[220px] opac
   );
 }
 
+/** A small hanging oil-lamp silhouette — the pair flanking the empty-cart
+ *  illustration, echoing the lamps strung either side of a temple entrance. */
+function HangingLampIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 40" className={`h-9 w-6 ${className}`} fill="none" stroke="currentColor" strokeWidth="1.4">
+      <line x1="12" y1="0" x2="12" y2="9" />
+      <path d="M6 9h12l-2.4 15.5a1.6 1.6 0 01-1.6 1.4h-4a1.6 1.6 0 01-1.6-1.4L6 9z" fill="currentColor" fillOpacity="0.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function FolderIcon({ large, white }: { large?: boolean; white?: boolean }) {
   const size = large ? "h-8 w-8" : "h-4 w-4";
   return (
-    <svg className={`${size} ${white ? "text-white" : "text-amber-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg className={`${size} ${white ? "text-white" : "text-flame-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" strokeLinejoin="round" />
     </svg>
   );
@@ -1348,7 +1367,7 @@ function FolderIcon({ large, white }: { large?: boolean; white?: boolean }) {
 
 function SparkleIcon({ white }: { white?: boolean } = {}) {
   return (
-    <svg className={`h-8 w-8 ${white ? "text-white" : "text-amber-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg className={`h-8 w-8 ${white ? "text-white" : "text-flame-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
@@ -1356,7 +1375,7 @@ function SparkleIcon({ white }: { white?: boolean } = {}) {
 
 function BoxGlyph({ white }: { white?: boolean } = {}) {
   return (
-    <svg className={`h-8 w-8 ${white ? "text-white" : "text-amber-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg className={`h-8 w-8 ${white ? "text-white" : "text-flame-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
@@ -1398,7 +1417,9 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
     <button
       onClick={() => onPick(offering)}
       disabled={outOfStock}
-      className="group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/60 bg-gradient-to-br from-white/75 via-rose-50/55 to-orange-50/55 p-4 text-center backdrop-blur-xl transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:border-flame-500/50 hover:shadow-[0_22px_44px_-16px_rgba(255,122,46,0.55)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none"
+      className={`group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br p-4 text-center transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:border-flame-500/50 hover:shadow-[0_22px_44px_-16px_rgba(255,122,46,0.55)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none ${
+        offering.refType === "Service" ? "from-amber-50/70 via-orange-50/70 to-yellow-50/70" : "from-rose-100/70 via-orange-50/70 to-amber-50/70"
+      }`}
     >
       <span
         aria-hidden="true"
@@ -1407,10 +1428,10 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
       <span className="relative flex h-16 w-16 items-center justify-center">
         <span
           aria-hidden="true"
-          className="absolute inset-0 rounded-full bg-gradient-to-br from-crimson-500 via-flame-500 to-[#FFC145] opacity-40 blur-md transition-opacity duration-300 group-hover:opacity-70"
+          className="absolute inset-0 rounded-full bg-gradient-to-br from-crimson-500 via-flame-500 to-[#FFC145] opacity-30 blur-md transition-opacity duration-300 group-hover:opacity-60"
         />
-        <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-crimson-600 via-flame-500 to-[#FFC145] text-white shadow-[0_8px_18px_-6px_rgba(255,122,46,0.6)]">
-          {offering.refType === "Service" ? <SparkleIcon white /> : <BoxGlyph white />}
+        <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_18px_-6px_rgba(255,122,46,0.45)] transition-transform duration-300 group-hover:scale-110">
+          {offering.refType === "Service" ? <SparkleIcon /> : <BoxGlyph />}
         </span>
       </span>
       <div>
