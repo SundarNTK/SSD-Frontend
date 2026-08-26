@@ -585,13 +585,13 @@ export default function PosPortalPage() {
       toast.error("Please select at least one deity.");
       return;
     }
-    if (modalOffering.isFamilyMembersRequired) {
-      const empty = modalDevotees.some((d) => !d.name.trim());
-      if (empty) {
-        toast.error("Please fill all devotee names.");
-        return;
-      }
-    }
+    // Devotee name is optional, not required — the row count reflects the
+    // offering's configured max as a cap, not a mandatory headcount. Blank
+    // rows (an unused slot) are simply dropped rather than blocking Add to
+    // Cart or being sent to the backend, which rejects an empty name.
+    const filledDevotees = modalDevotees
+      .filter((d) => d.name.trim())
+      .map((d) => ({ name: d.name.trim(), nakshatra: d.nakshatra }));
 
     const newLine: CartLine = {
       id: newLineId(),
@@ -602,9 +602,7 @@ export default function PosPortalPage() {
       quantity: modalEffectiveQty || 1,
       unitPrice: modalOffering.salePrice,
       deities: modalDeities,
-      devotees: modalOffering.isFamilyMembersRequired
-        ? modalDevotees.map((d) => ({ name: d.name.trim(), nakshatra: d.nakshatra }))
-        : [],
+      devotees: modalOffering.isFamilyMembersRequired ? filledDevotees : [],
     };
     setCart((prev) => [...prev, newLine]);
     setModalOffering(null);
