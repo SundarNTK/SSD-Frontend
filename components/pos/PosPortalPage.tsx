@@ -23,7 +23,7 @@
  * can never disagree.
  */
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { api, unwrap, extractErrorMessage, type ApiEnvelope } from "../../lib/api";
 import { toast } from "../../lib/toastStore";
@@ -792,7 +792,7 @@ export default function PosPortalPage() {
       <div className="relative z-10 grid grid-cols-1 gap-4 p-4 lg:h-full lg:grid-cols-[260px_1fr_360px]">
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
         <div className="relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-white/70 bg-white/90 p-4 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-md lg:h-full lg:overflow-y-auto">
-          <TempleIllustration />
+          <PanelGlow />
           <p className="font-display text-[15px] font-bold text-ink-100">Customer</p>
           <div className={`relative rounded-xl transition-shadow duration-300 ${needsCustomerForCart ? "shadow-[0_0_0_3px_rgba(220,38,38,0.25)]" : ""}`}>
             <AnimatePresence>
@@ -1031,23 +1031,20 @@ export default function PosPortalPage() {
                   <button
                     key={`${f.categoryId}::${f.subCategoryId}`}
                     onClick={() => openFolder(f)}
-                    className="group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br from-rose-100/70 via-orange-50/70 to-amber-50/70 p-4 text-center transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:border-flame-500/50 hover:shadow-[0_22px_44px_-16px_rgba(255,122,46,0.55)]"
+                    className="group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br from-rose-100 via-red-50 to-white bg-[length:220%_220%] p-4 text-center animate-[flame-wave_9s_ease-in-out_infinite] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:border-[#E11D2E]/50 hover:shadow-[0_22px_44px_-16px_rgba(225,29,46,0.5)]"
                   >
                     <span
                       aria-hidden="true"
                       className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
                     />
                     <span className="relative flex h-16 w-16 items-center justify-center">
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-0 rounded-full bg-gradient-to-br from-crimson-500 via-flame-500 to-[#FFC145] opacity-30 blur-md transition-opacity duration-300 group-hover:opacity-60"
-                      />
-                      <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_18px_-6px_rgba(255,122,46,0.45)] transition-transform duration-300 group-hover:scale-110">
+                      <span aria-hidden="true" className="absolute inset-0 animate-soft-pulse rounded-full bg-[#E11D2E]/35 blur-md" />
+                      <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_18px_-6px_rgba(225,29,46,0.4)] transition-transform duration-300 group-hover:scale-110">
                         <FolderIcon />
                       </span>
                     </span>
                     <span className="text-[13px] font-medium text-ink-100">{f.subCategoryName}</span>
-                    <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10.5px] font-semibold text-amber-700">
+                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10.5px] font-semibold text-[#E11D2E]">
                       Folder
                     </span>
                     <span className="text-[11px] text-ink-500">{f.total} offering(s)</span>
@@ -1087,10 +1084,8 @@ export default function PosPortalPage() {
           <div className="flex min-h-0 flex-1 flex-col p-4">
             <div className="lg:flex-1 lg:overflow-y-auto">
               {cart.length === 0 ? (
-                <div className="relative flex h-full flex-col items-center justify-center gap-2 py-10 text-center">
-                  <TempleIllustration className="inset-4 max-w-[170px] opacity-[0.22]" />
-                  <HangingLampIcon className="absolute left-6 top-1 text-flame-500/50" />
-                  <HangingLampIcon className="absolute right-6 top-1 text-flame-500/50" />
+                <div className="relative flex h-full flex-col items-center justify-center gap-2 overflow-hidden py-10 text-center">
+                  <PanelGlow />
                   <span className="relative z-0 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-[0_8px_18px_-6px_rgba(255,122,46,0.4)]">
                     <CartIcon />
                   </span>
@@ -1309,73 +1304,53 @@ function PosShell({
 // ─── sub-components ───────────────────────────────────────────────────────────
 
 /**
- * A faint gopuram silhouette anchored to the bottom of a glass panel —
- * decorative only (aria-hidden, pointer-events-none), sitting on a negative
- * z-index so it paints behind the panel's real content instead of on top of
- * it. `useId()` keeps the gradient's id collision-free across the two
- * places this renders (Customer panel, empty cart).
+ * Three softly blurred, slowly drifting color blobs — decorative only
+ * (aria-hidden, pointer-events-none), sitting on a negative z-index so they
+ * paint behind the panel's real content instead of on top of it. Needs the
+ * parent to be `relative overflow-hidden` so the blobs stay clipped to the
+ * panel's rounded corners instead of drifting past them.
  */
-function TempleIllustration({ className = "inset-x-0 bottom-0 max-w-[220px] opacity-[0.24]" }: { className?: string }) {
-  const gradId = `temple-illustration-grad-${useId()}`;
+function PanelGlow() {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 220 260"
-      className={`pointer-events-none absolute -z-10 mx-auto h-auto w-full ${className}`}
-      fill="none"
-    >
-      <path d="M110 20 L150 60 H70 Z" fill={`url(#${gradId})`} />
-      <rect x="85" y="60" width="50" height="18" fill={`url(#${gradId})`} />
-      <path d="M110 78 L165 118 H55 Z" fill={`url(#${gradId})`} />
-      <rect x="65" y="118" width="90" height="20" fill={`url(#${gradId})`} />
-      <path d="M110 138 L200 210 H20 Z" fill={`url(#${gradId})`} />
-      <rect x="30" y="210" width="160" height="40" rx="4" fill={`url(#${gradId})`} />
-      <circle cx="40" cy="232" r="6" fill="#FF7A2E" />
-      <circle cx="180" cy="236" r="5" fill="#E11D2E" />
-      <circle cx="60" cy="246" r="4" fill="#FFC145" />
-      <circle cx="160" cy="248" r="4" fill="#FF7A2E" />
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="220" y2="260" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#E11D2E" />
-          <stop offset="0.5" stopColor="#FF7A2E" />
-          <stop offset="1" stopColor="#FFC145" />
-        </linearGradient>
-      </defs>
-    </svg>
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+      <div className="absolute -left-10 -top-10 h-40 w-40 animate-[pos-blob-drift-a_16s_ease-in-out_infinite] rounded-full bg-crimson-500/20 blur-3xl" />
+      <div className="absolute -bottom-12 -right-8 h-48 w-48 animate-[pos-blob-drift-b_20s_ease-in-out_infinite] rounded-full bg-[#FFC145]/25 blur-3xl" />
+      <div className="absolute bottom-1/3 left-1/4 h-28 w-28 animate-[pos-blob-drift-c_18s_ease-in-out_infinite] rounded-full bg-flame-500/20 blur-3xl" />
+    </div>
   );
 }
 
-/** A small hanging oil-lamp silhouette — the pair flanking the empty-cart
- *  illustration, echoing the lamps strung either side of a temple entrance. */
-function HangingLampIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 40" className={`h-9 w-6 ${className}`} fill="none" stroke="currentColor" strokeWidth="1.4">
-      <line x1="12" y1="0" x2="12" y2="9" />
-      <path d="M6 9h12l-2.4 15.5a1.6 1.6 0 01-1.6 1.4h-4a1.6 1.6 0 01-1.6-1.4L6 9z" fill="currentColor" fillOpacity="0.5" strokeLinejoin="round" />
-    </svg>
-  );
-}
+// Each offering "type" gets its own accent throughout the catalogue grid —
+// folder = crimson, item = flame orange, service = gold — so the three read
+// as genuinely distinct families rather than the same orange tinted three ways.
+type IconColor = "flame" | "crimson" | "gold" | "white";
+const ICON_COLOR_CLASS: Record<IconColor, string> = {
+  flame: "text-flame-600",
+  crimson: "text-[#E11D2E]",
+  gold: "text-[#F5A623]",
+  white: "text-white",
+};
 
-function FolderIcon({ large, white }: { large?: boolean; white?: boolean }) {
+function FolderIcon({ large, color = "crimson" }: { large?: boolean; color?: IconColor }) {
   const size = large ? "h-8 w-8" : "h-4 w-4";
   return (
-    <svg className={`${size} ${white ? "text-white" : "text-flame-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg className={`${size} ${ICON_COLOR_CLASS[color]}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function SparkleIcon({ white }: { white?: boolean } = {}) {
+function SparkleIcon({ color = "gold" }: { color?: IconColor } = {}) {
   return (
-    <svg className={`h-8 w-8 ${white ? "text-white" : "text-flame-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg className={`h-8 w-8 ${ICON_COLOR_CLASS[color]}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }
 
-function BoxGlyph({ white }: { white?: boolean } = {}) {
+function BoxGlyph({ color = "flame" }: { color?: IconColor } = {}) {
   return (
-    <svg className={`h-8 w-8 ${white ? "text-white" : "text-flame-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg className={`h-8 w-8 ${ICON_COLOR_CLASS[color]}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
@@ -1413,25 +1388,38 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
     offering.inventory.isApplicable &&
     (offering.inventory.availableQty ?? 0) <= (offering.inventory.threshold ?? 0) + 1;
 
+  // Item and Service each get their own accent family (flame orange vs.
+  // gold) instead of sharing one look, matching Folder's crimson — three
+  // offering "types" throughout the catalogue now read as visibly distinct.
+  const isService = offering.refType === "Service";
+  const theme = isService
+    ? {
+        card: "from-amber-100 via-yellow-50 to-white hover:border-[#F5A623]/50 hover:shadow-[0_22px_44px_-16px_rgba(245,166,35,0.5)]",
+        glow: "bg-[#F5A623]/35",
+        iconShadow: "shadow-[0_8px_18px_-6px_rgba(245,166,35,0.4)]",
+        tag: "bg-amber-100 text-[#F5A623]",
+      }
+    : {
+        card: "from-orange-100 via-amber-50 to-white hover:border-flame-500/50 hover:shadow-[0_22px_44px_-16px_rgba(255,122,46,0.5)]",
+        glow: "bg-flame-500/35",
+        iconShadow: "shadow-[0_8px_18px_-6px_rgba(255,122,46,0.4)]",
+        tag: "bg-orange-100 text-flame-600",
+      };
+
   return (
     <button
       onClick={() => onPick(offering)}
       disabled={outOfStock}
-      className={`group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br p-4 text-center transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:border-flame-500/50 hover:shadow-[0_22px_44px_-16px_rgba(255,122,46,0.55)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none ${
-        offering.refType === "Service" ? "from-amber-50/70 via-orange-50/70 to-yellow-50/70" : "from-rose-100/70 via-orange-50/70 to-amber-50/70"
-      }`}
+      className={`group relative flex flex-col items-center gap-2 overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br bg-[length:220%_220%] p-4 text-center animate-[flame-wave_9s_ease-in-out_infinite] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none ${theme.card}`}
     >
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
       />
       <span className="relative flex h-16 w-16 items-center justify-center">
-        <span
-          aria-hidden="true"
-          className="absolute inset-0 rounded-full bg-gradient-to-br from-crimson-500 via-flame-500 to-[#FFC145] opacity-30 blur-md transition-opacity duration-300 group-hover:opacity-60"
-        />
-        <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_18px_-6px_rgba(255,122,46,0.45)] transition-transform duration-300 group-hover:scale-110">
-          {offering.refType === "Service" ? <SparkleIcon /> : <BoxGlyph />}
+        <span aria-hidden="true" className={`absolute inset-0 animate-soft-pulse rounded-full blur-md ${theme.glow}`} />
+        <span className={`relative flex h-12 w-12 items-center justify-center rounded-full bg-white transition-transform duration-300 group-hover:scale-110 ${theme.iconShadow}`}>
+          {isService ? <SparkleIcon /> : <BoxGlyph />}
         </span>
       </span>
       <div>
@@ -1439,13 +1427,7 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
         {offering.tamilName && <p className="text-[11.5px] text-ink-500">{offering.tamilName}</p>}
       </div>
       <div className="flex flex-wrap justify-center gap-1.5">
-        <span
-          className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${
-            offering.refType === "Service" ? "bg-gold-500/15 text-amber-700" : "bg-white/70 text-ink-500"
-          }`}
-        >
-          {offering.refType}
-        </span>
+        <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${theme.tag}`}>{offering.refType}</span>
         {outOfStock && (
           <span className="rounded-full border border-crimson-500/30 bg-crimson-500/10 px-2 py-0.5 text-[10.5px] text-crimson-500">
             Out of Stock
