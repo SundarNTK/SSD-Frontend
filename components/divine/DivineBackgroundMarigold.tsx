@@ -7,9 +7,10 @@ import { useEffect, useRef } from "react";
  * with a few sacred-radiance touches (rotating sunburst rays, a
  * color-shifting aurora overlay, a pulsing halo, drifting marigold petals)
  * rather than DivineBackground's cooler gold mandala-and-gopuram treatment.
- * Deliberately saturated — crimson/coral/gold/magenta, not pastel — since
- * the whole point is to read as more colorful and alive than the classic
- * variant, not just a re-tinted copy of it.
+ * Deliberately saturated — a sunset spread of deep orange, coral, gold and
+ * amber, not pastel — kept strictly within the orange family (no pink or
+ * magenta) since the whole point is to read as more colorful and alive
+ * than the classic variant, not just a re-tinted copy of it.
  */
 export default function DivineBackgroundMarigold() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -20,7 +21,7 @@ export default function DivineBackgroundMarigold() {
     if (!canvas || !ctx) return;
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const colors = ["#FF6B35", "#E0396B", "#FFD23F", "#FF3D68", "#FFA630"];
+    const colors = ["#FF6B35", "#FFA630", "#FFD23F", "#FF8A3D", "#E8590C"];
     type Petal = { x: number; y: number; r: number; vy: number; sway: number; swaySpeed: number; rot: number; rotSpeed: number; color: string };
     let particles: Petal[] = [];
     let raf = 0;
@@ -91,6 +92,29 @@ export default function DivineBackgroundMarigold() {
 
   return (
     <div className="pos-login-marigold-canvas fixed inset-0 -z-20 overflow-hidden">
+      {/* big soft 3D bubble shapes — a glossy highlight near one edge of each
+          blurred sphere is what reads as "3D" rather than a flat blur spot. */}
+      <div
+        aria-hidden="true"
+        className="absolute -left-24 -top-24 h-[440px] w-[440px] rounded-full opacity-80 blur-2xl animate-[pos-blob-drift-a_16s_ease-in-out_infinite]"
+        style={{ background: "radial-gradient(circle at 32% 28%, rgba(255,255,255,0.9), #FFD23F 26%, #FF6B35 62%, transparent 78%)" }}
+      />
+      <div
+        aria-hidden="true"
+        className="absolute -bottom-32 -right-20 h-[520px] w-[520px] rounded-full opacity-80 blur-2xl animate-[pos-blob-drift-b_20s_ease-in-out_infinite]"
+        style={{ background: "radial-gradient(circle at 30% 26%, rgba(255,255,255,0.85), #FF8A3D 28%, #E8590C 64%, transparent 78%)" }}
+      />
+      <div
+        aria-hidden="true"
+        className="absolute -right-16 -top-16 h-[300px] w-[300px] rounded-full opacity-70 blur-xl animate-[pos-blob-drift-c_18s_ease-in-out_infinite]"
+        style={{ background: "radial-gradient(circle at 34% 30%, rgba(255,255,255,0.9), #FFA630 30%, #FFD23F 66%, transparent 80%)" }}
+      />
+      <div
+        aria-hidden="true"
+        className="absolute -bottom-20 -left-16 h-[260px] w-[260px] rounded-full opacity-70 blur-xl animate-[pos-blob-drift-a_16s_ease-in-out_infinite]"
+        style={{ background: "radial-gradient(circle at 32% 28%, rgba(255,255,255,0.85), #FFB703 30%, #E8590C 66%, transparent 80%)", animationDelay: "2s" }}
+      />
+
       {/* slow color-shifting aurora — a rotating multi-hue conic layer blended
           over the wave gradient so the colors keep drifting into each other
           rather than the background just being one static blend. */}
@@ -99,22 +123,22 @@ export default function DivineBackgroundMarigold() {
         className="animate-slow-spin-reverse absolute left-1/2 top-1/2 h-[170vmax] w-[170vmax] -translate-x-1/2 -translate-y-1/2 opacity-60 mix-blend-soft-light"
         style={{
           background:
-            "conic-gradient(from 0deg, #ff3d68, #ffa630, #ffd23f, #ff6b35, #e0396b, #ff3d68)",
+            "conic-gradient(from 0deg, #ff6b1a, #ffa630, #ffd23f, #ff8a3d, #e8590c, #ff6b1a)",
           filter: "blur(80px)",
         }}
       />
 
-      {/* rotating sunburst rays — alternating crimson/gold bands for the "divine radiance" note */}
+      {/* rotating sunburst rays — alternating burnt-orange/gold bands for the "divine radiance" note */}
       <div
         aria-hidden="true"
         className="animate-slow-spin absolute left-1/2 top-1/2 h-[160vmax] w-[160vmax] -translate-x-1/2 -translate-y-1/2 opacity-70"
         style={{
           background:
-            "repeating-conic-gradient(from 0deg, rgba(220,38,38,0.3) 0deg 3deg, transparent 3deg 9deg, rgba(255,210,63,0.32) 9deg 12deg, transparent 12deg 24deg)",
+            "repeating-conic-gradient(from 0deg, rgba(216,74,8,0.32) 0deg 3deg, transparent 3deg 9deg, rgba(255,210,63,0.32) 9deg 12deg, transparent 12deg 24deg)",
         }}
       />
 
-      {/* dual pulsing halo behind the card — gold core, magenta bloom */}
+      {/* dual pulsing halo behind the card — pale gold core, deeper amber bloom */}
       <div
         aria-hidden="true"
         className="animate-soft-pulse absolute left-1/2 top-1/2 h-[620px] w-[620px] -translate-x-1/2 -translate-y-1/2 rounded-full"
@@ -123,13 +147,13 @@ export default function DivineBackgroundMarigold() {
       <div
         aria-hidden="true"
         className="animate-soft-pulse absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-70"
-        style={{ background: "radial-gradient(circle, rgba(255,80,140,0.45), transparent 68%)", animationDelay: "1.4s" }}
+        style={{ background: "radial-gradient(circle, rgba(255,140,40,0.4), transparent 68%)", animationDelay: "1.4s" }}
       />
 
       <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full" />
 
       {/* soft warm vignette to keep focus centered — same finishing touch as DivineBackground */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_45%,transparent_40%,rgba(140,30,60,0.16)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_45%,transparent_40%,rgba(140,60,10,0.16)_100%)]" />
     </div>
   );
 }

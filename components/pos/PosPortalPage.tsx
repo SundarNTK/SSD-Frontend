@@ -86,6 +86,7 @@ type Folder = {
   categoryName: string;
   subCategoryId: string;
   subCategoryName: string;
+  subCategoryTamilName?: string | null;
   color: string | null;
   itemCount: number;
   serviceCount: number;
@@ -103,6 +104,12 @@ type PosItem = {
   isFamilyMembersRequired: boolean;
   maxFamilyMembers: number;
   inventory: InventoryInfo;
+  /** Present only on the catalogue's uncategorized list — the category a
+   *  subCategory-less mapping still belongs to, or null when there's no
+   *  category at all. Lets a category-only item show up both in the
+   *  unfiltered "All Categories" view and inside that one category's
+   *  filtered view, without a folder to sit in. */
+  categoryId?: string | null;
 };
 
 type PosService = {
@@ -116,6 +123,8 @@ type PosService = {
   isFamilyMembersRequired: boolean;
   maxFamilyMembers: number;
   inventory: InventoryInfo;
+  /** Same as PosItem.categoryId — see above. */
+  categoryId?: string | null;
 };
 
 type Offering =
@@ -249,6 +258,7 @@ export default function PosPortalPage() {
   const [customerResults, setCustomerResults] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
+  const [customerRequiredNotice, setCustomerRequiredNotice] = useState(false);
 
   // ── catalogue ────────────────────────────────────────────────────────────
   const [categories, setCategories] = useState<CategoryTab[]>([]);
@@ -299,8 +309,16 @@ export default function PosPortalPage() {
     () => (selectedCategoryId ? folders.filter((f) => f.categoryId === selectedCategoryId) : folders),
     [folders, selectedCategoryId]
   );
-  const visibleUncategorizedItems = selectedCategoryId ? [] : uncategorizedItems;
-  const visibleUncategorizedServices = selectedCategoryId ? [] : uncategorizedServices;
+  // Truly-uncategorized entries (categoryId: null) only make sense in the
+  // unfiltered view; a category-only entry (categoryId set, no
+  // subCategory) belongs in that category's filtered view too, the same
+  // way a folder does.
+  const visibleUncategorizedItems = selectedCategoryId
+    ? uncategorizedItems.filter((i) => i.categoryId === selectedCategoryId)
+    : uncategorizedItems;
+  const visibleUncategorizedServices = selectedCategoryId
+    ? uncategorizedServices.filter((s) => s.categoryId === selectedCategoryId)
+    : uncategorizedServices;
 
   function openFolder(folder: Folder) {
     setActiveFolder(folder);
@@ -598,6 +616,10 @@ export default function PosPortalPage() {
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
 
   function openAddModal(offering: Offering) {
+    if (!selectedCustomer) {
+      setCustomerRequiredNotice(true);
+      return;
+    }
     setEditingLineId(null);
     setModalOffering(offering);
     setModalDeities([]);
@@ -733,12 +755,14 @@ export default function PosPortalPage() {
   }
 
   // ── checkout flow ────────────────────────────────────────────────────────
-  const [step, setStep] = useState<"cart" | "payment" | "done">("cart");
+  const [step, setStep] = useState<"cart" | "done">("cart");
   const [bookingLoading, setBookingLoading] = useState(false);
   const [confirmation, setConfirmation] = useState<BookingConfirmation | null>(null);
 
   const hasStockIssues = cart.some((l) => l.quantityExceedsStock);
   const canProceed = selectedCustomer && cart.length > 0 && !hasStockIssues && !summaryLoading;
+  const cashMode = paymentModes.find((m) => m.name.toLowerCase() === "cash");
+  const selectedModeName = paymentModes.find((m) => m._id === selectedPaymentModeId)?.name ?? "Cash";
   // Items are sitting in the cart with nobody to book them for — call it
   // out right at the search box instead of only at the disabled checkout
   // button, which is easy to miss until the very end.
@@ -919,7 +943,7 @@ export default function PosPortalPage() {
                   key={b._id}
                   type="button"
                   onClick={() => setViewingRecentBooking(b)}
-                  className="flex w-full flex-col items-start gap-0.5 rounded-xl border border-white/60 bg-white/45 px-3 py-2.5 text-left transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-white/80 hover:shadow-[0_10px_22px_-12px_rgba(255,122,46,0.45)]"
+                  className="flex w-full flex-col items-start gap-0.5 rounded-xl border border-orange-200/60 bg-white/60 px-3 py-2.5 text-left shadow-[0_2px_10px_-6px_rgba(255,122,46,0.3)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-white/80 hover:shadow-[0_10px_22px_-12px_rgba(255,122,46,0.45)]"
                 >
                   <span className="flex w-full items-center justify-between text-[12.5px] font-medium text-ink-100">
                     <span className="tabular-nums">{b.bookingNumber}</span>
@@ -1045,7 +1069,7 @@ export default function PosPortalPage() {
                     onClick={() => openFolder(f)}
                     iconKind="folder"
                     title={f.subCategoryName}
-                    typeLabel="Folder"
+                    tamilName={f.subCategoryTamilName ?? undefined}
                     theme={CATALOGUE_CARD_THEME.folder}
                     rowIcon={<ListRowIcon className={CATALOGUE_CARD_THEME.folder.rowText} />}
                     rowLabel={`${f.total} offering(s)`}
@@ -1075,7 +1099,7 @@ export default function PosPortalPage() {
               <button
                 onClick={clearCart}
                 aria-label="Clear cart"
-                className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/20 px-3 py-1.5 text-[11.5px] font-semibold text-white transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-white/35"
+                className="flex items-center gap-1.5 rounded-full border border-white bg-white px-3 py-1.5 text-[11.5px] font-semibold text-crimson-600 shadow-[0_4px_12px_-4px_rgba(0,0,0,0.35)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-crimson-500/10"
               >
                 <TrashIcon /> Clear Cart
               </button>
@@ -1113,7 +1137,7 @@ export default function PosPortalPage() {
               )}
             </div>
 
-            <div className="mt-3 space-y-2 border-t border-gold-500/10 pt-3 text-[13px]">
+            <div className="mt-3 space-y-2 border-t-2 border-orange-200/80 pt-3 text-[13px]">
               <div className="flex justify-between text-ink-500">
                 <span>Sub Total (S$)</span>
                 <span>{formatCurrency(summary?.subtotal ?? 0)}</span>
@@ -1123,6 +1147,63 @@ export default function PosPortalPage() {
                 <span className="bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FF8C1A] bg-clip-text text-transparent">
                   {formatCurrency(summary?.grandTotal ?? 0)}
                 </span>
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-1.5">
+              <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-amber-600">
+                <CashIcon className="h-3.5 w-3.5" /> Payment Method
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => cashMode && setSelectedPaymentModeId(cashMode._id)}
+                  disabled={!cashMode}
+                  className={`group relative flex flex-col items-center gap-1 overflow-hidden rounded-lg border-2 px-2 py-1.5 text-center transition-[border-color,box-shadow,transform,background-color] duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    selectedPaymentModeId && selectedPaymentModeId === cashMode?._id
+                      ? "border-transparent bg-gradient-to-br from-emerald-600 via-emerald-500 to-emerald-400 shadow-[0_8px_18px_-8px_rgba(16,185,129,0.6)]"
+                      : "border-gold-500/20 hover:-translate-y-0.5 hover:border-flame-400/50 hover:shadow-[0_4px_12px_-6px_rgba(255,122,46,0.35)]"
+                  }`}
+                >
+                  <AnimatePresence initial={false}>
+                    {selectedPaymentModeId && selectedPaymentModeId === cashMode?._id && (
+                      <motion.span
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white/25"
+                      >
+                        <svg className="h-2 w-2 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5">
+                          <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                  <CashIcon
+                    className={`h-4 w-4 transition-colors duration-200 ${
+                      selectedPaymentModeId && selectedPaymentModeId === cashMode?._id ? "text-white" : "text-emerald-600"
+                    }`}
+                  />
+                  <span
+                    className={`text-[11.5px] font-semibold transition-colors duration-200 ${
+                      selectedPaymentModeId && selectedPaymentModeId === cashMode?._id ? "text-white" : "text-ink-100"
+                    }`}
+                  >
+                    Cash
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  title="PayNow isn't available yet"
+                  className="flex cursor-not-allowed flex-col items-center gap-1 rounded-lg border-2 border-gold-500/15 bg-ivory-50/60 px-2 py-1.5 text-center opacity-50"
+                >
+                  <span className="text-[12.5px] font-black italic tracking-tight text-ink-300">PayNow</span>
+                  <span className="text-[9px] font-medium text-ink-500">Coming soon</span>
+                </button>
               </div>
             </div>
 
@@ -1146,8 +1227,14 @@ export default function PosPortalPage() {
             )}
 
             <div className="mt-3 space-y-2">
-              <FlameActionButton icon={<LockIcon />} chevron={false} onClick={() => setStep("payment")} disabled={!canProceed} className="w-full justify-center">
-                Proceed to Payment
+              <FlameActionButton
+                icon={<LockIcon />}
+                chevron={false}
+                onClick={handleConfirmBooking}
+                disabled={!canProceed || !selectedPaymentModeId || bookingLoading}
+                className="w-full justify-center"
+              >
+                {bookingLoading ? "Confirming…" : `Confirm ${selectedModeName} Payment`}
               </FlameActionButton>
             </div>
           </div>
@@ -1210,18 +1297,7 @@ export default function PosPortalPage() {
         />
       )}
 
-      {step === "payment" && (
-        <PaymentModal
-          paymentModes={paymentModes}
-          selectedPaymentModeId={selectedPaymentModeId}
-          onSelectPaymentMode={setSelectedPaymentModeId}
-          subtotal={summary?.subtotal ?? 0}
-          grandTotal={summary?.grandTotal ?? 0}
-          loading={bookingLoading}
-          onConfirm={handleConfirmBooking}
-          onCancel={() => setStep("cart")}
-        />
-      )}
+      {customerRequiredNotice && <CustomerRequiredNotice onClose={() => setCustomerRequiredNotice(false)} />}
     </PosShell>
   );
 }
@@ -1484,16 +1560,6 @@ function DotGrid({ className = "" }: { className?: string }) {
   );
 }
 
-/** The S-curve seam between a card's colored banner and its white body —
- *  an SVG wave rather than a straight edge. */
-function BannerWave({ className = "" }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 200 36" preserveAspectRatio="none" className={`absolute inset-x-0 bottom-0 h-9 w-full ${className}`}>
-      <path d="M0 20 Q50 2 100 18 T200 14 V36 H0 Z" fill="white" />
-    </svg>
-  );
-}
-
 /**
  * The section break between the category pill row and the folder/offering
  * grid below it — a glowing trapezoid "screen" bar (a hint of perspective
@@ -1588,10 +1654,10 @@ const CATALOGUE_CARD_THEME: Record<"folder" | "item" | "service", CatalogueCardT
 /**
  * One shared card shell for Folder / Item / Service in the catalogue grid —
  * colored banner (icon, sparks, dot-grid, wave seam) over a white body
- * (title, a gradient-filled type pill, and a secondary row for either the
- * folder's offering count or the item/service's price). Folder, Item, and
- * Service differ only by `theme`, `icon`, `typeLabel`, and the row content —
- * the structure itself is identical, per the reference this was built from.
+ * (title and a secondary row for either the folder's offering count or the
+ * item/service's price). Folder, Item, and Service differ only by `theme`,
+ * `icon`, and the row content — the structure itself is identical, per the
+ * reference this was built from.
  */
 function CatalogueCard({
   onClick,
@@ -1599,7 +1665,6 @@ function CatalogueCard({
   iconKind,
   title,
   tamilName,
-  typeLabel,
   theme,
   rowIcon,
   rowLabel,
@@ -1610,18 +1675,13 @@ function CatalogueCard({
   iconKind: "folder" | "item" | "service";
   title: string;
   tamilName?: string;
-  typeLabel: string;
   theme: CatalogueCardTheme;
   rowIcon: React.ReactNode;
   rowLabel: string;
   extraBadges?: React.ReactNode;
 }) {
-  // The pill needs a white icon regardless of the big circle's colored one —
-  // built here per-kind rather than reusing the colored node.
   const bigIcon =
     iconKind === "folder" ? <FolderIcon large color={theme.iconColor} /> : iconKind === "service" ? <SparkleIcon color={theme.iconColor} /> : <BoxGlyph color={theme.iconColor} />;
-  const pillIcon =
-    iconKind === "folder" ? <FolderIcon color="white" /> : iconKind === "service" ? <SparkleIcon color="white" /> : <BoxGlyph color="white" />;
 
   return (
     <button
@@ -1630,42 +1690,33 @@ function CatalogueCard({
       className={`group relative rounded-[26px] bg-gradient-to-br ${theme.border} p-[2.5px] text-left shadow-[0_12px_30px_-18px_rgba(0,0,0,0.4)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:shadow-[0_26px_50px_-18px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none`}
     >
       <div className="flex h-full flex-col overflow-hidden rounded-[23.5px] bg-white">
-        <div className={`relative h-32 overflow-hidden bg-gradient-to-br bg-[length:220%_220%] animate-[flame-wave_9s_ease-in-out_infinite] ${theme.banner}`}>
-          <DotGrid className="bottom-2 left-2 h-14 w-14" />
-          <Spark className="left-6 top-4 h-3 w-3" delay={0} duration={2.4} />
-          <Spark className="right-8 top-8 h-4 w-4" delay={0.7} duration={3} />
-          <Spark className="bottom-11 right-14 h-2.5 w-2.5" delay={1.4} duration={2.2} />
+        <div className={`relative h-[92px] overflow-hidden bg-gradient-to-br bg-[length:220%_220%] animate-[flame-wave_9s_ease-in-out_infinite] ${theme.banner}`}>
+          <DotGrid className="bottom-2 left-2 h-10 w-10" />
+          <Spark className="left-6 top-3 h-3 w-3" delay={0} duration={2.4} />
+          <Spark className="right-8 top-6 h-4 w-4" delay={0.7} duration={3} />
+          <Spark className="bottom-8 right-12 h-2.5 w-2.5" delay={1.4} duration={2.2} />
           <span
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
           />
           <div className="absolute inset-0 flex items-center justify-center">
-            <span aria-hidden="true" className="absolute h-20 w-20 animate-soft-pulse rounded-full bg-white/50 blur-xl" />
-            <span className="relative flex h-[70px] w-[70px] items-center justify-center rounded-full bg-white/25 ring-4 ring-white/50">
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-[0_10px_24px_-8px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:scale-110">
+            <span aria-hidden="true" className="absolute h-16 w-16 animate-soft-pulse rounded-full bg-white/50 blur-xl" />
+            <span className="relative flex h-[54px] w-[54px] items-center justify-center rounded-full bg-white/25 ring-4 ring-white/50">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-[0_10px_24px_-8px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:scale-110">
                 {bigIcon}
               </span>
             </span>
           </div>
-          <BannerWave />
         </div>
-        <div className="flex flex-col items-start gap-2.5 px-4 py-4">
+        <div className="flex flex-col items-start gap-2 px-3.5 py-3">
           <div>
             <p className="text-[17px] font-bold leading-tight text-ink-100">{title}</p>
             {tamilName && <p className="text-[11.5px] text-ink-500">{tamilName}</p>}
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_4px_10px_-4px_rgba(0,0,0,0.3)] ${theme.pill}`}
-            >
-              <span className="[&_svg]:h-3.5 [&_svg]:w-3.5">{pillIcon}</span>
-              {typeLabel}
-            </span>
-            {extraBadges}
-          </div>
-          <div className={`flex w-full items-center justify-between rounded-xl px-3 py-2 ${theme.rowBg}`}>
+          {extraBadges && <div className="flex flex-wrap items-center gap-1.5">{extraBadges}</div>}
+          <div className={`flex w-full items-center justify-between rounded-xl px-2.5 py-1.5 ${theme.rowBg}`}>
             <span className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-[0_2px_6px_-2px_rgba(0,0,0,0.2)]">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-[0_2px_6px_-2px_rgba(0,0,0,0.2)]">
                 {rowIcon}
               </span>
               <span className={`text-[12.5px] font-semibold ${theme.rowText}`}>{rowLabel}</span>
@@ -1723,7 +1774,6 @@ function OfferingCard({ offering, onPick }: { offering: Offering; onPick: (o: Of
       iconKind={isService ? "service" : "item"}
       title={offering.name}
       tamilName={offering.tamilName}
-      typeLabel={offering.refType}
       theme={theme}
       rowIcon={<PriceTagRowIcon className={theme.rowText} />}
       rowLabel={formatCurrency(offering.salePrice)}
@@ -2345,124 +2395,33 @@ function UnavailableLinesDialog({
 }
 
 /**
- * Payment popup shown once "Proceed to Payment" is clicked — Cash is the
- * only mode surfaced today (other gateways aren't wired up yet), confirmed
- * immediately on submit rather than left in the 30-minute hold window.
+ * Blocks adding to the cart before a customer is on file — center-screen
+ * rather than the earlier approach of letting the add through and only
+ * nudging the search box afterward, so the miss is caught before it
+ * happens instead of after.
  */
-function PaymentModal({
-  paymentModes,
-  selectedPaymentModeId,
-  onSelectPaymentMode,
-  subtotal,
-  grandTotal,
-  loading,
-  onConfirm,
-  onCancel,
-}: {
-  paymentModes: PaymentMode[];
-  selectedPaymentModeId: string;
-  onSelectPaymentMode: (id: string) => void;
-  subtotal: number;
-  grandTotal: number;
-  loading: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  const cashModes = paymentModes.filter((m) => m.name.toLowerCase() === "cash");
-
+function CustomerRequiredNotice({ onClose }: { onClose: () => void }) {
   return (
     <AnimatePresence>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onCancel} className="fixed inset-0 z-40 bg-navy-950/60 backdrop-blur-sm" />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-40 bg-navy-950/60 backdrop-blur-sm" />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, y: 16, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.97 }}
-          className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border border-white/60 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.35)]"
+          className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border border-white/60 bg-white text-center shadow-[0_30px_80px_-20px_rgba(179,39,63,0.35)]"
         >
           <div aria-hidden="true" className="h-1.5 shrink-0 bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145]" />
-          <div className="border-b border-gold-500/10 px-6 py-5">
-            <h2 className="font-accent text-[18px] font-extrabold tracking-tight text-ink-100">Payment Mode</h2>
-            <p className="text-[12.5px] text-ink-500">Choose how the devotee is paying.</p>
+          <div className="px-6 py-7">
+            <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border-2 border-flame-500/30 bg-flame-500/10 text-flame-600">
+              <UserIcon />
+            </span>
+            <h2 className="font-accent text-[17px] font-extrabold tracking-tight text-ink-100">Select a customer first</h2>
+            <p className="mt-1.5 text-[13px] text-ink-500">Choose or create a customer above before adding items to the cart.</p>
           </div>
-
-          <div className="space-y-4 px-6 py-5">
-            <div className="space-y-2">
-              {cashModes.map((m) => {
-                const selected = selectedPaymentModeId === m._id;
-                return (
-                  <button
-                    key={m._id}
-                    type="button"
-                    onClick={() => onSelectPaymentMode(m._id)}
-                    className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-[transform,box-shadow,background-color,border-color] duration-200 hover:-translate-y-0.5 ${
-                      selected
-                        ? "border-transparent bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145] shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)]"
-                        : "border-orange-200/70 bg-white shadow-[0_2px_10px_-6px_rgba(255,122,46,0.25)] hover:border-flame-400/60"
-                    }`}
-                  >
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                        selected ? "bg-white/25 text-white" : "bg-[#FFC145]/15 text-amber-700"
-                      }`}
-                    >
-                      <CashIcon />
-                    </span>
-                    <span className={`text-[13.5px] font-semibold ${selected ? "text-white" : "text-ink-100"}`}>{m.name}</span>
-                    <AnimatePresence initial={false}>
-                      {selected && (
-                        <motion.span
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0, opacity: 0 }}
-                          transition={{ duration: 0.18 }}
-                          className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/25"
-                        >
-                          <svg className="h-3 w-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                            <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </button>
-                );
-              })}
-              {cashModes.length === 0 && (
-                <p className="text-[12.5px] text-crimson-500">No active Cash payment mode is configured.</p>
-              )}
-              <p className="text-[11px] text-ink-500">Cash is confirmed immediately upon booking. Other payment modes will be added later.</p>
-            </div>
-
-            <div className="space-y-1.5 rounded-xl border border-gold-500/15 bg-ivory-50 px-3 py-3 text-[13px]">
-              <div className="flex justify-between text-ink-500">
-                <span>Sub Total (S$)</span>
-                <span>{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between border-t border-gold-500/10 pt-1.5 font-bold text-ink-100">
-                <span>Total Payable (S$)</span>
-                <span className="bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FF8C1A] bg-clip-text text-transparent">
-                  {formatCurrency(grandTotal)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 border-t border-gold-500/10 px-6 py-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={loading}
-              className="rounded-full border border-gold-500/30 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-ink-300 transition-[border-color,color] duration-200 hover:border-flame-500/60 hover:text-flame-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <FlameActionButton
-              icon={<LockIcon />}
-              chevron={false}
-              onClick={onConfirm}
-              disabled={loading || !selectedPaymentModeId}
-            >
-              {loading ? "Confirming…" : "Confirm Booking"}
+          <div className="px-6 pb-6">
+            <FlameActionButton icon={<UserIcon />} chevron={false} onClick={onClose} className="w-full justify-center">
+              Got It
             </FlameActionButton>
           </div>
         </motion.div>
