@@ -1077,7 +1077,7 @@ export default function PosPortalPage() {
             )}
 
             {!catalogueLoading && !showingSearch && !showingFolder && (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
                 {visibleFolders.map((f) => (
                   <CatalogueCard
                     key={`${f.categoryId}::${f.subCategoryId}`}
@@ -1351,13 +1351,13 @@ function PosShell({
             the header keeps this column mathematically centered regardless
             of how wide the logo or the clock/avatar column end up being. */}
         <div className="col-start-2 hidden items-center justify-center gap-2 md:flex">
-          <FlameActionButton icon={<HistoryIcon />} chevron={false} onClick={() => toast.error("Transaction History isn't built yet.")}>
+          <FlameActionButton tone="subtle" icon={<HistoryIcon />} chevron={false} onClick={() => toast.error("Transaction History isn't built yet.")}>
             Transaction History
           </FlameActionButton>
-          <FlameActionButton icon={<PrinterIcon />} chevron={false} onClick={() => toast.error("Reprint isn't built yet.")}>
+          <FlameActionButton tone="subtle" icon={<PrinterIcon />} chevron={false} onClick={() => toast.error("Reprint isn't built yet.")}>
             Reprint
           </FlameActionButton>
-          <FlameActionButton icon={<PlusIcon />} onClick={onNewTransaction}>
+          <FlameActionButton tone="subtle" icon={<PlusIcon />} onClick={onNewTransaction}>
             New Transaction
           </FlameActionButton>
         </div>
@@ -1462,9 +1462,29 @@ function FlameActionButton({
   onClick?: () => void;
   disabled?: boolean;
   chevron?: boolean;
-  tone?: "flame" | "crimson";
+  tone?: "flame" | "crimson" | "subtle";
   className?: string;
 }) {
+  // "subtle" — a plain, professional pill (white, thin border, tinted icon
+  // badge, no sparks/shimmer/glow) for spots that don't need the loud
+  // gradient treatment — currently just the header's utility actions.
+  if (tone === "subtle") {
+    return (
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`group relative flex items-center gap-2.5 rounded-full border border-gold-500/25 bg-white px-3.5 py-1.5 text-ink-100 shadow-[0_1px_3px_rgba(0,0,0,0.06)] transition-[transform,box-shadow,border-color,background-color] duration-200 hover:-translate-y-0.5 hover:border-flame-400/50 hover:bg-ivory-50 hover:shadow-[0_4px_12px_-6px_rgba(0,0,0,0.15)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-[0_1px_3px_rgba(0,0,0,0.06)] ${className}`}
+      >
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-flame-500/10 text-flame-600">
+          {icon}
+        </span>
+        <span aria-hidden="true" className="h-4 w-px bg-gold-500/20" />
+        <span className="whitespace-nowrap text-[13px] font-semibold">{children}</span>
+        {chevron && <ChevronIcon className="ml-auto -rotate-90 text-ink-400" />}
+      </button>
+    );
+  }
+
   // Four-stop gold/orange/red/yellow gradient — Tailwind's from/via/to
   // gradient utilities only carry one "via" stop, so a real 4-color blend
   // needs an arbitrary background-image rather than the gradient-* classes.
@@ -1476,7 +1496,7 @@ function FlameActionButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`group relative flex items-center gap-2.5 overflow-hidden rounded-full border-2 border-red-900/30 ${gradientBg} bg-[length:200%_200%] bg-left px-3.5 py-1.5 text-white shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] transition-[transform,box-shadow,background-position,border-color] duration-300 hover:-translate-y-0.5 hover:border-[#FFD700] hover:bg-right hover:shadow-[0_0_0_3px_rgba(255,215,0,0.3),0_18px_36px_-10px_rgba(255,90,30,0.7)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-red-900/30 disabled:hover:bg-left disabled:hover:shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] ${className}`}
+      className={`group relative flex items-center gap-2.5 overflow-hidden rounded-full border border-red-900/30 ${gradientBg} bg-[length:200%_200%] bg-left px-3.5 py-1.5 text-white shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] transition-[transform,box-shadow,background-position,border-color] duration-300 hover:-translate-y-0.5 hover:border-[#FFD700] hover:bg-right hover:shadow-[0_0_0_3px_rgba(255,215,0,0.3),0_18px_36px_-10px_rgba(255,90,30,0.7)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-red-900/30 disabled:hover:bg-left disabled:hover:shadow-[0_10px_24px_-10px_rgba(255,90,30,0.55)] ${className}`}
     >
       <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1/2 rounded-t-full bg-gradient-to-b from-white/35 to-transparent" />
       <span
@@ -1705,7 +1725,7 @@ function CatalogueCard({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`group relative rounded-[26px] bg-gradient-to-br ${theme.border} p-[2.5px] text-left shadow-[0_12px_30px_-18px_rgba(0,0,0,0.4)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:shadow-[0_26px_50px_-18px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none`}
+      className={`group relative rounded-[26px] bg-gradient-to-br ${theme.border} p-[1.25px] text-left shadow-[0_12px_30px_-18px_rgba(0,0,0,0.4)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:shadow-[0_26px_50px_-18px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none`}
     >
       <div className="flex h-full flex-col overflow-hidden rounded-[23.5px] bg-white">
         <div className={`relative h-[72px] overflow-hidden bg-gradient-to-br bg-[length:220%_220%] animate-[flame-wave_9s_ease-in-out_infinite] ${theme.banner}`}>
@@ -1758,7 +1778,7 @@ function OfferingGrid({
 }) {
   // Items first, then services — matches the requested list order.
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
       {items.map((i) => (
         <OfferingCard key={i._id} offering={{ refType: "Item", ...i }} onPick={onPick} />
       ))}
@@ -2435,7 +2455,18 @@ function BookingSuccessView({ confirmation, onNewTransaction }: { confirmation: 
           <Row label="Customer" value={`${confirmation.customer.name} (${confirmation.customer.customerCode})`} />
           <Row label="Payment" value={`${confirmation.paymentModeName} — ${confirmation.paymentStatus}`} />
           <div className="border-t border-gold-500/10 pt-2">
-            <Row label="Grand Total" value={formatCurrency(confirmation.grandTotal)} highlight />
+            <Row
+              label={
+                <span className="flex items-center gap-1.5">
+                  Grand Total
+                  <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-700">
+                    GST Inclusive
+                  </span>
+                </span>
+              }
+              value={formatCurrency(confirmation.grandTotal)}
+              highlight
+            />
           </div>
         </div>
         <FlameActionButton icon={<PlusIcon />} chevron={false} onClick={onNewTransaction} className="w-full justify-center">
@@ -2446,7 +2477,7 @@ function BookingSuccessView({ confirmation, onNewTransaction }: { confirmation: 
   );
 }
 
-function Row({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function Row({ label, value, highlight }: { label: React.ReactNode; value: string; highlight?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-ink-500">{label}</span>
