@@ -38,7 +38,10 @@ export default function AuthShell({
         <DivineBackgroundMarigold />
 
         <div className="relative z-10 w-full max-w-[400px]">
-          <DivineCard maxWidthClassName={cardMaxWidthClassName ?? "max-w-[400px]"} variant={variant}>
+          <DivineCard
+            maxWidthClassName={cardMaxWidthClassName ?? "max-w-[400px]"}
+            variant={variant}
+          >
             <motion.div
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -46,11 +49,18 @@ export default function AuthShell({
               className="mb-6 flex flex-col items-center text-center"
             >
               <LogoBadge3D />
-              <p className="mt-4 font-accent text-[12.5px] uppercase tracking-[0.24em] text-[#7a1f0a]">{eyebrow}</p>
-              <h1 className="mt-1.5 font-display text-[22px] font-bold text-[#4a1408] sm:text-2xl" style={{ textWrap: "balance" as const }}>
+              <p className="mt-4 font-accent text-[12.5px] uppercase tracking-[0.24em] text-[#7a1f0a]">
+                {eyebrow}
+              </p>
+              <h1
+                className="mt-1.5 font-display text-[22px] font-bold text-[#4a1408] sm:text-2xl"
+                style={{ textWrap: "balance" as const }}
+              >
                 {title}
               </h1>
-              <p className="mx-auto mt-1.5 max-w-[85vw] font-body text-[12.5px] text-[#7a3220] sm:max-w-none">{subtitle}</p>
+              <p className="mx-auto mt-1.5 max-w-[85vw] font-body text-[12.5px] text-[#7a3220] sm:max-w-none">
+                {subtitle}
+              </p>
             </motion.div>
 
             {children}
@@ -75,8 +85,10 @@ export default function AuthShell({
     <div className="relative flex min-h-[100dvh] w-full items-center justify-center px-4 py-8">
       <DivineBackground />
 
-      <div className="relative z-10 flex w-full flex-col items-center">
-        <div className={`relative w-full ${cardMaxWidthClassName ?? "max-w-md"}`}>
+      <div className="relative z-10 mt-6 flex w-full flex-col items-center sm:mt-11">
+        <div
+          className={`relative w-full ${cardMaxWidthClassName ?? "max-w-md"}`}
+        >
           {/* Straddles the card's top edge — half the medallion sits above
               the border, half overlaps into the card's own top padding —
               rather than taking up flow height inside the card, which is
@@ -92,18 +104,28 @@ export default function AuthShell({
             </div>
           </motion.div>
 
-          <DivineCard maxWidthClassName={cardMaxWidthClassName} variant={variant}>
+          <DivineCard
+            maxWidthClassName={cardMaxWidthClassName}
+            variant={variant}
+          >
             <motion.div
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.35, duration: 0.6 }}
               className="mb-5 mt-8 text-center sm:mt-9"
             >
-              <p className="animate-golden-glow font-accent text-[15px] uppercase tracking-[0.28em] text-[#e8590c] sm:text-base">{eyebrow}</p>
-              <h1 className="mt-2.5 font-display text-2xl font-bold text-[#b3273f] sm:text-[28px]" style={{ textWrap: "balance" as const }}>
+              <p className="animate-golden-glow font-accent text-[15px] uppercase tracking-[0.28em] text-[#e8590c] sm:text-base">
+                {eyebrow}
+              </p>
+              <h1
+                className="mt-2.5 font-display text-2xl font-bold text-[#b3273f] sm:text-[28px]"
+                style={{ textWrap: "balance" as const }}
+              >
                 {title}
               </h1>
-              <p className="mx-auto mt-1.5 max-w-[90vw] font-body text-[13px] text-ink-500 sm:max-w-none sm:text-sm sm:whitespace-nowrap">{subtitle}</p>
+              <p className="mx-auto mt-1.5 max-w-[90vw] font-body text-[13px] text-ink-500 sm:max-w-none sm:text-sm sm:whitespace-nowrap">
+                {subtitle}
+              </p>
             </motion.div>
 
             {children}
