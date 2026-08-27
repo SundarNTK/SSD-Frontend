@@ -173,6 +173,7 @@ export default function ItemPage() {
   const { fields, append, remove: removeRow } = useFieldArray({ control, name: "categoryDetails" });
   const isInventoryApplicable = watch("isInventoryApplicable");
   const isDeityMappingRequired = watch("isDeityMappingRequired");
+  const isFamilyMembersRequired = watch("isFamilyMembersRequired");
   const nameValue = watch("name");
   const tamilNameValue = watch("tamilName");
 
@@ -559,12 +560,14 @@ export default function ItemPage() {
                 />
               )}
             />
-            <DivineInput
-              label="Max Members"
-              type="number"
-              error={errors.maxFamilyMembers?.message}
-              {...register("maxFamilyMembers", { valueAsNumber: true })}
-            />
+            {isFamilyMembersRequired && (
+              <DivineInput
+                label="Max Members"
+                type="number"
+                error={errors.maxFamilyMembers?.message}
+                {...register("maxFamilyMembers", { valueAsNumber: true })}
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
