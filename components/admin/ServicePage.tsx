@@ -33,8 +33,9 @@ export type Service = {
   description: string;
   isDeityMappingRequired: boolean;
   deityMapping: Ref[];
-  categoryDetails: { category: Ref | null; subCategory: Ref | null; salePrice: number; displayOrder: number }[];
+  categoryDetails: { category: Ref | null; subCategory: Ref | null; displayOrder: number }[];
   generalLedger: GlRef | null;
+  salePrice: number;
   isFamilyMembersRequired: boolean;
   maxFamilyMembers: number;
   sessionRequired: boolean;
@@ -51,7 +52,6 @@ const categoryDetailSchema = z.object({
   // Optional — a row can map to a Category alone, with no specific Sub
   // Category (see PosPortalPage's "uncategorized" handling).
   subCategory: z.string(),
-  salePrice: z.number().min(0, "Must be 0 or more"),
   displayOrder: z.number().int().min(0),
 });
 
@@ -65,6 +65,7 @@ const schema = z
     deityMapping: z.array(z.string()),
     categoryDetails: z.array(categoryDetailSchema),
     generalLedger: z.string().min(1, "GL account is required"),
+    salePrice: z.number().min(0, "Must be 0 or more"),
     isFamilyMembersRequired: z.boolean(),
     maxFamilyMembers: z.number().int().min(1),
     sessionRequired: z.boolean(),
@@ -93,6 +94,7 @@ const DEFAULT_VALUES: FormValues = {
   deityMapping: [],
   categoryDetails: [],
   generalLedger: "",
+  salePrice: 0,
   isFamilyMembersRequired: false,
   maxFamilyMembers: 2,
   sessionRequired: false,
@@ -177,10 +179,10 @@ export default function ServicePage() {
       categoryDetails: service.categoryDetails.map((c) => ({
         category: c.category?._id ?? "",
         subCategory: c.subCategory?._id ?? "",
-        salePrice: c.salePrice,
         displayOrder: c.displayOrder,
       })),
       generalLedger: service.generalLedger?._id ?? "",
+      salePrice: service.salePrice,
       isFamilyMembersRequired: service.isFamilyMembersRequired,
       maxFamilyMembers: service.maxFamilyMembers,
       sessionRequired: service.sessionRequired,
@@ -221,6 +223,7 @@ export default function ServicePage() {
       label: "GL Account",
       render: (s) => <span className="text-ink-500">{s.generalLedger?.name ?? "—"}</span>,
     },
+    { key: "salePrice", label: "Price", render: (s) => <span className="tabular-nums">${s.salePrice.toFixed(2)}</span> },
     {
       key: "categories",
       label: "Categories",
@@ -353,7 +356,7 @@ export default function ServicePage() {
               <p className="text-[11px] uppercase tracking-wide text-amber-600">Category Details</p>
               <button
                 type="button"
-                onClick={() => append({ category: "", subCategory: "", salePrice: 0, displayOrder: fields.length + 1 })}
+                onClick={() => append({ category: "", subCategory: "", displayOrder: fields.length + 1 })}
                 className="flex items-center gap-1.5 rounded-lg border border-gold-500/30 px-2.5 py-1.5 text-[12px] text-amber-600 hover:border-gold-400/60 hover:bg-gold-500/5"
               >
                 <PlusIcon /> Add Row
@@ -361,10 +364,9 @@ export default function ServicePage() {
             </div>
 
             {fields.length > 0 && (
-              <div className="mb-1 hidden grid-cols-[1fr_1fr_110px_90px_28px] gap-2 px-1 text-[11px] uppercase tracking-wide text-ink-500 sm:grid">
+              <div className="mb-1 hidden grid-cols-[1fr_1fr_90px_28px] gap-2 px-1 text-[11px] uppercase tracking-wide text-ink-500 sm:grid">
                 <span>Category</span>
                 <span>Sub Category</span>
-                <span>Sale Price</span>
                 <span>Display Order</span>
                 <span />
               </div>
@@ -379,7 +381,7 @@ export default function ServicePage() {
               {fields.map((row, index) => (
                 <div
                   key={row.id}
-                  className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_1fr_110px_90px_28px]"
+                  className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_1fr_90px_28px]"
                 >
                   <Controller
                     control={control}
@@ -408,15 +410,6 @@ export default function ServicePage() {
                     )}
                   />
                   <div>
-                    <span className="mb-1 block text-[11px] uppercase tracking-wide text-ink-500 sm:hidden">Sale Price</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      {...register(`categoryDetails.${index}.salePrice`, { valueAsNumber: true })}
-                      className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
-                    />
-                  </div>
-                  <div>
                     <span className="mb-1 block text-[11px] uppercase tracking-wide text-ink-500 sm:hidden">Display Order</span>
                     <input
                       type="number"
@@ -438,20 +431,29 @@ export default function ServicePage() {
             </div>
           </div>
 
-          <Controller
-            control={control}
-            name="generalLedger"
-            render={({ field }) => (
-              <DivineListbox
-                label="General Ledger (GL)"
-                value={field.value}
-                onChange={field.onChange}
-                options={glOptions}
-                placeholder="Select GL Account"
-                error={errors.generalLedger?.message}
-              />
-            )}
-          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Controller
+              control={control}
+              name="generalLedger"
+              render={({ field }) => (
+                <DivineListbox
+                  label="General Ledger (GL)"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={glOptions}
+                  placeholder="Select GL Account"
+                  error={errors.generalLedger?.message}
+                />
+              )}
+            />
+            <DivineInput
+              label="Sale Price"
+              type="number"
+              step="0.01"
+              error={errors.salePrice?.message}
+              {...register("salePrice", { valueAsNumber: true })}
+            />
+          </div>
           <p className="-mt-3 pl-1 text-[11.5px] text-ink-500">GST is derived from the selected GL account.</p>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
