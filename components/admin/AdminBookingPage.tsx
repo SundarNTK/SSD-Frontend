@@ -924,12 +924,13 @@ export default function AdminBookingPage() {
                     <span>Sub Total (S$)</span>
                     <span>{formatCurrency(summary.subtotal)}</span>
                   </div>
-                  <div className="flex justify-between text-ink-500">
-                    <span>GST (S$)</span>
-                    <span>{formatCurrency(summary.gstAmount)}</span>
-                  </div>
-                  <div className="flex justify-between border-t border-gold-500/10 pt-2 font-bold text-ink-100">
-                    <span>Grand Total (S$)</span>
+                  <div className="flex items-center justify-between border-t border-gold-500/10 pt-2 font-bold text-ink-100">
+                    <span className="flex items-center gap-1.5">
+                      Grand Total (S$)
+                      <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-emerald-700">
+                        GST Inclusive
+                      </span>
+                    </span>
                     <span className="text-amber-500">{formatCurrency(summary.grandTotal)}</span>
                   </div>
                 </div>

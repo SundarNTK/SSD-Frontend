@@ -347,12 +347,13 @@ export default function PosTransactionsPage() {
                   <span className="text-ink-500">Sub Total</span>
                   <span className="text-ink-100">{formatCurrency(detail.subtotal)}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-ink-500">GST</span>
-                  <span className="text-ink-100">{formatCurrency(detail.gstAmount)}</span>
-                </div>
                 <div className="flex items-center justify-between border-t border-gold-500/10 pt-1.5 text-[15px] font-bold">
-                  <span className="text-ink-100">Grand Total</span>
+                  <span className="flex items-center gap-1.5 text-ink-100">
+                    Grand Total
+                    <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-emerald-700">
+                      GST Inclusive
+                    </span>
+                  </span>
                   <span className="text-amber-600">{formatCurrency(detail.grandTotal)}</span>
                 </div>
               </div>
