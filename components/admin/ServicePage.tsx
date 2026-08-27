@@ -48,7 +48,9 @@ export type Service = {
 
 const categoryDetailSchema = z.object({
   category: z.string().min(1, "Required"),
-  subCategory: z.string().min(1, "Required"),
+  // Optional — a row can map to a Category alone, with no specific Sub
+  // Category (see PosPortalPage's "uncategorized" handling).
+  subCategory: z.string(),
   salePrice: z.number().min(0, "Must be 0 or more"),
   displayOrder: z.number().int().min(0),
 });
@@ -198,6 +200,10 @@ export default function ServicePage() {
       ...values,
       deityMapping: values.isDeityMappingRequired ? values.deityMapping : [],
       bookingCutoffDate: values.bookingCutoffDate || null,
+      // Sub Category is optional per row — DivineListbox reports "no
+      // selection" as "", which the backend's ObjectId validator rejects
+      // outright, so an unselected row goes as null instead.
+      categoryDetails: values.categoryDetails.map((c) => ({ ...c, subCategory: c.subCategory || null })),
     };
     const ok = editing ? await update.run(editing._id, payload) : await create.run(payload);
     if (ok !== undefined) {
@@ -396,7 +402,7 @@ export default function ServicePage() {
                         value={field.value}
                         onChange={field.onChange}
                         options={subCategoryOptions}
-                        placeholder="Sub Category"
+                        placeholder="Sub Category (optional)"
                         error={errors.categoryDetails?.[index]?.subCategory?.message}
                       />
                     )}
