@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckIcon, ChevronIcon, CloseIcon, SearchIcon } from "./icons";
@@ -22,6 +22,14 @@ type DivineListboxProps = {
    *  this field to carry a themed border/shadow at rest, not just on focus.
    *  Empty by default, so every existing call site is unaffected. */
   containerClassName?: string;
+  /** Leading colored icon badge — a pre-styled element, the same convention
+   *  DivineInput's `icon` prop uses. */
+  icon?: ReactNode;
+  /** Set false to hide the clear (×) button even once a value is selected —
+   *  for a field like "Rows per page" where every state is a real page size
+   *  and there's no meaningful "cleared" state to fall back to. On by
+   *  default so every existing call site keeps its current behavior. */
+  clearable?: boolean;
 };
 
 type PanelPosition = { left: number; width: number; maxHeight: number; upward: boolean; top?: number; bottom?: number };
@@ -63,10 +71,18 @@ export default function DivineListbox({
   className = "",
   disabled = false,
   containerClassName = "",
+  icon,
+  clearable = true,
 }: DivineListboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [panel, setPanel] = useState<PanelPosition | null>(null);
+  // Tracked in JS rather than a Tailwind `hover:` variant — a gradient
+  // background-image (not background-color) applied purely via a CSS
+  // hover class kept rendering as a washed-out blend instead of the same
+  // solid gradient the selected row gets, and mouse state is the one thing
+  // that's guaranteed to make the two states pixel-identical.
+  const [hoveredValue, setHoveredValue] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const triggerId = useId();
@@ -141,66 +157,75 @@ export default function DivineListbox({
 
   return (
     <div className={`relative ${className || "w-full"}`}>
-      <button
-        ref={triggerRef}
-        type="button"
-        id={triggerId}
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-disabled={disabled}
-        className={`group relative w-full rounded-xl border bg-white text-left transition-colors duration-300 ${
+      {/* Same gradient-border trick used throughout the redesign — a
+          gradient-filled outer box with the real content inset by the
+          border width, since a border-color can't itself be a gradient. */}
+      <div
+        className={`rounded-xl p-[1.5px] transition-[box-shadow] duration-300 ${
           disabled
-            ? "cursor-not-allowed border-gold-500/10 opacity-60"
+            ? "cursor-not-allowed bg-gold-500/15 opacity-60"
             : error
-              ? "border-crimson-500/70"
+              ? "bg-crimson-500"
               : open
-                ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
-                : "border-gold-500/20 hover:border-gold-400/40"
-        } ${containerClassName}`}
+                ? "bg-gradient-to-r from-crimson-500 to-flame-500 shadow-[0_0_0_3px_rgba(212,175,55,0.2)]"
+                : "bg-gradient-to-r from-crimson-500 to-flame-500"
+        }`}
       >
+        <button
+          ref={triggerRef}
+          type="button"
+          id={triggerId}
+          disabled={disabled}
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-disabled={disabled}
+          className={`group relative w-full rounded-[10px] bg-white text-left ${disabled ? "cursor-not-allowed" : ""} ${containerClassName}`}
+        >
         {label ? (
-          <div className="flex items-center gap-2 px-4 pt-5 pb-2">
+          <div className="flex items-center gap-2 px-4 pt-6 pb-2.5">
+            {icon && <span className="shrink-0">{icon}</span>}
             <div className="relative w-full">
-              <span className="pointer-events-none absolute -top-[18px] left-0 right-0 truncate text-[11px] tracking-wide text-amber-600">
+              <span className="pointer-events-none absolute -top-[22px] left-0 right-0 truncate text-[11px] tracking-wide text-gray-700">
                 {label}
               </span>
               <span className={`block truncate font-body text-[15px] ${selected ? "text-ink-100" : "text-ink-500"}`}>
                 {selected?.label ?? placeholder}
               </span>
             </div>
-            {selected && !disabled && (
+            {selected && !disabled && clearable && (
               <span
                 role="button"
                 aria-label="Clear selection"
                 onClick={clear}
-                className="shrink-0 rounded-full p-0.5 text-ink-500 transition-colors hover:bg-crimson-500/10 hover:text-crimson-500"
+                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-ink-500 transition-colors hover:bg-crimson-500/10 hover:text-crimson-500"
               >
-                <CloseIcon />
+                <CloseIcon className="h-3.5 w-3.5" />
               </span>
             )}
             <ChevronIcon className={`shrink-0 text-ink-500 transition-transform duration-200 ${open ? "rotate-180 text-amber-600" : ""}`} />
           </div>
         ) : (
           <div className="flex items-center gap-2 px-4 py-2.5">
+            {icon && <span className="shrink-0">{icon}</span>}
             <span className={`block flex-1 truncate font-body text-[13.5px] ${selected ? "text-ink-100" : "text-ink-500"}`}>
               {selected?.label ?? placeholder}
             </span>
-            {selected && !disabled && (
+            {selected && !disabled && clearable && (
               <span
                 role="button"
                 aria-label="Clear selection"
                 onClick={clear}
-                className="shrink-0 rounded-full p-0.5 text-ink-500 transition-colors hover:bg-crimson-500/10 hover:text-crimson-500"
+                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-ink-500 transition-colors hover:bg-crimson-500/10 hover:text-crimson-500"
               >
-                <CloseIcon />
+                <CloseIcon className="h-3.5 w-3.5" />
               </span>
             )}
             <ChevronIcon className={`shrink-0 text-ink-500 transition-transform duration-200 ${open ? "rotate-180 text-amber-600" : ""}`} />
           </div>
         )}
-      </button>
+        </button>
+      </div>
 
       {createPortal(
         <AnimatePresence>
@@ -218,10 +243,10 @@ export default function DivineListbox({
                 exit={{ opacity: 0, y: panel.upward ? 6 : -6, scale: 0.98 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
                 style={{ left: panel.left, width: panel.width, maxHeight: panel.maxHeight, top: panel.top, bottom: panel.bottom }}
-                className="fixed z-[61] flex flex-col overflow-hidden rounded-xl border border-gold-500/25 bg-navy-900/90 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl"
+                className="fixed z-[61] flex flex-col overflow-hidden rounded-xl border border-crimson-500/25 bg-navy-900/90 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl"
               >
                 {searchable && (
-                  <div className="flex shrink-0 items-center gap-2 border-b border-gold-500/15 px-3 py-2">
+                  <div className="flex shrink-0 items-center gap-2 border-b border-crimson-500/15 px-3 py-2">
                     <span className="text-ink-500">
                       <SearchIcon />
                     </span>
@@ -246,18 +271,35 @@ export default function DivineListbox({
                   )}
                   {filtered.map((opt) => {
                     const isSelected = opt.value === value;
+                    // Hover is deliberately a *lighter* wash of the same
+                    // gradient, not the same bold fill selected gets — the
+                    // two states need to read as different at a glance, not
+                    // just by the checkmark's presence.
+                    const isHoveredOnly = !isSelected && opt.value === hoveredValue;
                     return (
                       <li
                         key={opt.value}
                         role="option"
                         aria-selected={isSelected}
                         onClick={() => pick(opt.value)}
-                        className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-[13.5px] transition-colors ${
-                          isSelected ? "bg-gold-500/15 text-amber-700" : "text-ink-200 hover:bg-navy-800/80 hover:text-ink-100"
+                        onMouseEnter={() => setHoveredValue(opt.value)}
+                        onMouseLeave={() => setHoveredValue((v) => (v === opt.value ? null : v))}
+                        style={
+                          isSelected
+                            ? { background: "linear-gradient(to right, #8f1c30, #ff9d42, #ffc145)" }
+                            : isHoveredOnly
+                              ? {
+                                  background:
+                                    "linear-gradient(to right, rgba(143,28,48,0.14), rgba(255,157,66,0.14), rgba(255,193,69,0.14))",
+                                }
+                              : undefined
+                        }
+                        className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-[13.5px] ${
+                          isSelected ? "text-white font-medium" : "text-ink-100"
                         }`}
                       >
                         <span className="truncate">{opt.label}</span>
-                        {isSelected && <CheckIcon />}
+                        {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-white" />}
                       </li>
                     );
                   })}

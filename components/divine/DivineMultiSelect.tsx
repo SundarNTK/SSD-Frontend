@@ -147,14 +147,14 @@ export default function DivineMultiSelect({
             ? "border-crimson-500/70"
             : open
               ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
-              : "border-gold-500/20 hover:border-gold-400/40"
+              : "border-gray-200 hover:border-gray-300"
         }`}
       >
         <div className="flex items-center gap-2 px-4 pt-5 pb-2">
           <div className="relative w-full">
             <span
               id={labelId}
-              className="pointer-events-none absolute -top-[18px] left-0 right-0 truncate text-[11px] tracking-wide text-amber-600"
+              className="pointer-events-none absolute -top-[18px] left-0 right-0 truncate text-[11px] tracking-wide text-gray-700"
             >
               {label}
             </span>

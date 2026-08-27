@@ -6,10 +6,45 @@ import { motion } from "framer-motion";
 import DivineListbox from "../divine/DivineListbox";
 import DivineButton from "../divine/DivineButton";
 import StatusBanner from "../divine/StatusBanner";
+import { CheckIcon } from "../divine/icons";
 import { authApi, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useAsyncAction } from "../../lib/useAsyncAction";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import type { Role } from "./RolesPage";
+
+/**
+ * A native `<input type="checkbox">` only takes styling as far as
+ * `accent-color` — no way to get a thick custom border or swap in our own
+ * tick glyph. This renders the box itself, so it can look exactly like the
+ * rest of the redesign (thick flame-orange border, solid fill + white tick
+ * once checked) instead of whatever the OS draws.
+ */
+function Checkbox({
+  checked,
+  onChange,
+  ariaLabel,
+  dimmed = false,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  ariaLabel?: string;
+  dimmed?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      onClick={() => onChange(!checked)}
+      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${dimmed ? "opacity-70" : ""} ${
+        checked ? "border-flame-500 bg-flame-500" : "border-flame-500/70 bg-white hover:border-flame-500"
+      }`}
+    >
+      {checked && <CheckIcon className="h-3.5 w-3.5 text-white" />}
+    </button>
+  );
+}
 
 /** `group` is the Admin Panel main-menu heading this module sits under. */
 type ModuleDef = { key: string; label: string; group?: string };
@@ -153,104 +188,112 @@ export default function PermissionsPage() {
         </p>
       )}
 
+      {/* Same gradient-border + shadow treatment as every other table in the
+          redesign, plus the nested overflow-hidden/overflow-x-auto split so
+          the rounded corners actually clip the header instead of the plain
+          white container showing through the curve. */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="overflow-x-auto rounded-2xl border border-gold-500/15 bg-navy-900/60"
+        className="rounded-2xl bg-gradient-to-r from-crimson-500 to-flame-500 p-[1.5px] shadow-[0_10px_30px_-14px_rgba(220,38,38,0.4)]"
       >
-        <table className="w-full min-w-[480px] text-left text-[13.5px]">
-          <thead>
-            <tr className="border-b border-gold-500/10 text-[11px] uppercase tracking-wide text-ink-500">
-              <th className="px-5 py-3 font-normal">Module</th>
-              {(["view", "edit", "fullAccess"] as const).map((field) => (
-                <th key={field} className="px-5 py-3 text-center font-normal">
-                  <span className="inline-flex items-center gap-1.5">
-                    {field === "view" ? "View" : field === "edit" ? "Edit" : "Full Access"}
-                  </span>
-                </th>
-              ))}
-            </tr>
-            <tr className="border-b border-gold-500/10 bg-ivory-100 text-ink-300">
-              <th className="px-5 py-2.5 text-left text-[12px] font-medium text-amber-600">Select all</th>
-              {(["view", "edit", "fullAccess"] as const).map((field) => {
-                const columnChecked = rows.length > 0 && rows.every((r) => r[field]);
-                return (
-                  <th key={field} className="px-5 py-2.5 text-center font-normal">
-                    <input
-                      type="checkbox"
-                      checked={columnChecked}
-                      onChange={(e) => toggleColumn(field, e.target.checked)}
-                      aria-label={`Toggle ${field} for every module`}
-                      className="h-4 w-4 accent-gold-500"
-                    />
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          {/* One <tbody> per main-menu group, so the grid reads the same way
-              the sidebar does: heading, then the modules beneath it. The
-              groups come from GET /roles/modules, so a new master lands under
-              the right heading without this file changing. */}
-          {groups.map(({ group, entries }) => {
-            const indexes = entries.map((e) => e.index);
-            return (
-              <tbody key={group}>
-                <tr className="border-b border-gold-500/10 bg-ivory-100/70">
-                  <td className="px-5 py-2.5 font-accent text-[12px] uppercase tracking-[0.12em] text-amber-600">
-                    {group}
-                  </td>
+        <div className="overflow-hidden rounded-[15px] bg-navy-900">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px] border-collapse text-left text-[13.5px]">
+              <thead>
+                <tr className="bg-gradient-to-r from-[#6b1524] via-crimson-600 to-flame-500 text-[11px] uppercase tracking-wide text-white">
+                  <th className="px-5 py-3 font-semibold">Module</th>
+                  {(["view", "edit", "fullAccess"] as const).map((field) => (
+                    <th key={field} className="px-5 py-3 text-center font-semibold">
+                      {field === "view" ? "View" : field === "edit" ? "Edit" : "Full Access"}
+                    </th>
+                  ))}
+                </tr>
+                <tr className="border-b border-gold-500/10 bg-ivory-100 text-ink-300">
+                  <th className="px-5 py-2.5 text-left text-[12px] font-medium text-amber-600">Select all</th>
                   {(["view", "edit", "fullAccess"] as const).map((field) => {
-                    const groupChecked = indexes.every((i) => rows[i]?.[field]);
+                    const columnChecked = rows.length > 0 && rows.every((r) => r[field]);
                     return (
-                      <td key={field} className="px-5 py-2.5 text-center">
-                        <input
-                          type="checkbox"
-                          checked={groupChecked}
-                          onChange={(e) => toggleGroup(indexes, field, e.target.checked)}
-                          aria-label={`Toggle ${field} for every module under ${group}`}
-                          className="h-3.5 w-3.5 accent-gold-600 opacity-70"
-                        />
-                      </td>
+                      <th key={field} className="px-5 py-2.5">
+                        <div className="flex justify-center">
+                          <Checkbox
+                            checked={columnChecked}
+                            onChange={(checked) => toggleColumn(field, checked)}
+                            ariaLabel={`Toggle ${field} for every module`}
+                          />
+                        </div>
+                      </th>
                     );
                   })}
                 </tr>
-
-                {entries.map(({ module: m, index }) => {
-                  const row = rows[index];
-                  if (!row) return null;
-                  return (
-                    <tr key={m.key} className="border-b border-gold-500/5 text-ink-100">
-                      <td className="py-3.5 pl-10 pr-5">
-                        <span className="relative">
-                          <span
-                            aria-hidden="true"
-                            className="absolute -left-4 top-1/2 h-3.5 w-px -translate-y-1/2 bg-gold-500/25"
-                          />
-                          {m.label}
-                        </span>
+              </thead>
+              {/* One <tbody> per main-menu group, so the grid reads the same way
+                  the sidebar does: heading, then the modules beneath it. The
+                  groups come from GET /roles/modules, so a new master lands under
+                  the right heading without this file changing. */}
+              {groups.map(({ group, entries }) => {
+                const indexes = entries.map((e) => e.index);
+                return (
+                  <tbody key={group}>
+                    <tr className="border-b border-gold-500/10 bg-ivory-100/70">
+                      <td className="px-5 py-2.5 font-accent text-[12px] uppercase tracking-[0.12em] text-amber-600">
+                        {group}
                       </td>
-                      {(["view", "edit", "fullAccess"] as const).map((field) => (
-                        <td key={field} className="px-5 py-3.5 text-center">
-                          <input
-                            type="checkbox"
-                            checked={row[field]}
-                            onChange={(e) =>
-                              setRows((prev) =>
-                                prev.map((r, i) => (i === index ? normalize(r, field, e.target.checked) : r))
-                              )
-                            }
-                            className="h-4 w-4 accent-gold-500"
-                          />
-                        </td>
-                      ))}
+                      {(["view", "edit", "fullAccess"] as const).map((field) => {
+                        const groupChecked = indexes.every((i) => rows[i]?.[field]);
+                        return (
+                          <td key={field} className="px-5 py-2.5">
+                            <div className="flex justify-center">
+                              <Checkbox
+                                checked={groupChecked}
+                                onChange={(checked) => toggleGroup(indexes, field, checked)}
+                                ariaLabel={`Toggle ${field} for every module under ${group}`}
+                                dimmed
+                              />
+                            </div>
+                          </td>
+                        );
+                      })}
                     </tr>
-                  );
-                })}
-              </tbody>
-            );
-          })}
-        </table>
+
+                    {entries.map(({ module: m, index }) => {
+                      const row = rows[index];
+                      if (!row) return null;
+                      return (
+                        <tr key={m.key} className="border-b border-gold-500/5 text-ink-100">
+                          <td className="py-3.5 pl-10 pr-5">
+                            <span className="relative">
+                              <span
+                                aria-hidden="true"
+                                className="absolute -left-4 top-1/2 h-3.5 w-px -translate-y-1/2 bg-gold-500/25"
+                              />
+                              {m.label}
+                            </span>
+                          </td>
+                          {(["view", "edit", "fullAccess"] as const).map((field) => (
+                            <td key={field} className="px-5 py-3.5">
+                              <div className="flex justify-center">
+                                <Checkbox
+                                  checked={row[field]}
+                                  onChange={(checked) =>
+                                    setRows((prev) =>
+                                      prev.map((r, i) => (i === index ? normalize(r, field, checked) : r))
+                                    )
+                                  }
+                                  ariaLabel={`${field} — ${m.label}`}
+                                />
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                );
+              })}
+            </table>
+          </div>
+        </div>
       </motion.div>
 
       {canSave ? (

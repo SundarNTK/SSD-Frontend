@@ -74,11 +74,11 @@ function formatCurrency(v: number) {
 
 function BookingStatusPill({ status }: { status: "confirmed" | "cancelled" }) {
   return status === "confirmed" ? (
-    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] tracking-wide text-emerald-600">
+    <span className="rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(16,185,129,0.5)]">
       Completed
     </span>
   ) : (
-    <span className="rounded-full border border-crimson-500/30 bg-crimson-500/10 px-2.5 py-1 text-[11px] tracking-wide text-crimson-500">
+    <span className="rounded-full bg-gradient-to-b from-crimson-500 to-crimson-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(143,28,48,0.5)]">
       Cancelled
     </span>
   );
@@ -87,20 +87,20 @@ function BookingStatusPill({ status }: { status: "confirmed" | "cancelled" }) {
 function PortalPill({ portal }: { portal: "admin" | "pos" | "customer" }) {
   if (portal === "admin") {
     return (
-      <span className="whitespace-nowrap rounded-full border border-gold-500/25 bg-gold-500/10 px-2.5 py-1 text-[11px] tracking-wide text-amber-700">
+      <span className="whitespace-nowrap rounded-full bg-gradient-to-b from-gold-400 to-gold-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-navy-950 shadow-[0_1px_4px_-1px_rgba(212,175,55,0.5)]">
         Admin Panel
       </span>
     );
   }
   if (portal === "pos") {
     return (
-      <span className="whitespace-nowrap rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-[11px] tracking-wide text-violet-600">
+      <span className="whitespace-nowrap rounded-full bg-gradient-to-b from-violet-400 to-violet-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(139,92,246,0.5)]">
         POS Counter
       </span>
     );
   }
   return (
-    <span className="whitespace-nowrap rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[11px] tracking-wide text-sky-600">
+    <span className="whitespace-nowrap rounded-full bg-gradient-to-b from-sky-400 to-sky-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(14,165,233,0.5)]">
       Customer
     </span>
   );

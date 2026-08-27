@@ -94,12 +94,41 @@ type SidebarProps = {
   onClose: () => void;
 };
 
+/**
+ * A gradient can't be applied to an icon's color via a plain `text-*`
+ * class the way it can to text (no `background-clip: text` equivalent for
+ * SVG strokes/fills) — this renders the exact same chevron path as
+ * ChevronIcon, but filled through its own inline `<linearGradient>` def
+ * instead of `currentColor`. `id` needs to be unique per rendered instance
+ * (each NavGroup uses its own label) since SVG gradient ids are looked up
+ * globally in the page's DOM, not scoped to the element that defines them.
+ */
+function GradientChevron({ id, className = "" }: { id: string; className?: string }) {
+  return (
+    <svg className={`h-4 w-4 shrink-0 ${className}`} viewBox="0 0 20 20">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#8f1c30" />
+          <stop offset="50%" stopColor="#ff9d42" />
+          <stop offset="100%" stopColor="#ffc145" />
+        </linearGradient>
+      </defs>
+      <path
+        fill={`url(#${id})`}
+        fillRule="evenodd"
+        d="M5.2 7.5a.75.75 0 011.06.02L10 11.293l3.74-3.773a.75.75 0 111.08 1.04l-4.25 4.286a.75.75 0 01-1.08 0L5.18 8.56a.75.75 0 01.02-1.06z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
 // The selected-item treatment, shared by the top-level leaf, the group
-// header, and its nested children — a slim left accent bar plus a soft
-// gold tint, not a filled badge. Every nav row carries a transparent
-// border-l-[3px] (see the base classes below) so toggling active/inactive
-// never shifts text by the border's width.
-const ACTIVE_NAV_CLASS = "border-amber-600 bg-gold-500/30 text-amber-800 font-semibold";
+// header, and its nested children — a slim left accent bar plus a filled
+// crimson-to-flame gradient badge, white text. Every nav row carries a
+// transparent border-l-[3px] (see the base classes below) so toggling
+// active/inactive never shifts text by the border's width.
+const ACTIVE_NAV_CLASS = "border-crimson-500 bg-gradient-to-r from-crimson-600 to-flame-500 text-white font-semibold shadow-[0_2px_10px_-4px_rgba(220,38,38,0.5)]";
 const INACTIVE_NAV_CLASS = "border-transparent text-ink-300 hover:bg-ivory-100 hover:text-ink-100";
 
 /**
@@ -209,7 +238,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           type="button"
           onClick={() => setCollapsed((v) => !v)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute -right-3.5 top-[18px] z-30 hidden h-7 w-7 items-center justify-center rounded-full border border-gold-600/50 bg-gradient-to-b from-gold-300 to-gold-600 text-navy-950 transition-[transform,box-shadow] duration-200 hover:scale-110 hover:shadow-[0_0_14px_2px_rgba(212,175,55,0.8)] md:flex"
+          className="absolute -right-3.5 top-[18px] z-30 hidden h-7 w-7 items-center justify-center rounded-full border border-crimson-700/30 bg-gradient-to-r from-crimson-600 to-flame-500 text-white transition-[transform,box-shadow] duration-200 hover:scale-110 hover:shadow-[0_0_14px_2px_rgba(220,38,38,0.6)] md:flex"
         >
           <ChevronIcon className={`h-3.5 w-3.5 transition-transform duration-300 ${collapsed ? "-rotate-90" : "rotate-90"}`} />
         </button>
@@ -343,8 +372,9 @@ function NavGroup({
       >
         <span className="shrink-0">{item.icon}</span>
         <span className={`flex-1 text-left ${collapsed ? "md:hidden" : ""}`}>{item.label}</span>
-        <ChevronIcon
-          className={`shrink-0 transition-transform duration-200 ${collapsed ? "md:hidden" : ""} ${expanded ? "rotate-180" : ""}`}
+        <GradientChevron
+          id={`nav-chevron-${item.label.replace(/\s+/g, "-")}`}
+          className={`transition-transform duration-200 ${collapsed ? "md:hidden" : ""} ${expanded ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -358,8 +388,11 @@ function NavGroup({
             className="overflow-hidden"
           >
             {/* The rail gives the children a visible spine to hang from, so
-                the nesting reads at a glance rather than from indent alone. */}
-            <div className="ml-[22px] mt-1 space-y-0.5 border-l border-gold-500/15 pl-3">
+                the nesting reads at a glance rather than from indent alone.
+                A real `bg-gradient-to-b` div instead of `border-l` — a
+                border-color can't be a gradient either. */}
+            <div className="relative ml-[22px] mt-1 space-y-0.5 pl-3">
+              <span aria-hidden="true" className="absolute top-0 bottom-0 left-0 w-[1.5px] bg-gradient-to-b from-crimson-600 via-flame-500 to-[#FFC145]" />
               {(item.children ?? []).map((child) => (
                 <ChildLink key={child.to} to={child.to} label={child.label} onNavigate={onNavigate} />
               ))}

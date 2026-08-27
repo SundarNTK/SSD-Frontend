@@ -320,9 +320,9 @@ export default function ServicePage() {
       >
         <form id="service-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <DivineInput label="Service Code" error={errors.code?.message} {...register("code")} />
-            <DivineInput label="Service Name" error={errors.name?.message} {...register("name")} />
-            <TamilNameField
+            <DivineInput staticLabel label="Service Code" error={errors.code?.message} {...register("code")} />
+            <DivineInput staticLabel label="Service Name" error={errors.name?.message} {...register("name")} />
+            <TamilNameField staticLabel
               englishName={nameValue}
               value={tamilNameValue}
               onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
@@ -330,7 +330,7 @@ export default function ServicePage() {
             />
           </div>
 
-          <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
+          <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Controller
@@ -468,7 +468,7 @@ export default function ServicePage() {
                 />
               )}
             />
-            <DivineInput
+            <DivineInput staticLabel
               label="Sale Price"
               type="number"
               step="0.01"
@@ -496,7 +496,7 @@ export default function ServicePage() {
               )}
             />
             {isFamilyMembersRequired && (
-              <DivineInput
+              <DivineInput staticLabel
                 label="Max Members"
                 type="number"
                 error={errors.maxFamilyMembers?.message}
@@ -517,7 +517,7 @@ export default function ServicePage() {
               render={({ field }) => <DivineRadioGroup label="Inventory Applicable" value={field.value} onChange={field.onChange} />}
             />
             {isInventoryRequired && (
-              <DivineInput
+              <DivineInput staticLabel
                 label="Threshold"
                 type="number"
                 hint="Minimum stock level before low stock warning"
@@ -532,7 +532,7 @@ export default function ServicePage() {
               control={control}
               name="bookingCutoffDate"
               render={({ field }) => (
-                <DivineDatePicker label="Future Booking Cut-off Date" value={field.value} onChange={field.onChange} placeholder="No cut-off" />
+                <DivineDatePicker staticLabel label="Future Booking Cut-off Date" value={field.value} onChange={field.onChange} placeholder="No cut-off" />
               )}
             />
             <Controller
@@ -549,12 +549,12 @@ export default function ServicePage() {
             />
           </div>
 
-          <div className="pt-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Controller
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
               )}
             />
           </div>

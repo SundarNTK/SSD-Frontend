@@ -213,18 +213,20 @@ export default function RolesPage() {
         }
       >
         <form id="role-form" onSubmit={submit} noValidate className="space-y-5">
-          <DivineInput label="Role name" error={errors.name?.message} {...register("name")} />
-          <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
-          {/* Shown on create too — it defaults to Active, and an admin
-              setting up a role ahead of time should be able to park it
-              inactive rather than create it live and edit it straight after. */}
-          <Controller
-            control={control}
-            name="status"
-            render={({ field }) => (
-              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
-            )}
-          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DivineInput staticLabel label="Role name" error={errors.name?.message} {...register("name")} />
+            {/* Shown on create too — it defaults to Active, and an admin
+                setting up a role ahead of time should be able to park it
+                inactive rather than create it live and edit it straight after. */}
+            <Controller
+              control={control}
+              name="status"
+              render={({ field }) => (
+                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+              )}
+            />
+          </div>
+          <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
         </form>
       </FormDrawer>
     </>

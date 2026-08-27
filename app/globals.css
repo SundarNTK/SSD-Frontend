@@ -276,7 +276,7 @@ select option {
   z-index: 10;
   font-size: 11px;
   letter-spacing: 0.025em;
-  color: var(--color-amber-600);
+  color: #374151;
   pointer-events: none;
   white-space: nowrap;
   overflow: hidden;
@@ -313,13 +313,58 @@ select option {
   top: -12px;
   font-size: 11px;
   letter-spacing: 0.025em;
-  color: var(--color-amber-600);
+  color: #374151;
 }
 .divine-input.divine-input:autofill:not(:focus) + .divine-label {
   top: -12px;
   font-size: 11px;
   letter-spacing: 0.025em;
-  color: var(--color-amber-600);
+  color: #374151;
+}
+
+/* Same mechanism as .divine-label, for DivineInput/DivineTextarea's
+   `staticLabel` fields — a separate class (not just different values on
+   the same one) so this doesn't also resize every plain field elsewhere
+   (login, POS) that hasn't opted in. Sits further off the border when
+   floated (more headroom needed since the input's own padding is taller
+   here) and a touch larger once floated, per explicit request — the
+   empty-state size/position stays the same idea: large and centered,
+   reading like a normal placeholder until the field has a value or focus. */
+.divine-label-lg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -22px;
+  z-index: 10;
+  font-size: 12.5px;
+  letter-spacing: 0.025em;
+  color: #374151;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    top 0.2s ease,
+    font-size 0.2s ease,
+    color 0.2s ease;
+}
+.divine-input:placeholder-shown:not(:focus) + .divine-label-lg {
+  top: 0;
+  font-size: 15px;
+  letter-spacing: normal;
+  color: var(--color-ink-500);
+}
+.divine-input.divine-input:-webkit-autofill:not(:focus) + .divine-label-lg {
+  top: -22px;
+  font-size: 12.5px;
+  letter-spacing: 0.025em;
+  color: #374151;
+}
+.divine-input.divine-input:autofill:not(:focus) + .divine-label-lg {
+  top: -22px;
+  font-size: 12.5px;
+  letter-spacing: 0.025em;
+  color: #374151;
 }
 
 /* ---------- Chrome/Edge autofill ---------- */

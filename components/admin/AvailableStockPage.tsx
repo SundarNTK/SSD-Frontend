@@ -16,7 +16,7 @@ export type StockRow = {
 
 function TypePill({ type }: { type: "Item" | "Service" }) {
   return (
-    <span className="rounded-full border border-gold-500/25 bg-gold-500/10 px-2.5 py-1 text-[11px] tracking-wide text-amber-700">
+    <span className="rounded-full bg-gradient-to-b from-gold-400 to-gold-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-navy-950 shadow-[0_1px_4px_-1px_rgba(212,175,55,0.5)]">
       {type}
     </span>
   );

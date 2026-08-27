@@ -37,7 +37,7 @@ export default function DivineButton({
   if (variant === "ghost") {
     return (
       <button
-        className={`relative ${fullWidth ? "w-full" : "w-auto"} rounded-xl border border-gold-500/30 bg-transparent ${sizing} font-accent tracking-wide text-amber-600 transition-[color,border-color,background-color,box-shadow] duration-300 hover:border-gold-400/60 hover:bg-gold-500/5 hover:shadow-[0_0_20px_-4px_rgba(212,175,55,0.55)] disabled:opacity-50 disabled:hover:shadow-none ${className}`}
+        className={`relative ${fullWidth ? "w-full" : "w-auto"} rounded-xl border border-gold-500/35 bg-gold-500/[0.06] ${sizing} font-accent tracking-wide text-amber-600 transition-[color,border-color,background-color,box-shadow] duration-300 hover:border-gold-400/60 hover:bg-gold-500/10 hover:shadow-[0_0_20px_-4px_rgba(212,175,55,0.55)] disabled:opacity-50 disabled:hover:shadow-none ${className}`}
         disabled={disabled || loading}
         {...rest}
       >

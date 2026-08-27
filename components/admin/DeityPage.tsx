@@ -197,35 +197,37 @@ export default function DeityPage() {
       >
         <form id="deity-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <DivineInput label="Name" error={errors.name?.message} {...register("name")} />
-            <TamilNameField
+            <DivineInput staticLabel label="Name" error={errors.name?.message} {...register("name")} />
+            <TamilNameField staticLabel
               englishName={nameValue}
               value={tamilNameValue}
               onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
               error={errors.tamilName?.message}
             />
           </div>
-          <Controller
-            control={control}
-            name="printingGroup"
-            render={({ field }) => (
-              <DivineListbox
-                label="Printing Group"
-                value={field.value}
-                onChange={field.onChange}
-                options={printingGroups}
-                placeholder="Select printing group"
-                error={errors.printingGroup?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="status"
-            render={({ field }) => (
-              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
-            )}
-          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Controller
+              control={control}
+              name="printingGroup"
+              render={({ field }) => (
+                <DivineListbox
+                  label="Printing Group"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={printingGroups}
+                  placeholder="Select printing group"
+                  error={errors.printingGroup?.message}
+                />
+              )}
+            />
+            <Controller
+              control={control}
+              name="status"
+              render={({ field }) => (
+                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+              )}
+            />
+          </div>
         </form>
       </FormDrawer>
     </>

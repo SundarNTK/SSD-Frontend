@@ -17,8 +17,8 @@ import DivineOptionGroup from "../divine/DivineOptionGroup";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
 import TamilNameField from "./TamilNameField";
-import { PlusIcon } from "../divine/icons";
-import { formatTempleDate } from "../../lib/datetime";
+import { PlusIcon, CalendarIcon, CloseIcon } from "../divine/icons";
+import { formatTempleDate, parseISODateString } from "../../lib/datetime";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
@@ -340,9 +340,9 @@ export default function EventPage() {
       >
         <form id="event-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-3 gap-4">
-            <DivineInput label="Event Code" error={errors.code?.message} {...register("code")} />
-            <DivineInput label="Event Name" error={errors.name?.message} {...register("name")} />
-            <TamilNameField
+            <DivineInput staticLabel label="Event Code" error={errors.code?.message} {...register("code")} />
+            <DivineInput staticLabel label="Event Name" error={errors.name?.message} {...register("name")} />
+            <TamilNameField staticLabel
               englishName={nameValue}
               value={tamilNameValue}
               onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
@@ -350,7 +350,7 @@ export default function EventPage() {
             />
           </div>
 
-          <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
+          <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
 
           <div className="grid grid-cols-3 gap-4">
             <Controller
@@ -400,25 +400,37 @@ export default function EventPage() {
               control={control}
               name="startDate"
               render={({ field }) => (
-                <DivineDatePicker label="Start Date" value={field.value} onChange={field.onChange} error={errors.startDate?.message} />
+                <DivineDatePicker staticLabel
+                  label="Start Date"
+                  value={field.value}
+                  onChange={field.onChange}
+                  maxDate={parseISODateString(endDate)}
+                  error={errors.startDate?.message}
+                />
               )}
             />
             <Controller
               control={control}
               name="endDate"
               render={({ field }) => (
-                <DivineDatePicker label="End Date" value={field.value} onChange={field.onChange} error={errors.endDate?.message} />
+                <DivineDatePicker staticLabel
+                  label="End Date"
+                  value={field.value}
+                  onChange={field.onChange}
+                  minDate={parseISODateString(startDate)}
+                  error={errors.endDate?.message}
+                />
               )}
             />
             <Controller
               control={control}
               name="isSlotRequired"
-              render={({ field }) => <DivineRadioGroup label="Slot Required" value={field.value} onChange={field.onChange} />}
+              render={({ field }) => <DivineRadioGroup boxed label="Slot Required" value={field.value} onChange={field.onChange} />}
             />
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <DivineInput
+            <DivineInput staticLabel
               label="Sale Price (GST Inclusive)"
               type="number"
               step="0.01"
@@ -429,7 +441,7 @@ export default function EventPage() {
               control={control}
               name="gstClassification"
               render={({ field }) => (
-                <DivineOptionGroup
+                <DivineOptionGroup boxed
                   label="GST Classification"
                   value={field.value}
                   onChange={field.onChange}
@@ -438,7 +450,7 @@ export default function EventPage() {
                 />
               )}
             />
-            <DivineInput
+            <DivineInput staticLabel
               label="Display Order"
               type="number"
               error={errors.displayOrder?.message}
@@ -450,42 +462,47 @@ export default function EventPage() {
             <Controller
               control={control}
               name="posVisibility"
-              render={({ field }) => <DivineRadioGroup label="POS Visibility" value={field.value} onChange={field.onChange} />}
+              render={({ field }) => <DivineRadioGroup boxed label="POS Visibility" value={field.value} onChange={field.onChange} />}
             />
             <Controller
               control={control}
               name="publicVisibility"
-              render={({ field }) => <DivineRadioGroup label="Customer Portal Visibility" value={field.value} onChange={field.onChange} />}
+              render={({ field }) => <DivineRadioGroup boxed label="Customer Portal Visibility" value={field.value} onChange={field.onChange} />}
             />
             <Controller
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
               )}
             />
           </div>
 
           {isSlotRequired && (
-            <div>
-              <div className="mb-2 flex items-start justify-between gap-4">
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <div className="flex items-center justify-between gap-4 border-b border-orange-100 bg-orange-50 px-4 py-3">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-amber-600">Slot Details</p>
-                  <p className="mt-0.5 text-[11.5px] text-ink-500">Slot date must be between Event Start Date and End Date.</p>
+                  <p className="flex items-center gap-2 text-[13px] font-bold text-ink-100">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-100 text-orange-600">
+                      <CalendarIcon className="h-4 w-4" />
+                    </span>
+                    SLOT DETAILS
+                  </p>
+                  <p className="mt-1 text-[11.5px] text-ink-500">Slot date must be between Event Start Date and End Date.</p>
                 </div>
                 <button
                   type="button"
                   onClick={() =>
                     appendSlot({ slotName: "", date: "", startTime: "", endTime: "", totalSeats: 0, status: 1 })
                   }
-                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gold-500/30 px-2.5 py-1.5 text-[12px] text-amber-600 hover:border-gold-400/60 hover:bg-gold-500/5"
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-orange-300 bg-white px-2.5 py-1.5 text-[12px] font-medium text-orange-600 transition-colors hover:bg-orange-50"
                 >
                   <PlusIcon /> Add Slot
                 </button>
               </div>
 
               {slotFields.length > 0 && (
-                <div className="mb-1 grid grid-cols-[1fr_128px_100px_100px_86px_96px_24px] gap-2 px-1 text-[11px] uppercase tracking-wide text-ink-500">
+                <div className="hidden grid-cols-[1fr_128px_100px_100px_86px_96px_44px] gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2 text-[11px] uppercase tracking-wide text-gray-500 sm:grid">
                   <span>Slot Name</span>
                   <span>Slot Date</span>
                   <span>Start Time</span>
@@ -496,40 +513,36 @@ export default function EventPage() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                {slotFields.length === 0 && (
-                  <p className="rounded-xl border border-gold-500/15 bg-ivory-100 px-3 py-2.5 text-[12.5px] text-ink-500">
-                    No slots yet.
-                  </p>
-                )}
+              <div className="divide-y divide-gray-100">
+                {slotFields.length === 0 && <p className="px-4 py-3 text-[12.5px] text-ink-500">No slots yet.</p>}
                 {slotFields.map((row, index) => (
-                  <div key={row.id} className="grid grid-cols-[1fr_128px_100px_100px_86px_96px_24px] items-start gap-2">
+                  <div key={row.id} className="grid grid-cols-1 items-start gap-2 px-4 py-3 sm:grid-cols-[1fr_128px_100px_100px_86px_96px_44px]">
                     <input
                       placeholder="Slot Name"
                       {...register(`slotDetails.${index}.slotName`)}
-                      className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
                     />
                     <input
                       type="date"
                       min={startDate || undefined}
                       max={endDate || undefined}
                       {...register(`slotDetails.${index}.date`)}
-                      className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
                     />
                     <input
                       type="time"
                       {...register(`slotDetails.${index}.startTime`)}
-                      className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
                     />
                     <input
                       type="time"
                       {...register(`slotDetails.${index}.endTime`)}
-                      className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
                     />
                     <input
                       type="number"
                       {...register(`slotDetails.${index}.totalSeats`, { valueAsNumber: true })}
-                      className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
                     />
                     <Controller
                       control={control}
@@ -546,15 +559,16 @@ export default function EventPage() {
                       type="button"
                       onClick={() => removeSlot(index)}
                       aria-label="Remove slot"
-                      className="mt-1 text-crimson-500 hover:text-crimson-600"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-crimson-500/10 text-crimson-500 transition-colors hover:bg-crimson-500/20 sm:justify-self-start"
                     >
-                      ×
+                      <CloseIcon className="h-4 w-4" />
+                      <span className="sr-only">Remove slot</span>
                     </button>
                   </div>
                 ))}
               </div>
               {errors.slotDetails?.message && (
-                <p className="mt-1.5 pl-1 text-[12.5px] text-crimson-500">{errors.slotDetails.message}</p>
+                <p className="px-4 pb-3 text-[12.5px] text-crimson-500">{errors.slotDetails.message}</p>
               )}
             </div>
           )}
