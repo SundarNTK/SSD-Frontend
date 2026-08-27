@@ -82,8 +82,11 @@ type InventoryInfo = {
 
 type CategoryTab = { _id: string; name: string; color: string; count: number };
 type Folder = {
-  categoryId: string;
-  categoryName: string;
+  // Every category this folder's contents span — a folder is keyed by
+  // Sub Category alone (no parent Category at the master level), so an
+  // Item under one category and a Service under another can share a
+  // "Daily" folder instead of duplicating it.
+  categoryIds: string[];
   subCategoryId: string;
   subCategoryName: string;
   subCategoryTamilName?: string | null;
@@ -305,7 +308,7 @@ export default function PosPortalPage() {
   }, []);
 
   const visibleFolders = useMemo(
-    () => (selectedCategoryId ? folders.filter((f) => f.categoryId === selectedCategoryId) : folders),
+    () => (selectedCategoryId ? folders.filter((f) => f.categoryIds.includes(selectedCategoryId)) : folders),
     [folders, selectedCategoryId]
   );
   // Truly-uncategorized entries (categoryId: null) only make sense in the
@@ -328,11 +331,15 @@ export default function PosPortalPage() {
     if (!activeFolder) return;
     setFolderLoading(true);
     Promise.all([
+      // Folders are keyed by Sub Category alone (see the Folder type) — an
+      // item and a service sharing a folder can each be tagged to a
+      // different Category, so fetching its contents can only filter by
+      // subCategory, not by any one category.
       api.get<ApiEnvelope<{ items: PosItem[] }>>("/pos/booking/items", {
-        params: { category: activeFolder.categoryId, subCategory: activeFolder.subCategoryId, pageSize: 100 },
+        params: { subCategory: activeFolder.subCategoryId, pageSize: 100 },
       }),
       api.get<ApiEnvelope<{ items: PosService[] }>>("/pos/booking/services", {
-        params: { category: activeFolder.categoryId, subCategory: activeFolder.subCategoryId, pageSize: 100 },
+        params: { subCategory: activeFolder.subCategoryId, pageSize: 100 },
       }),
     ])
       .then(([itemsRes, servicesRes]) => {
@@ -1047,16 +1054,6 @@ export default function PosPortalPage() {
                       <HomeIcon /> All Categories
                     </button>
                     <ChevronIcon className="-rotate-90 text-ink-400" />
-                    <button
-                      onClick={() => {
-                        setActiveFolder(null);
-                        setSelectedCategoryId(activeFolder.categoryId);
-                      }}
-                      className="text-ink-500 transition-colors hover:text-amber-600"
-                    >
-                      {activeFolder.categoryName}
-                    </button>
-                    <ChevronIcon className="-rotate-90 text-ink-400" />
                     <span className="flex items-center gap-1.5 font-accent text-[16px] font-extrabold tracking-tight text-ink-100">
                       <FolderIcon /> {activeFolder.subCategoryName}
                     </span>
@@ -1080,7 +1077,7 @@ export default function PosPortalPage() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
                 {visibleFolders.map((f) => (
                   <CatalogueCard
-                    key={`${f.categoryId}::${f.subCategoryId}`}
+                    key={f.subCategoryId}
                     onClick={() => openFolder(f)}
                     iconKind="folder"
                     title={f.subCategoryName}
