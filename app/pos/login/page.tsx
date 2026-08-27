@@ -41,12 +41,12 @@ export default function PosLoginPage() {
 
   useEffect(() => {
     const reason = takeSessionEndReason();
-    if (!reason) return;
-    setNotice(
-      reason === "expired"
-        ? "Your session ended. This happens when it expires, or when an administrator changes your access. Please sign in again."
-        : "You've been signed out."
-    );
+    // A plain sign-out is the expected result of clicking "Sign Out" — no
+    // need to tell the user something they just did themselves. Only an
+    // unexpected end to the session (expiry, access revoked) is worth a
+    // banner here.
+    if (reason !== "expired") return;
+    setNotice("Your session ended. This happens when it expires, or when an administrator changes your access. Please sign in again.");
   }, []);
 
   const {
