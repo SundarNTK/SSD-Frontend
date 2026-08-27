@@ -66,7 +66,7 @@ export default function LoginPage() {
       footer={
         <p>
           Trouble signing in?{" "}
-          <Link href="/admin/forgot-password" className="text-amber-600 underline-offset-2 hover:underline">
+          <Link href="/admin/forgot-password" className="text-[#e8590c] underline-offset-2 hover:underline">
             Reset your password
           </Link>
         </p>
@@ -100,8 +100,8 @@ export default function LoginPage() {
           />
         </div>
 
-        <div className="mt-8">
-          <DivineButton type="submit" loading={submitting}>
+        <div className="mt-6">
+          <DivineButton type="submit" variant="flame" loading={submitting}>
             Enter the Panel
           </DivineButton>
         </div>

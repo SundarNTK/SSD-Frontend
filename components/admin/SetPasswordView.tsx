@@ -108,7 +108,7 @@ export default function SetPasswordView({ mode, token }: { mode: "activate" | "r
       ) : tokenError ? (
         <div className="py-2 text-center">
           <StatusBanner tone="error">{tokenError}</StatusBanner>
-          <Link href="/admin/login" className="text-[13px] text-amber-600 underline-offset-2 hover:underline">
+          <Link href="/admin/login" className="text-[13px] text-[#e8590c] underline-offset-2 hover:underline">
             ← Back to sign in
           </Link>
         </div>
@@ -147,8 +147,8 @@ export default function SetPasswordView({ mode, token }: { mode: "activate" | "r
             />
           </div>
 
-          <div className="mt-8">
-            <DivineButton type="submit" loading={submitting}>
+          <div className="mt-6">
+            <DivineButton type="submit" variant="flame" loading={submitting}>
               {mode === "activate" ? "Set Password & Continue" : "Reset Password"}
             </DivineButton>
           </div>

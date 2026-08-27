@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { ReactNode } from "react";
+import { useRef, useState, type MouseEvent, type ReactNode } from "react";
 
 /** Glass card with a hairline gold border and filigree corners — the vessel every auth form sits in. */
 export default function DivineCard({
@@ -19,6 +19,25 @@ export default function DivineCard({
   variant?: "classic" | "marigold";
 }) {
   const isMarigold = variant === "marigold";
+
+  // Classic only — a "Royal Maroon" parchment card that tilts in real 3D
+  // toward the cursor (perspective on the stage, rotateX/rotateY on the
+  // panel itself). Tracked in React state rather than mutating the DOM
+  // directly since this is one small element, not a hot path.
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
+
+  function handleMouseMove(e: MouseEvent<HTMLDivElement>) {
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setTilt({ rx: -y * 14, ry: x * 14 });
+  }
+  function handleMouseLeave() {
+    setTilt({ rx: 0, ry: 0 });
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 28, scale: 0.98 }}
@@ -31,61 +50,69 @@ export default function DivineCard({
         className={`animate-soft-pulse absolute -inset-1 rounded-[28px] blur-md ${
           isMarigold
             ? "bg-gradient-to-br from-[#FF8A3D]/50 via-[#F5A623]/25 to-transparent"
-            : "bg-gradient-to-br from-gold-400/50 via-gold-500/20 to-transparent"
+            : "bg-gradient-to-br from-[#c98a3a]/55 via-[#8f1c30]/25 to-transparent"
         }`}
       />
 
       <div
-        className={`relative overflow-hidden rounded-[26px] ${
-          isMarigold
-            ? "border-3 border-white/70 bg-white/65 shadow-[0_20px_60px_-20px_rgba(120,50,10,0.5),0_0_36px_-8px_rgba(255,255,255,0.45),inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-lg backdrop-saturate-150"
-            : "border border-gold-500/25 bg-navy-900/70 shadow-[0_20px_70px_-20px_rgba(0,0,0,0.7)] backdrop-blur-2xl"
-        }`}
+        ref={stageRef}
+        onMouseMove={isMarigold ? undefined : handleMouseMove}
+        onMouseLeave={isMarigold ? undefined : handleMouseLeave}
+        className={isMarigold ? undefined : "[perspective:1200px]"}
       >
-        {/* glass sheen — a soft diagonal highlight so the panel reads as a
-            pane of light-catching glass rather than a flat blurred fill */}
-        {isMarigold && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/35 via-white/5 to-transparent"
-          />
-        )}
-
-        {/* top hairline shimmer */}
         <div
-          className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent to-transparent ${
-            isMarigold ? "via-white/90" : "via-gold-300/80"
-          }`}
-        />
-
-        {/* corner flourishes — skipped on marigold, which goes for a
-            cleaner, more modern card than the classic filigree look */}
-        {!isMarigold && (
-          <>
-            <CornerFlourish className="left-3 top-3" variant={variant} />
-            <CornerFlourish
-              className="right-3 top-3 -scale-x-100"
-              variant={variant}
-            />
-            <CornerFlourish
-              className="bottom-3 left-3 -scale-y-100"
-              variant={variant}
-            />
-            <CornerFlourish
-              className="bottom-3 right-3 -scale-x-100 -scale-y-100"
-              variant={variant}
-            />
-          </>
-        )}
-
-        <div
-          className={
+          className={`relative overflow-hidden rounded-[26px] transition-transform duration-150 ease-out ${
             isMarigold
-              ? "relative px-7 py-8 sm:px-8"
-              : "relative px-8 py-10 sm:px-10"
-          }
+              ? "border-3 border-white/70 bg-white/65 shadow-[0_20px_60px_-20px_rgba(120,50,10,0.5),0_0_36px_-8px_rgba(255,255,255,0.45),inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-lg backdrop-saturate-150"
+              : "border border-[#c98a3a]/50 bg-gradient-to-br from-[#fdf6e6] to-[#f7ecd2] shadow-[0_30px_70px_-20px_rgba(58,20,8,0.55)]"
+          }`}
+          style={isMarigold ? undefined : { transform: `rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`, transformStyle: "preserve-3d" }}
         >
-          {children}
+          {/* glass sheen — a soft diagonal highlight so the panel reads as a
+              pane of light-catching glass rather than a flat blurred fill */}
+          {isMarigold && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/35 via-white/5 to-transparent"
+            />
+          )}
+
+          {/* top hairline shimmer */}
+          <div
+            className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent to-transparent ${
+              isMarigold ? "via-white/90" : "via-[#e8bf5c]/90"
+            }`}
+          />
+
+          {/* corner flourishes — skipped on marigold, which goes for a
+              cleaner, more modern card than the classic filigree look */}
+          {!isMarigold && (
+            <>
+              <CornerFlourish className="left-3 top-3" variant={variant} />
+              <CornerFlourish
+                className="right-3 top-3 -scale-x-100"
+                variant={variant}
+              />
+              <CornerFlourish
+                className="bottom-3 left-3 -scale-y-100"
+                variant={variant}
+              />
+              <CornerFlourish
+                className="bottom-3 right-3 -scale-x-100 -scale-y-100"
+                variant={variant}
+              />
+            </>
+          )}
+
+          <div
+            className={
+              isMarigold
+                ? "relative px-7 py-8 sm:px-8"
+                : "relative px-8 py-7 sm:px-10 sm:py-8"
+            }
+          >
+            {children}
+          </div>
         </div>
       </div>
     </motion.div>

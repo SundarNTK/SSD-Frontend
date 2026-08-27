@@ -2,11 +2,11 @@
 export default function MandalaRings() {
   return (
     <div
-      className="pointer-events-none absolute left-1/2 top-1/2 -z-10 -translate-x-1/2 -translate-y-1/2"
+      className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
       aria-hidden="true"
     >
       <svg
-        className="animate-slow-spin h-[780px] w-[780px] opacity-[0.75] drop-shadow-[0_2px_10px_rgba(120,80,10,0.4)] md:h-[920px] md:w-[920px]"
+        className="animate-slow-spin h-[780px] w-[780px] md:h-[920px] md:w-[920px] opacity-[0.75] drop-shadow-[0_2px_10px_rgba(120,80,10,0.4)]"
         viewBox="0 0 200 200"
       >
         <circle cx="100" cy="100" r="96" fill="none" stroke="url(#g1)" strokeWidth="0.6" />
@@ -52,7 +52,7 @@ export default function MandalaRings() {
       </svg>
 
       <svg
-        className="animate-slow-spin-reverse absolute inset-0 h-[780px] w-[780px] opacity-[0.75] drop-shadow-[0_2px_6px_rgba(120,80,10,0.35)] md:h-[920px] md:w-[920px]"
+        className="animate-slow-spin-reverse absolute inset-0 h-[780px] w-[780px] md:h-[920px] md:w-[920px] opacity-[0.75] drop-shadow-[0_2px_6px_rgba(120,80,10,0.35)]"
         viewBox="0 0 200 200"
       >
         <circle cx="100" cy="100" r="70" fill="none" stroke="url(#g1)" strokeWidth="0.3" strokeDasharray="0.5 4" />
