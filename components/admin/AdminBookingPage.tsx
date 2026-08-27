@@ -13,8 +13,12 @@
  *  3. Cart Summary calls POST /pos/booking/summary for live pricing
  *  4. "Proceed to Payment" shows only Cash (as requested)
  *  5. On "Confirm Booking":
- *       a. POST /pos/booking/orders        → creates order + reserves inventory
- *       b. POST /pos/admin/booking/orders/:id/confirm → creates booking, stock-out
+ *       a. POST /pos/admin/booking/orders → creates order + reserves inventory.
+ *          The backend decides confirmation from the payment mode, not this
+ *          page — Cash comes back already confirmed in the same response;
+ *          any other mode stays "pending" until a real confirmation lands
+ *          server-side (a future payment gateway's webhook), and this page
+ *          polls GET /pos/admin/booking/orders/:id/status until it does.
  *  6. Success state shows booking number + summary
  *
  * Inventory hold:
@@ -148,6 +152,34 @@ type BookingConfirmation = {
   bookingStatus: string;
   bookedAt: string;
 };
+
+// The server, not the browser, decides when an order actually counts as
+// paid — POST /orders returns a confirmed booking outright for Cash, and
+// leaves any other payment mode "pending" until a real confirmation lands
+// server-side (today: nothing does yet; eventually a payment gateway's own
+// webhook). Both endpoints share this shape so the frontend never has to
+// special-case which one handed it a confirmed booking.
+type CreateOrderResult = ({ status: "confirmed" } & BookingConfirmation) | { status: "pending"; _id: string };
+type OrderStatusResult = ({ status: "confirmed" } & BookingConfirmation) | { status: "pending" | "cancelled" | "expired" };
+
+const ORDER_POLL_INTERVAL_MS = 1500;
+const ORDER_POLL_MAX_ATTEMPTS = 40; // ~60s — comfortably under the order's own 30-minute hold
+
+/**
+ * Polls the read-only order-status endpoint until the server reports the
+ * order confirmed, rather than the frontend ever asserting that itself.
+ */
+async function pollOrderStatus(orderId: string): Promise<BookingConfirmation> {
+  for (let attempt = 0; attempt < ORDER_POLL_MAX_ATTEMPTS; attempt++) {
+    const res = await api.get<ApiEnvelope<OrderStatusResult>>(`/pos/admin/booking/orders/${orderId}/status`);
+    const data = unwrap(res);
+    if (data.status === "confirmed") return data;
+    if (data.status === "cancelled") throw new Error("This order was cancelled before payment could be confirmed.");
+    if (data.status === "expired") throw new Error("The booking hold expired before payment was confirmed. Please start again.");
+    await new Promise((resolve) => setTimeout(resolve, ORDER_POLL_INTERVAL_MS));
+  }
+  throw new Error("Timed out waiting for the booking to be confirmed. Please check Transaction History.");
+}
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -503,9 +535,13 @@ export default function AdminBookingPage() {
 
     setBookingLoading(true);
     try {
-      // Step 1: create order — routed through /admin/booking so the backend
-      // stamps portal = "admin" via the setPortal("admin") middleware.
-      const orderRes = await api.post<ApiEnvelope<{ _id: string; orderNumber: string }>>("/pos/admin/booking/orders", {
+      // Only ever creates the order, routed through /admin/booking so the
+      // backend stamps portal = "admin" — never separately asserts that
+      // payment succeeded. The server decides that itself, from the
+      // resolved payment mode: Cash comes back already confirmed in this
+      // same response; anything else stays "pending" until a real
+      // confirmation lands server-side, picked up by polling below.
+      const orderRes = await api.post<ApiEnvelope<CreateOrderResult>>("/pos/admin/booking/orders", {
         customerId: selectedCustomer._id,
         lines: cart.map((l) => ({
           refType: l.refType,
@@ -516,15 +552,8 @@ export default function AdminBookingPage() {
         })),
         paymentModeId: selectedPaymentModeId,
       });
-      const order = unwrap(orderRes);
-
-      // Step 2: immediately confirm (Cash payment). Confirm also goes through
-      // the /admin/booking path so portal stays "admin" on the Booking too.
-      const confirmRes = await api.post<ApiEnvelope<BookingConfirmation>>(
-        `/pos/admin/booking/orders/${order._id}/confirm`,
-        {}
-      );
-      const booking = unwrap(confirmRes);
+      const created = unwrap(orderRes);
+      const booking = created.status === "confirmed" ? created : await pollOrderStatus(created._id);
 
       setConfirmation(booking);
       setStep("done");
