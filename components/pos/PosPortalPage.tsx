@@ -1690,28 +1690,28 @@ function CatalogueCard({
       className={`group relative rounded-[26px] bg-gradient-to-br ${theme.border} p-[2.5px] text-left shadow-[0_12px_30px_-18px_rgba(0,0,0,0.4)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:scale-[1.03] hover:shadow-[0_26px_50px_-18px_rgba(0,0,0,0.45)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none`}
     >
       <div className="flex h-full flex-col overflow-hidden rounded-[23.5px] bg-white">
-        <div className={`relative h-[92px] overflow-hidden bg-gradient-to-br bg-[length:220%_220%] animate-[flame-wave_9s_ease-in-out_infinite] ${theme.banner}`}>
-          <DotGrid className="bottom-2 left-2 h-10 w-10" />
-          <Spark className="left-6 top-3 h-3 w-3" delay={0} duration={2.4} />
-          <Spark className="right-8 top-6 h-4 w-4" delay={0.7} duration={3} />
-          <Spark className="bottom-8 right-12 h-2.5 w-2.5" delay={1.4} duration={2.2} />
+        <div className={`relative h-[72px] overflow-hidden bg-gradient-to-br bg-[length:220%_220%] animate-[flame-wave_9s_ease-in-out_infinite] ${theme.banner}`}>
+          <DotGrid className="bottom-1.5 left-2 h-8 w-8" />
+          <Spark className="left-6 top-2.5 h-2.5 w-2.5" delay={0} duration={2.4} />
+          <Spark className="right-7 top-5 h-3 w-3" delay={0.7} duration={3} />
+          <Spark className="bottom-6 right-10 h-2 w-2" delay={1.4} duration={2.2} />
           <span
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 -translate-x-[140%] bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-[140%]"
           />
           <div className="absolute inset-0 flex items-center justify-center">
-            <span aria-hidden="true" className="absolute h-16 w-16 animate-soft-pulse rounded-full bg-white/50 blur-xl" />
-            <span className="relative flex h-[54px] w-[54px] items-center justify-center rounded-full bg-white/25 ring-4 ring-white/50">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-[0_10px_24px_-8px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:scale-110">
+            <span aria-hidden="true" className="absolute h-12 w-12 animate-soft-pulse rounded-full bg-white/50 blur-xl" />
+            <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white/25 ring-[3px] ring-white/50">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-[0_10px_24px_-8px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:scale-110">
                 {bigIcon}
               </span>
             </span>
           </div>
         </div>
-        <div className="flex flex-col items-start gap-2 px-3.5 py-3">
+        <div className="flex flex-col items-start gap-1.5 px-3 py-2.5">
           <div>
-            <p className="text-[17px] font-bold leading-tight text-ink-100">{title}</p>
-            {tamilName && <p className="text-[11.5px] text-ink-500">{tamilName}</p>}
+            <p className="text-[14.5px] font-bold leading-tight text-ink-100">{title}</p>
+            {tamilName && <p className="text-[11px] text-ink-500">{tamilName}</p>}
           </div>
           {extraBadges && <div className="flex flex-wrap items-center gap-1.5">{extraBadges}</div>}
           <div className={`flex w-full items-center justify-between rounded-xl px-2.5 py-1.5 ${theme.rowBg}`}>
