@@ -112,7 +112,7 @@ export default function PosLoginPage() {
         </div>
 
         <div className="mt-8">
-          <DivineButton type="submit" loading={submitting}>
+          <DivineButton type="submit" variant="marigold" loading={submitting}>
             Open Counter
           </DivineButton>
         </div>

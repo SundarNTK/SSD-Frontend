@@ -30,36 +30,75 @@ export default function DivineCard({
       <div
         className={`animate-soft-pulse absolute -inset-1 rounded-[28px] blur-md ${
           isMarigold
-            ? "bg-gradient-to-br from-[#E0396B]/45 via-[#F5A623]/25 to-transparent"
+            ? "bg-gradient-to-br from-[#FF8A3D]/50 via-[#F5A623]/25 to-transparent"
             : "bg-gradient-to-br from-gold-400/50 via-gold-500/20 to-transparent"
         }`}
       />
 
       <div
-        className={`relative overflow-hidden rounded-[26px] border shadow-[0_20px_70px_-20px_rgba(0,0,0,0.7)] backdrop-blur-xl ${
-          isMarigold ? "border-[#F5A623]/30 bg-white/78" : "border-gold-500/25 bg-navy-900/70"
+        className={`relative overflow-hidden rounded-[26px] ${
+          isMarigold
+            ? "border-3 border-white/70 bg-white/65 shadow-[0_20px_60px_-20px_rgba(120,50,10,0.5),0_0_36px_-8px_rgba(255,255,255,0.45),inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-lg backdrop-saturate-150"
+            : "border border-gold-500/25 bg-navy-900/70 shadow-[0_20px_70px_-20px_rgba(0,0,0,0.7)] backdrop-blur-2xl"
         }`}
       >
+        {/* glass sheen — a soft diagonal highlight so the panel reads as a
+            pane of light-catching glass rather than a flat blurred fill */}
+        {isMarigold && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/35 via-white/5 to-transparent"
+          />
+        )}
+
         {/* top hairline shimmer */}
         <div
           className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent to-transparent ${
-            isMarigold ? "via-[#F5A623]/80" : "via-gold-300/80"
+            isMarigold ? "via-white/90" : "via-gold-300/80"
           }`}
         />
 
-        {/* corner flourishes */}
-        <CornerFlourish className="left-3 top-3" variant={variant} />
-        <CornerFlourish className="right-3 top-3 -scale-x-100" variant={variant} />
-        <CornerFlourish className="bottom-3 left-3 -scale-y-100" variant={variant} />
-        <CornerFlourish className="bottom-3 right-3 -scale-x-100 -scale-y-100" variant={variant} />
+        {/* corner flourishes — skipped on marigold, which goes for a
+            cleaner, more modern card than the classic filigree look */}
+        {!isMarigold && (
+          <>
+            <CornerFlourish className="left-3 top-3" variant={variant} />
+            <CornerFlourish
+              className="right-3 top-3 -scale-x-100"
+              variant={variant}
+            />
+            <CornerFlourish
+              className="bottom-3 left-3 -scale-y-100"
+              variant={variant}
+            />
+            <CornerFlourish
+              className="bottom-3 right-3 -scale-x-100 -scale-y-100"
+              variant={variant}
+            />
+          </>
+        )}
 
-        <div className="relative px-8 py-10 sm:px-10">{children}</div>
+        <div
+          className={
+            isMarigold
+              ? "relative px-7 py-8 sm:px-8"
+              : "relative px-8 py-10 sm:px-10"
+          }
+        >
+          {children}
+        </div>
       </div>
     </motion.div>
   );
 }
 
-function CornerFlourish({ className = "", variant = "classic" }: { className?: string; variant?: "classic" | "marigold" }) {
+function CornerFlourish({
+  className = "",
+  variant = "classic",
+}: {
+  className?: string;
+  variant?: "classic" | "marigold";
+}) {
   return (
     <svg
       viewBox="0 0 40 40"

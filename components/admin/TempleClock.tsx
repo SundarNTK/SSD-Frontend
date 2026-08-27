@@ -25,9 +25,16 @@ export default function TempleClock({ variant = "default" }: { variant?: "defaul
     return (
       <div className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-crimson-500/70 via-flame-500/70 to-[#FFC145]/70 p-[1.5px] shadow-[0_4px_16px_-8px_rgba(255,122,46,0.4)] transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgba(255,122,46,0.6)]">
         <div className="relative flex items-center gap-3 overflow-hidden rounded-[10px] bg-white/95 px-3 py-1.5 backdrop-blur-md sm:px-3.5">
+          {/* Ambient shimmer, gold at rest — crossfades to a silver sweep on
+              hover (two overlapping layers whose opacity swaps, since a
+              gradient's own colors can't be transitioned directly). */}
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 z-0 -translate-x-[160%] animate-[shimmer-sweep_6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-[#FFD700]/25 to-transparent"
+            className="pointer-events-none absolute inset-0 z-0 -translate-x-[160%] animate-[shimmer-sweep_6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-[#FFD700]/25 to-transparent opacity-100 transition-opacity duration-500 group-hover:opacity-0"
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-0 -translate-x-[160%] animate-[shimmer-sweep_6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-slate-300/45 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"
           />
           <span className="relative z-10 flex h-1.5 w-1.5 shrink-0" aria-hidden="true">
             <span className="absolute inline-flex h-full w-full animate-soft-pulse rounded-full bg-flame-400" />
