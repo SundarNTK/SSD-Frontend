@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckIcon, ChevronIcon, SearchIcon } from "./icons";
+import { CheckIcon, ChevronIcon, CloseIcon, SearchIcon } from "./icons";
 
 export type ListboxOption = { value: string; label: string };
 
@@ -132,6 +133,12 @@ export default function DivineListbox({
     setOpen(false);
   }
 
+  function clear(e: MouseEvent) {
+    e.stopPropagation();
+    onChange("");
+    setOpen(false);
+  }
+
   return (
     <div className={`relative ${className || "w-full"}`}>
       <button
@@ -163,6 +170,16 @@ export default function DivineListbox({
                 {selected?.label ?? placeholder}
               </span>
             </div>
+            {selected && !disabled && (
+              <span
+                role="button"
+                aria-label="Clear selection"
+                onClick={clear}
+                className="shrink-0 rounded-full p-0.5 text-ink-500 transition-colors hover:bg-crimson-500/10 hover:text-crimson-500"
+              >
+                <CloseIcon />
+              </span>
+            )}
             <ChevronIcon className={`shrink-0 text-ink-500 transition-transform duration-200 ${open ? "rotate-180 text-amber-600" : ""}`} />
           </div>
         ) : (
@@ -170,6 +187,16 @@ export default function DivineListbox({
             <span className={`block flex-1 truncate font-body text-[13.5px] ${selected ? "text-ink-100" : "text-ink-500"}`}>
               {selected?.label ?? placeholder}
             </span>
+            {selected && !disabled && (
+              <span
+                role="button"
+                aria-label="Clear selection"
+                onClick={clear}
+                className="shrink-0 rounded-full p-0.5 text-ink-500 transition-colors hover:bg-crimson-500/10 hover:text-crimson-500"
+              >
+                <CloseIcon />
+              </span>
+            )}
             <ChevronIcon className={`shrink-0 text-ink-500 transition-transform duration-200 ${open ? "rotate-180 text-amber-600" : ""}`} />
           </div>
         )}
