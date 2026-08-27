@@ -1157,8 +1157,13 @@ export default function PosPortalPage() {
                 <span>Sub Total (S$)</span>
                 <span>{formatCurrency(summary?.subtotal ?? 0)}</span>
               </div>
-              <div className="flex justify-between border-t border-gold-500/10 pt-2 font-bold text-ink-100">
-                <span>Total Payable (S$)</span>
+              <div className="flex items-center justify-between border-t border-gold-500/10 pt-2 font-bold text-ink-100">
+                <span className="flex items-center gap-1.5">
+                  Total Payable (S$)
+                  <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-emerald-700">
+                    GST Inclusive
+                  </span>
+                </span>
                 <span className="bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FF8C1A] bg-clip-text text-transparent">
                   {formatCurrency(summary?.grandTotal ?? 0)}
                 </span>
