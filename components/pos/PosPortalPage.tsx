@@ -258,7 +258,6 @@ export default function PosPortalPage() {
   const [customerResults, setCustomerResults] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
-  const [customerRequiredNotice, setCustomerRequiredNotice] = useState(false);
 
   // ── catalogue ────────────────────────────────────────────────────────────
   const [categories, setCategories] = useState<CategoryTab[]>([]);
@@ -498,6 +497,21 @@ export default function PosPortalPage() {
     setRecentBookings([]);
   }
 
+  // Adding to the cart no longer requires picking a customer first — if
+  // nobody's been selected by the time an item is added, the booking goes
+  // under the signed-in staff member's own profile instead (find-or-create,
+  // idempotent server-side), the same account temple staff already get for
+  // booking a pooja for their own family.
+  async function resolveSelfCustomer(): Promise<Customer | null> {
+    try {
+      const r = await api.get<ApiEnvelope<Customer>>("/pos/booking/customers/self");
+      return unwrap(r);
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+      return null;
+    }
+  }
+
   // ── recent transactions (repeat a past booking) ─────────────────────────
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
   const [viewingRecentBooking, setViewingRecentBooking] = useState<RecentBooking | null>(null);
@@ -615,10 +629,11 @@ export default function PosPortalPage() {
   // confirmAddToCart() branches on this to update in place rather than append.
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
 
-  function openAddModal(offering: Offering) {
+  async function openAddModal(offering: Offering) {
     if (!selectedCustomer) {
-      setCustomerRequiredNotice(true);
-      return;
+      const self = await resolveSelfCustomer();
+      if (!self) return;
+      selectCustomer(self);
     }
     setEditingLineId(null);
     setModalOffering(offering);
@@ -1296,8 +1311,6 @@ export default function PosPortalPage() {
           onConfirm={confirmAddToCart}
         />
       )}
-
-      {customerRequiredNotice && <CustomerRequiredNotice onClose={() => setCustomerRequiredNotice(false)} />}
     </PosShell>
   );
 }
@@ -2387,42 +2400,6 @@ function UnavailableLinesDialog({
                 Add {availableCount} Available Item{availableCount > 1 ? "s" : ""}
               </DivineButton>
             )}
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
-  );
-}
-
-/**
- * Blocks adding to the cart before a customer is on file — center-screen
- * rather than the earlier approach of letting the add through and only
- * nudging the search box afterward, so the miss is caught before it
- * happens instead of after.
- */
-function CustomerRequiredNotice({ onClose }: { onClose: () => void }) {
-  return (
-    <AnimatePresence>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-40 bg-navy-950/60 backdrop-blur-sm" />
-      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, y: 16, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 16, scale: 0.97 }}
-          className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border border-white/60 bg-white text-center shadow-[0_30px_80px_-20px_rgba(179,39,63,0.35)]"
-        >
-          <div aria-hidden="true" className="h-1.5 shrink-0 bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFC145]" />
-          <div className="px-6 py-7">
-            <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border-2 border-flame-500/30 bg-flame-500/10 text-flame-600">
-              <UserIcon />
-            </span>
-            <h2 className="font-accent text-[17px] font-extrabold tracking-tight text-ink-100">Select a customer first</h2>
-            <p className="mt-1.5 text-[13px] text-ink-500">Choose or create a customer above before adding items to the cart.</p>
-          </div>
-          <div className="px-6 pb-6">
-            <FlameActionButton icon={<UserIcon />} chevron={false} onClick={onClose} className="w-full justify-center">
-              Got It
-            </FlameActionButton>
           </div>
         </motion.div>
       </div>
