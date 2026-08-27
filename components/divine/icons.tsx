@@ -48,9 +48,9 @@ export function UserIcon() {
   );
 }
 
-export function CalendarIcon() {
+export function CalendarIcon({ className = "h-[18px] w-[18px]" }: { className?: string } = {}) {
   return (
-    <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
       <path d="M3.5 9.5h17M8 3v4M16 3v4" strokeLinecap="round" />
     </svg>
@@ -206,9 +206,9 @@ export function ChevronIcon({ className = "" }: { className?: string }) {
   );
 }
 
-export function CheckIcon() {
+export function CheckIcon({ className = "h-3.5 w-3.5 shrink-0 text-amber-600" }: { className?: string } = {}) {
   return (
-    <svg className="h-3.5 w-3.5 shrink-0 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor">
       <path
         fillRule="evenodd"
         d="M16.7 5.3a1 1 0 010 1.4l-7.4 7.4a1 1 0 01-1.4 0L3.3 9.5a1 1 0 111.4-1.4l3.6 3.6 6.7-6.7a1 1 0 011.4 0z"
@@ -226,6 +226,70 @@ export function CloseIcon({ className = "h-3.5 w-3.5" }: { className?: string } 
         d="M5.28 4.22a.75.75 0 00-1.06 1.06L8.94 10l-4.72 4.72a.75.75 0 101.06 1.06L10 11.06l4.72 4.72a.75.75 0 101.06-1.06L11.06 10l4.72-4.72a.75.75 0 00-1.06-1.06L10 8.94 5.28 4.22z"
         clipRule="evenodd"
       />
+    </svg>
+  );
+}
+
+export function ShoppingBagIcon({ className = "h-5 w-5" }: { className?: string } = {}) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M6 8h12l-1 12.5a1.5 1.5 0 01-1.5 1.5h-7a1.5 1.5 0 01-1.5-1.5L6 8z" strokeLinejoin="round" />
+      <path d="M9 8V6a3 3 0 016 0v2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function FolderIcon({ className = "h-[16px] w-[16px]" }: { className?: string } = {}) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M3.5 6.5A1.5 1.5 0 015 5h4.2l2 2.2H19a1.5 1.5 0 011.5 1.5v9a1.5 1.5 0 01-1.5 1.5H5a1.5 1.5 0 01-1.5-1.5v-11z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function ArrowDownIcon({ className = "h-[16px] w-[16px]" }: { className?: string } = {}) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M12 4.5v14M12 18.5l-5.5-5.5M12 18.5l5.5-5.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function ArrowUpIcon({ className = "h-[16px] w-[16px]" }: { className?: string } = {}) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M12 19.5v-14M12 5.5l-5.5 5.5M12 5.5l5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function RefreshIcon({ className = "h-[16px] w-[16px]" }: { className?: string } = {}) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+      <path
+        d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3M18 5v3.5h-3.5M6 19v-3.5h3.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function GaugeIcon({ className = "h-[16px] w-[16px]" }: { className?: string } = {}) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 12l3.5-3.5" strokeLinecap="round" />
+      <path d="M12 4.5v1.2M19.5 12h-1.2M4.5 12h1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function SaveIcon({ className = "h-[16px] w-[16px]" }: { className?: string } = {}) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M5 4.5h11l3.5 3.5v11.5a.5.5 0 01-.5.5H5a.5.5 0 01-.5-.5V5a.5.5 0 01.5-.5z" strokeLinejoin="round" />
+      <path d="M8 4.5v5h7v-5M8 20v-6h8v6" strokeLinejoin="round" />
     </svg>
   );
 }

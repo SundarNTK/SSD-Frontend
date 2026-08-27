@@ -179,58 +179,62 @@ export default function InventoryAdjustmentPage() {
         }
       >
         <form id="inventory-adjustment-form" onSubmit={submit} noValidate className="space-y-5">
-          <Controller
-            control={control}
-            name="refType"
-            render={({ field }) => (
-              <DivineListbox
-                label="Select Type"
-                value={field.value}
-                onChange={(v) => {
-                  field.onChange(v);
-                  setValue("refId", "");
-                }}
-                options={TYPE_OPTIONS}
-              />
-            )}
-          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Controller
+              control={control}
+              name="refType"
+              render={({ field }) => (
+                <DivineListbox
+                  label="Select Type"
+                  value={field.value}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    setValue("refId", "");
+                  }}
+                  options={TYPE_OPTIONS}
+                />
+              )}
+            />
 
-          <Controller
-            control={control}
-            name="refId"
-            render={({ field }) => (
-              <DivineListbox
-                label={`Select ${refType}`}
-                value={field.value}
-                onChange={field.onChange}
-                options={refOptions}
-                placeholder={`Select a ${refType.toLowerCase()}…`}
-                error={errors.refId?.message}
-              />
-            )}
-          />
+            <Controller
+              control={control}
+              name="refId"
+              render={({ field }) => (
+                <DivineListbox
+                  label={`Select ${refType}`}
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={refOptions}
+                  placeholder={`Select a ${refType.toLowerCase()}…`}
+                  error={errors.refId?.message}
+                />
+              )}
+            />
+          </div>
 
-          <Controller
-            control={control}
-            name="inventoryType"
-            render={({ field }) => (
-              <DivineListbox
-                label="Inventory Type"
-                value={field.value}
-                onChange={field.onChange}
-                options={INVENTORY_TYPE_OPTIONS}
-              />
-            )}
-          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Controller
+              control={control}
+              name="inventoryType"
+              render={({ field }) => (
+                <DivineListbox
+                  label="Inventory Type"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={INVENTORY_TYPE_OPTIONS}
+                />
+              )}
+            />
 
-          <DivineInput
-            label={`${inventoryType} Quantity`}
-            type="number"
-            error={errors.quantity?.message}
-            {...register("quantity", { valueAsNumber: true })}
-          />
+            <DivineInput staticLabel
+              label={`${inventoryType} Quantity`}
+              type="number"
+              error={errors.quantity?.message}
+              {...register("quantity", { valueAsNumber: true })}
+            />
+          </div>
 
-          <DivineTextarea label="Remarks" error={errors.remarks?.message} {...register("remarks")} />
+          <DivineTextarea staticLabel label="Remarks" error={errors.remarks?.message} {...register("remarks")} />
         </form>
       </FormDrawer>
     </>

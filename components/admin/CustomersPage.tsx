@@ -11,11 +11,12 @@ import DivineListbox from "../divine/DivineListbox";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
-import { MailIcon, PhoneIcon, UserIcon } from "../divine/icons";
+import { MailIcon, UserIcon } from "../divine/icons";
 import { authApi } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { emailField } from "../../lib/validation";
+import { sanitizeMobileInput, isValidSgMobile, SG_MOBILE_ERROR } from "../../lib/mobileNumber";
 import { formatTempleDateTime } from "../../lib/datetime";
 import { toast } from "../../lib/toastStore";
 
@@ -40,7 +41,7 @@ type Customer = {
 const schema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
   email: emailField,
-  mobileNumber: z.string().trim(),
+  mobileNumber: z.string().trim().refine((v) => !v || isValidSgMobile(v), SG_MOBILE_ERROR),
   dateOfBirth: z.string(),
   gender: z.string(),
   status: z.number(),
@@ -138,14 +139,14 @@ export default function CustomersPage() {
         return c.passwordSetAt ? (
           <span
             title={`Set on ${formatTempleDateTime(c.passwordSetAt)}`}
-            className="whitespace-nowrap rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] tracking-wide text-emerald-400"
+            className="whitespace-nowrap rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(16,185,129,0.5)]"
           >
             Set
           </span>
         ) : (
           <span
             title="Activation email sent — the link stays valid until it is used."
-            className="whitespace-nowrap rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-1 text-[11px] tracking-wide text-amber-600"
+            className="whitespace-nowrap rounded-full bg-gradient-to-b from-gold-400 to-gold-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-navy-950 shadow-[0_1px_4px_-1px_rgba(212,175,55,0.5)]"
           >
             Invite pending
           </span>
@@ -212,16 +213,16 @@ export default function CustomersPage() {
       >
         <form id="customer-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <DivineInput label="Full name" icon={<UserIcon />} error={errors.name?.message} {...register("name")} />
-            <DivineInput label="Email address" type="email" icon={<MailIcon />} error={errors.email?.message} {...register("email")} />
+            <DivineInput staticLabel label="Full name" icon={<UserIcon />} error={errors.name?.message} {...register("name")} />
+            <DivineInput staticLabel label="Email address" type="email" icon={<MailIcon />} error={errors.email?.message} {...register("email")} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <DivineInput label="Mobile number" icon={<PhoneIcon />} error={errors.mobileNumber?.message} {...register("mobileNumber")} />
+            <DivineInput staticLabel label="Mobile number" icon={<span className="text-[13.5px] font-semibold text-ink-500">+65</span>} error={errors.mobileNumber?.message} {...register("mobileNumber", { onChange: (e) => { e.target.value = sanitizeMobileInput(e.target.value); } })} />
             <Controller
               control={control}
               name="dateOfBirth"
               render={({ field }) => (
-                <DivineDatePicker
+                <DivineDatePicker staticLabel
                   label="Date of birth"
                   value={field.value ?? ""}
                   onChange={field.onChange}
@@ -242,7 +243,7 @@ export default function CustomersPage() {
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
               )}
             />
           </div>

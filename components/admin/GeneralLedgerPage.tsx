@@ -252,8 +252,8 @@ export default function GeneralLedgerPage() {
       >
         <form id="gl-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <DivineInput label="Name" error={errors.name?.message} {...register("name")} />
-            <DivineInput label="Code" error={errors.code?.message} {...register("code")} />
+            <DivineInput staticLabel label="Name" error={errors.name?.message} {...register("name")} />
+            <DivineInput staticLabel label="Code" error={errors.code?.message} {...register("code")} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Controller
@@ -320,14 +320,16 @@ export default function GeneralLedgerPage() {
               )}
             />
           </div>
-          <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
-          <Controller
-            control={control}
-            name="status"
-            render={({ field }) => (
-              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
-            )}
-          />
+          <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Controller
+              control={control}
+              name="status"
+              render={({ field }) => (
+                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+              )}
+            />
+          </div>
         </form>
       </FormDrawer>
     </>

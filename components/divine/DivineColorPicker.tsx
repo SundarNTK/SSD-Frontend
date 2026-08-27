@@ -20,7 +20,7 @@ export default function DivineColorPicker({ label, value, onChange, error }: Div
 
   return (
     <div className="w-full">
-      <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">{label}</p>
+      <p className="mb-2 text-[11px] uppercase tracking-wide text-gray-700">{label}</p>
       <div className="flex items-center gap-3">
         <label
           className="relative h-11 w-11 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-gold-500/20"

@@ -11,7 +11,7 @@ import DivineInput from "../divine/DivineInput";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
-import { formatTempleDate } from "../../lib/datetime";
+import { formatTempleDate, parseISODateString } from "../../lib/datetime";
 import { api } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
@@ -68,9 +68,13 @@ export default function GstPage() {
     register,
     handleSubmit,
     reset,
+    watch,
     control,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  const effectiveStartDate = watch("effectiveStartDate");
+  const effectiveEndDate = watch("effectiveEndDate");
 
   function openCreate() {
     setEditing(null);
@@ -200,11 +204,11 @@ export default function GstPage() {
       >
         <form id="gst-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <DivineInput label="Type" error={errors.type?.message} {...register("type")} />
-            <DivineInput label="Code" error={errors.code?.message} {...register("code")} />
+            <DivineInput staticLabel label="Type" error={errors.type?.message} {...register("type")} />
+            <DivineInput staticLabel label="Code" error={errors.code?.message} {...register("code")} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <DivineInput
+            <DivineInput staticLabel
               label="Percentage"
               type="number"
               step="0.01"
@@ -215,10 +219,11 @@ export default function GstPage() {
               control={control}
               name="effectiveStartDate"
               render={({ field }) => (
-                <DivineDatePicker
+                <DivineDatePicker staticLabel
                   label="Effective start date"
                   value={field.value}
                   onChange={field.onChange}
+                  maxDate={parseISODateString(effectiveEndDate)}
                   error={errors.effectiveStartDate?.message}
                 />
               )}
@@ -229,10 +234,11 @@ export default function GstPage() {
               control={control}
               name="effectiveEndDate"
               render={({ field }) => (
-                <DivineDatePicker
+                <DivineDatePicker staticLabel
                   label="Effective end date"
                   value={field.value}
                   onChange={field.onChange}
+                  minDate={parseISODateString(effectiveStartDate)}
                   placeholder="Ongoing"
                   hint="Leave empty for a rate with no end date."
                   error={errors.effectiveEndDate?.message}
@@ -243,7 +249,7 @@ export default function GstPage() {
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
               )}
             />
           </div>

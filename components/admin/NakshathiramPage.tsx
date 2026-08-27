@@ -207,8 +207,8 @@ export default function NakshathiramPage() {
       >
         <form id="nakshathiram-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
-            <DivineInput label="Code" error={errors.code?.message} {...register("code")} />
-            <DivineInput
+            <DivineInput staticLabel label="Code" error={errors.code?.message} {...register("code")} />
+            <DivineInput staticLabel
               label="Display Order"
               type="number"
               error={errors.displayOrder?.message}
@@ -217,8 +217,8 @@ export default function NakshathiramPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <DivineInput label="Nakshathiram" error={errors.name?.message} {...register("name")} />
-            <TamilNameField
+            <DivineInput staticLabel label="Nakshathiram" error={errors.name?.message} {...register("name")} />
+            <TamilNameField staticLabel
               label="Tamil"
               englishName={nameValue}
               value={tamilNameValue}
@@ -228,8 +228,8 @@ export default function NakshathiramPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <DivineInput label="Rasi" error={errors.rasi?.message} {...register("rasi")} />
-            <DivineInput label="Tamil Rasi" error={errors.tamilRasi?.message} {...register("tamilRasi")} />
+            <DivineInput staticLabel label="Rasi" error={errors.rasi?.message} {...register("rasi")} />
+            <DivineInput staticLabel label="Tamil Rasi" error={errors.tamilRasi?.message} {...register("tamilRasi")} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -237,14 +237,14 @@ export default function NakshathiramPage() {
               control={control}
               name="mainFlag"
               render={({ field }) => (
-                <DivineToggle label="Main Flag" checked={field.value} onChange={field.onChange} onLabel="Yes" offLabel="No" />
+                <DivineToggle boxed label="Main Flag" checked={field.value} onChange={field.onChange} onLabel="Yes" offLabel="No" />
               )}
             />
             <Controller
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
               )}
             />
           </div>

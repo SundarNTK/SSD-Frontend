@@ -224,8 +224,8 @@ export default function CategoryPage() {
       >
         <form id="category-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
-            <DivineInput label="Category Name" error={errors.name?.message} {...register("name")} />
-            <TamilNameField
+            <DivineInput staticLabel label="Category Name" error={errors.name?.message} {...register("name")} />
+            <TamilNameField staticLabel
               englishName={nameValue}
               value={tamilNameValue}
               onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
@@ -233,8 +233,8 @@ export default function CategoryPage() {
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <DivineInput label="Category Code" error={errors.code?.message} {...register("code")} />
-            <DivineInput
+            <DivineInput staticLabel label="Category Code" error={errors.code?.message} {...register("code")} />
+            <DivineInput staticLabel
               label="Display Order"
               type="number"
               error={errors.displayOrder?.message}
@@ -253,11 +253,11 @@ export default function CategoryPage() {
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
               )}
             />
           </div>
-          <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
+          <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
           <DivineImageUpload
             label="Category Image"
             value={editing?.image}

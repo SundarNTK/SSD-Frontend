@@ -185,6 +185,7 @@ export default function GlGroupPage() {
       ? [{ key: "level2", label: "Level 2", render: (g: GlGroup) => <span className="text-ink-500">{g.level2?.name ?? "—"}</span> }]
       : []),
     { key: "name", label: "Name", render: (g) => <span className="font-medium">{g.name}</span> },
+    { key: "description", label: "Description", render: (g) => <span className="text-ink-500">{g.description || "—"}</span> },
     { key: "status", label: "Status", render: (g) => <StatusPill status={g.status} /> },
   ];
 
@@ -195,20 +196,27 @@ export default function GlGroupPage() {
         <p className="text-[13px] text-ink-500">Manage GL Group hierarchy by Level 1, 2, 3.</p>
       </div>
 
-      <div className="mb-5 flex overflow-hidden rounded-xl border border-gold-500/20">
-        {TABS.map((tab) => (
-          <button
-            key={tab.level}
-            onClick={() => setActiveLevel(tab.level)}
-            className={`flex-1 py-2.5 text-[13.5px] font-semibold transition-colors ${
-              activeLevel === tab.level
-                ? "bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 text-navy-950"
-                : "bg-white text-ink-300 hover:bg-ivory-100"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* A recessed "groove" the active tab visibly pops out of — shadow-inner
+          on the track, an outer drop shadow plus a lifted -translate-y and a
+          glossy inset top highlight on whichever tab is active, so it reads
+          as a raised physical button rather than a flat color swap. */}
+      <div className="mb-5 flex gap-1.5 rounded-2xl bg-ivory-100 p-1.5 shadow-inner">
+        {TABS.map((tab) => {
+          const isActive = activeLevel === tab.level;
+          return (
+            <button
+              key={tab.level}
+              onClick={() => setActiveLevel(tab.level)}
+              className={`flex-1 rounded-xl py-2.5 text-[13.5px] font-semibold transition-all duration-200 ${
+                isActive
+                  ? "-translate-y-0.5 bg-gradient-to-b from-crimson-500 via-flame-500 to-[#FFC145] text-white shadow-[0_6px_14px_-4px_rgba(220,38,38,0.55),inset_0_1px_0_rgba(255,255,255,0.35)]"
+                  : "text-ink-300 hover:bg-white hover:text-ink-100"
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       <DataTable
@@ -266,73 +274,78 @@ export default function GlGroupPage() {
         }
       >
         <form id="gl-group-form" onSubmit={submit} noValidate className="space-y-5">
-          {activeLevel >= 2 &&
-            (editing ? (
-              <div className="w-full">
-                <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Level 1</p>
-                <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-2.5 text-[15px] text-ink-300">
-                  {editing.level1?.name ?? "—"}
+          {activeLevel >= 2 && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {editing ? (
+                <div className="w-full">
+                  <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Level 1</p>
+                  <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-2.5 text-[15px] text-ink-300">
+                    {editing.level1?.name ?? "—"}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <Controller
-                control={control}
-                name="level1"
-                render={({ field }) => (
-                  <DivineListbox
-                    label="Level 1"
-                    value={field.value ?? ""}
-                    onChange={(v) => {
-                      field.onChange(v);
-                      if (activeLevel === 3) setValue("level2", "");
-                    }}
-                    options={level1Options}
-                    placeholder="Select Level 1"
+              ) : (
+                <Controller
+                  control={control}
+                  name="level1"
+                  render={({ field }) => (
+                    <DivineListbox
+                      label="Level 1"
+                      value={field.value ?? ""}
+                      onChange={(v) => {
+                        field.onChange(v);
+                        if (activeLevel === 3) setValue("level2", "");
+                      }}
+                      options={level1Options}
+                      placeholder="Select Level 1"
+                    />
+                  )}
+                />
+              )}
+              {activeLevel === 3 &&
+                (editing ? (
+                  <div className="w-full">
+                    <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Level 2</p>
+                    <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-2.5 text-[15px] text-ink-300">
+                      {editing.level2?.name ?? "—"}
+                    </div>
+                  </div>
+                ) : (
+                  <Controller
+                    control={control}
+                    name="level2"
+                    render={({ field }) => (
+                      <DivineListbox
+                        label="Level 2"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        options={level2Options}
+                        placeholder={selectedLevel1 ? "Select Level 2" : "Select Level 1 first"}
+                      />
+                    )}
                   />
-                )}
-              />
-            ))}
-          {activeLevel === 3 &&
-            (editing ? (
-              <div className="w-full">
-                <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Level 2</p>
-                <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-2.5 text-[15px] text-ink-300">
-                  {editing.level2?.name ?? "—"}
-                </div>
-              </div>
-            ) : (
-              <Controller
-                control={control}
-                name="level2"
-                render={({ field }) => (
-                  <DivineListbox
-                    label="Level 2"
-                    value={field.value ?? ""}
-                    onChange={field.onChange}
-                    options={level2Options}
-                    placeholder={selectedLevel1 ? "Select Level 2" : "Select Level 1 first"}
-                  />
-                )}
-              />
-            ))}
+                ))}
+            </div>
+          )}
           {editing && activeLevel >= 2 && (
             <p className="-mt-3 pl-1 text-[11.5px] text-ink-500">
               The hierarchy can&rsquo;t be changed after creation — delete and recreate this group if it needs a different parent.
             </p>
           )}
-          <DivineInput
-            label={`Level ${editing?.level ?? activeLevel} Name`}
-            error={errors.name?.message}
-            {...register("name")}
-          />
-          <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
-          <Controller
-            control={control}
-            name="status"
-            render={({ field }) => (
-              <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
-            )}
-          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DivineInput staticLabel
+              label={`Level ${editing?.level ?? activeLevel} Name`}
+              error={errors.name?.message}
+              {...register("name")}
+            />
+            <Controller
+              control={control}
+              name="status"
+              render={({ field }) => (
+                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+              )}
+            />
+          </div>
+          <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
         </form>
       </FormDrawer>
     </>
