@@ -33,6 +33,7 @@ export type Service = {
   description: string;
   isDeityMappingRequired: boolean;
   deityMapping: Ref[];
+  printingGroup: Ref | null;
   categoryDetails: { category: Ref | null; subCategory: Ref | null; displayOrder: number }[];
   generalLedger: GlRef | null;
   salePrice: number;
@@ -63,6 +64,7 @@ const schema = z
     description: z.string().trim().max(1000),
     isDeityMappingRequired: z.boolean(),
     deityMapping: z.array(z.string()),
+    printingGroup: z.string().min(1, "Printing group is required"),
     categoryDetails: z.array(categoryDetailSchema),
     generalLedger: z.string().min(1, "GL account is required"),
     salePrice: z.number().min(0, "Must be 0 or more"),
@@ -92,6 +94,7 @@ const DEFAULT_VALUES: FormValues = {
   description: "",
   isDeityMappingRequired: false,
   deityMapping: [],
+  printingGroup: "",
   categoryDetails: [],
   generalLedger: "",
   salePrice: 0,
@@ -121,6 +124,7 @@ export default function ServicePage() {
 
   const [glOptions, setGlOptions] = useState<ListboxOption[]>([]);
   const [deityOptions, setDeityOptions] = useState<ListboxOption[]>([]);
+  const [printingGroupOptions, setPrintingGroupOptions] = useState<ListboxOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<ListboxOption[]>([]);
   const [subCategoryOptions, setSubCategoryOptions] = useState<ListboxOption[]>([]);
 
@@ -135,6 +139,7 @@ export default function ServicePage() {
   useEffect(() => {
     fetchOptions("/masters/general-ledgers").then(setGlOptions);
     fetchOptions("/masters/deities").then(setDeityOptions);
+    fetchOptions("/masters/printing-groups").then(setPrintingGroupOptions);
     fetchOptions("/masters/categories").then(setCategoryOptions);
     fetchOptions("/masters/sub-categories").then(setSubCategoryOptions);
   }, []);
@@ -177,6 +182,7 @@ export default function ServicePage() {
       description: service.description,
       isDeityMappingRequired: service.isDeityMappingRequired,
       deityMapping: service.deityMapping.map((d) => d._id),
+      printingGroup: service.printingGroup?._id ?? "",
       categoryDetails: service.categoryDetails.map((c) => ({
         category: c.category?._id ?? "",
         subCategory: c.subCategory?._id ?? "",
@@ -351,6 +357,21 @@ export default function ServicePage() {
               />
             )}
           </div>
+
+          <Controller
+            control={control}
+            name="printingGroup"
+            render={({ field }) => (
+              <DivineListbox
+                label="Printing Group"
+                value={field.value}
+                onChange={field.onChange}
+                options={printingGroupOptions}
+                placeholder="Select Printing Group"
+                error={errors.printingGroup?.message}
+              />
+            )}
+          />
 
           <div>
             <div className="mb-2 flex items-center justify-between">
