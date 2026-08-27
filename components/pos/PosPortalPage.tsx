@@ -49,6 +49,7 @@ import {
   PhoneIcon,
   MailIcon,
   PlusIcon,
+  MinusIcon,
   LogoutIcon,
   ChevronIcon,
   HistoryIcon,
@@ -788,19 +789,18 @@ export default function PosPortalPage() {
     setModalDevotees((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  const modalEffectiveQty = modalOffering?.isDeityMappingRequired
-    ? modalDeities.length || 0
-    : modalQuantity;
-  const modalTotal = modalOffering
-    ? modalOffering.salePrice *
-      (modalOffering.isDeityMappingRequired
-        ? modalDeities.length || 0
-        : modalQuantity)
-    : 0;
+  // A deity picker only makes sense when the offering actually has deities
+  // curated for it — isDeityMappingRequired with an empty roster used to
+  // dead-end the sale behind a blocking note. Falling back to the plain
+  // quantity flow instead means an admin forgetting to curate deities never
+  // blocks a real transaction at the counter.
+  const modalHasDeityChoices = Boolean(modalOffering?.isDeityMappingRequired) && modalDeityChoices.length > 0;
+  const modalEffectiveQty = modalHasDeityChoices ? modalDeities.length || 0 : modalQuantity;
+  const modalTotal = modalOffering ? modalOffering.salePrice * modalEffectiveQty : 0;
 
   function confirmAddToCart() {
     if (!modalOffering) return;
-    if (modalOffering.isDeityMappingRequired && modalDeities.length === 0) {
+    if (modalHasDeityChoices && modalDeities.length === 0) {
       toast.error("Please select at least one deity.");
       return;
     }
@@ -1368,12 +1368,8 @@ export default function PosPortalPage() {
               )}
             </div>
 
-            <div className="mt-3 space-y-2 border-t-2 border-orange-200/80 pt-3 text-[13px]">
-              <div className="flex justify-between text-ink-500">
-                <span>Sub Total (S$)</span>
-                <span>{formatCurrency(summary?.grandTotal ?? 0)}</span>
-              </div>
-              <div className="flex items-center justify-between border-t border-gold-500/10 pt-2 font-bold text-ink-100">
+            <div className="mt-3 border-t-2 border-orange-200/80 pt-3 text-[13px]">
+              <div className="flex items-center justify-between font-bold text-ink-100">
                 <span className="flex items-center gap-1.5">
                   Total Payable (S$)
                   <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-emerald-700">
@@ -2449,19 +2445,6 @@ function AddToCartModal({
           </div>
 
           <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-            {offering.isDeityMappingRequired && deityOptions.length === 0 && (
-              <div className="rounded-xl border border-crimson-500/30 bg-crimson-500/5 px-4 py-3">
-                <p className="text-[13px] font-medium text-crimson-500">
-                  Deity is not configured
-                </p>
-                <p className="mt-1 text-[12px] text-crimson-500">
-                  This offering requires a deity selection, but no deities have
-                  been configured for it in the master. You can&rsquo;t proceed
-                  with booking until that&rsquo;s set up.
-                </p>
-              </div>
-            )}
-
             {offering.isDeityMappingRequired && deityOptions.length > 0 && (
               <div>
                 <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">
@@ -2518,18 +2501,35 @@ function AddToCartModal({
               </div>
             )}
 
-            {!offering.isDeityMappingRequired && (
-              <div className="w-32">
-                <DivineInput
-                  label="Quantity"
-                  type="number"
-                  min={1}
-                  value={String(quantity)}
-                  onChange={(e) =>
-                    onQuantityChange(Math.max(1, Number(e.target.value) || 1))
-                  }
-                  containerClassName={FIELD_ACCENT}
-                />
+            {!(offering.isDeityMappingRequired && deityOptions.length > 0) && (
+              <div>
+                <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Quantity</p>
+                <div className="inline-flex items-center gap-3 rounded-xl border border-gold-500/30 bg-white px-2 py-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onQuantityChange(Math.max(1, quantity - 1))}
+                    disabled={quantity <= 1}
+                    aria-label="Decrease quantity"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-flame-600 transition-colors hover:bg-flame-500/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                  >
+                    <MinusIcon />
+                  </button>
+                  <input
+                    type="number"
+                    min={1}
+                    value={quantity}
+                    onChange={(e) => onQuantityChange(Math.max(1, Number(e.target.value) || 1))}
+                    className="w-12 bg-transparent text-center font-body text-[16px] font-semibold text-ink-100 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onQuantityChange(quantity + 1)}
+                    aria-label="Increase quantity"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-flame-600 transition-colors hover:bg-flame-500/10"
+                  >
+                    <PlusIcon />
+                  </button>
+                </div>
               </div>
             )}
 
@@ -2635,7 +2635,7 @@ function AddToCartModal({
                 chevron={false}
                 onClick={handleConfirm}
                 disabled={
-                  offering.isDeityMappingRequired && deities.length === 0
+                  offering.isDeityMappingRequired && deityOptions.length > 0 && deities.length === 0
                 }
               >
                 {isEditing ? "Save Changes" : "Add to Cart"}
