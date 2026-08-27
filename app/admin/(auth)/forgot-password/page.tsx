@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
       title="Forgot Your Password?"
       subtitle="Enter your registered email or mobile number and we'll email you a reset link."
       footer={
-        <Link href="/admin/login" className="text-amber-600 underline-offset-2 hover:underline">
+        <Link href="/admin/login" className="text-[#e8590c] underline-offset-2 hover:underline">
           ← Back to sign in
         </Link>
       }
@@ -59,8 +59,8 @@ export default function ForgotPasswordPage() {
             error={errors.identifier?.message}
             {...register("identifier")}
           />
-          <div className="mt-8">
-            <DivineButton type="submit" loading={submitting}>
+          <div className="mt-6">
+            <DivineButton type="submit" variant="flame" loading={submitting}>
               Send Reset Link
             </DivineButton>
           </div>

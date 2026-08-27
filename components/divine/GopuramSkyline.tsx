@@ -20,25 +20,26 @@ export default function GopuramSkyline() {
       <svg viewBox="0 0 1200 220" preserveAspectRatio="none" className="h-full w-full">
         <defs>
           <linearGradient id="skyline-fade" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#fbf6ea" stopOpacity="0" />
-            <stop offset="100%" stopColor="#fbf6ea" stopOpacity="1" />
+            <stop offset="0%" stopColor="#e8590c" stopOpacity="0" />
+            <stop offset="100%" stopColor="#c0341f" stopOpacity="1" />
           </linearGradient>
-          {/* light-catches-the-top, shadow-pools-at-the-base — the same
-              highlight-to-bronze read as the mandala, so the whole scene
-              feels like one material rather than flat cut-outs. */}
+          {/* light-catches-the-top, shadow-pools-at-the-base — now a vivid
+              gold-to-crimson read (was pale gold-to-bronze) to match the
+              saturated sunset backdrop instead of a pale cream page. */}
           <linearGradient id="towerGold" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#fdf3d8" />
-            <stop offset="45%" stopColor="#d9bd76" />
-            <stop offset="100%" stopColor="#a9853f" />
+            <stop offset="0%" stopColor="#ffe9a8" />
+            <stop offset="40%" stopColor="#ff9d42" />
+            <stop offset="75%" stopColor="#e8590c" />
+            <stop offset="100%" stopColor="#8f1c30" />
           </linearGradient>
         </defs>
-        <path d={tower(40, 140, 190, 5)} fill="url(#towerGold)" stroke="#8f6a1f" strokeWidth="0.75" strokeOpacity="0.5" opacity="0.75" />
-        <path d={tower(210, 90, 130, 4)} fill="url(#towerGold)" stroke="#8f6a1f" strokeWidth="0.75" strokeOpacity="0.5" opacity="0.65" />
-        <path d={tower(330, 60, 90, 3)} fill="url(#towerGold)" stroke="#8f6a1f" strokeWidth="0.75" strokeOpacity="0.5" opacity="0.55" />
-        <path d={tower(520, 180, 220, 6)} fill="url(#towerGold)" stroke="#8f6a1f" strokeWidth="0.9" strokeOpacity="0.6" opacity="0.9" />
-        <path d={tower(740, 60, 90, 3)} fill="url(#towerGold)" stroke="#8f6a1f" strokeWidth="0.75" strokeOpacity="0.5" opacity="0.55" />
-        <path d={tower(830, 90, 130, 4)} fill="url(#towerGold)" stroke="#8f6a1f" strokeWidth="0.75" strokeOpacity="0.5" opacity="0.65" />
-        <path d={tower(980, 140, 190, 5)} fill="url(#towerGold)" stroke="#8f6a1f" strokeWidth="0.75" strokeOpacity="0.5" opacity="0.75" />
+        <path d={tower(40, 140, 190, 5)} fill="url(#towerGold)" stroke="#8f1c30" strokeWidth="0.75" strokeOpacity="0.6" opacity="0.92" />
+        <path d={tower(210, 90, 130, 4)} fill="url(#towerGold)" stroke="#8f1c30" strokeWidth="0.75" strokeOpacity="0.6" opacity="0.85" />
+        <path d={tower(330, 60, 90, 3)} fill="url(#towerGold)" stroke="#8f1c30" strokeWidth="0.75" strokeOpacity="0.6" opacity="0.75" />
+        <path d={tower(520, 180, 220, 6)} fill="url(#towerGold)" stroke="#8f1c30" strokeWidth="0.9" strokeOpacity="0.65" opacity="1" />
+        <path d={tower(740, 60, 90, 3)} fill="url(#towerGold)" stroke="#8f1c30" strokeWidth="0.75" strokeOpacity="0.6" opacity="0.75" />
+        <path d={tower(830, 90, 130, 4)} fill="url(#towerGold)" stroke="#8f1c30" strokeWidth="0.75" strokeOpacity="0.6" opacity="0.85" />
+        <path d={tower(980, 140, 190, 5)} fill="url(#towerGold)" stroke="#8f1c30" strokeWidth="0.75" strokeOpacity="0.6" opacity="0.92" />
         <rect x="0" y="0" width="1200" height="220" fill="url(#skyline-fade)" />
       </svg>
     </div>
