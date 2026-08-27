@@ -166,6 +166,14 @@ export function PlusIcon() {
   );
 }
 
+export function MinusIcon() {
+  return (
+    <svg className="h-[16px] w-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M5 12h14" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function HistoryIcon() {
   return (
     <svg className="h-[17px] w-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
