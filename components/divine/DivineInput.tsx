@@ -15,22 +15,32 @@ type DivineInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "placeholder
    *  wants this field to carry a themed border/shadow at rest, not just on
    *  focus. Empty by default, so every existing call site is unaffected. */
   containerClassName?: string;
+  /** Taller box, a touch more breathing room around the label, and a
+   *  slightly larger floated font (12.5px vs 11px) — still the same
+   *  animated placeholder-shown mechanism as the default field (large and
+   *  centered when empty, floats up on value/focus), just tuned for a
+   *  master form's roomier layout. Off by default so every existing call
+   *  site (login, POS, every other field not yet moved to this) keeps its
+   *  current sizing. */
+  staticLabel?: boolean;
 };
 
 /**
  * Floating-label input, gold focus ring, room for a leading icon and an
  * optional built-in password reveal toggle.
  *
- * The label float is pure CSS (see `.divine-label` in index.css) rather than
- * React state, so it stays correct for autofilled and browser-restored
- * values that never reach a change handler. That's why the label element
- * sits *after* the input in the DOM — the rule keys off the sibling
- * combinator — and why `placeholder` is fixed to a single space rather than
- * accepted as a prop: `:placeholder-shown` needs a placeholder to match on,
- * and a visible one would collide with the label anyway.
+ * The label float is pure CSS (see `.divine-label` / `.divine-label-lg` in
+ * globals.css) rather than React state, so it stays correct for autofilled
+ * and browser-restored values that never reach a change handler. That's why
+ * the label element sits *after* the input in the DOM — the rule keys off
+ * the sibling combinator — and why the native placeholder is fixed to a
+ * single space rather than accepted as a prop: `:placeholder-shown` needs a
+ * placeholder to match on, and a visible one would collide with the label
+ * anyway, whether that's the compact `staticLabel={false}` sizing or the
+ * roomier `staticLabel={true}` one.
  */
 const DivineInput = forwardRef<HTMLInputElement, DivineInputProps>(
-  ({ label, error, icon, hint, id, className = "", type = "text", revealable, containerClassName = "", ...rest }, ref) => {
+  ({ label, error, icon, hint, id, className = "", type = "text", revealable, containerClassName = "", staticLabel = false, ...rest }, ref) => {
     const [focused, setFocused] = useState(false);
     const [revealed, setRevealed] = useState(false);
     const autoId = useId();
@@ -39,18 +49,34 @@ const DivineInput = forwardRef<HTMLInputElement, DivineInputProps>(
     const canReveal = revealable && type === "password";
     const resolvedType = canReveal && revealed ? "text" : type;
 
+    // staticLabel doubles as "this is an admin master-form field" — those
+    // get the same built-in gradient border DivineListbox always shows, via
+    // the same two-layer trick. Login/POS fields (staticLabel off) keep the
+    // original plain gray/gold-focus border untouched.
+    const outerWrapClass = staticLabel
+      ? `rounded-xl p-[1.5px] transition-[box-shadow] duration-300 ${
+          error
+            ? "bg-crimson-500"
+            : focused
+              ? "bg-gradient-to-r from-crimson-500 to-flame-500 shadow-[0_0_0_3px_rgba(212,175,55,0.2)]"
+              : "bg-gradient-to-r from-crimson-500 to-flame-500"
+        }`
+      : "";
+    const fieldBoxClass = staticLabel
+      ? "group relative rounded-[10px] bg-white"
+      : `group relative rounded-xl border bg-white transition-colors duration-300 ${
+          error
+            ? "border-crimson-500/70"
+            : focused
+              ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
+              : "border-gray-200 hover:border-gray-300"
+        }`;
+
     return (
       <div className="w-full">
-        <div
-          className={`group relative rounded-xl border bg-white transition-colors duration-300 ${
-            error
-              ? "border-crimson-500/70"
-              : focused
-                ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
-                : "border-gold-500/20 hover:border-gold-400/40"
-          } ${containerClassName}`}
-        >
-          <div className="flex items-center gap-2 px-4 py-3.5">
+        <div className={outerWrapClass}>
+        <div className={`${fieldBoxClass} ${containerClassName}`}>
+          <div className={`flex items-center gap-2 px-4 ${staticLabel ? "pt-6 pb-2.5" : "py-3.5"}`}>
             {icon && (
               <span className={`shrink-0 transition-colors ${focused ? "text-amber-600" : "text-ink-500"}`}>
                 {icon}
@@ -79,7 +105,7 @@ const DivineInput = forwardRef<HTMLInputElement, DivineInputProps>(
                 }}
                 className={`divine-input w-full bg-transparent font-body text-[15px] text-ink-100 outline-none placeholder:text-transparent ${className}`}
               />
-              <label htmlFor={inputId} className="divine-label font-body">
+              <label htmlFor={inputId} className={`${staticLabel ? "divine-label-lg" : "divine-label"} font-body`}>
                 {label}
               </label>
             </div>
@@ -95,6 +121,7 @@ const DivineInput = forwardRef<HTMLInputElement, DivineInputProps>(
               </button>
             )}
           </div>
+        </div>
         </div>
 
         <AnimatePresence mode="wait">

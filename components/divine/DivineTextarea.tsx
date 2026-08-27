@@ -7,6 +7,10 @@ type DivineTextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "pl
   label: string;
   error?: string;
   hint?: string;
+  /** Same convention as DivineInput's `staticLabel` — a taller box and a
+   *  slightly larger floated label font, tuned for a master form's roomier
+   *  layout. Off by default so existing call sites are unaffected. */
+  staticLabel?: boolean;
 };
 
 function resize(el: HTMLTextAreaElement | null) {
@@ -29,7 +33,7 @@ function resize(el: HTMLTextAreaElement | null) {
  * which never fires the input event our onInput handler listens for.
  */
 const DivineTextarea = forwardRef<HTMLTextAreaElement, DivineTextareaProps>(
-  ({ label, error, hint, id, className = "", rows = 4, ...rest }, forwardedRef) => {
+  ({ label, error, hint, id, className = "", rows = 4, staticLabel = false, ...rest }, forwardedRef) => {
     const [focused, setFocused] = useState(false);
     const autoId = useId();
     const inputId = id ?? autoId;
@@ -39,18 +43,33 @@ const DivineTextarea = forwardRef<HTMLTextAreaElement, DivineTextareaProps>(
       resize(localRef.current);
     });
 
+    // Same gradient-border scoping as DivineInput: staticLabel marks an
+    // admin master-form field, which gets the two-layer gradient border;
+    // everything else keeps the original plain gray/gold-focus border.
+    const outerWrapClass = staticLabel
+      ? `rounded-xl p-[1.5px] transition-[box-shadow] duration-300 ${
+          error
+            ? "bg-crimson-500"
+            : focused
+              ? "bg-gradient-to-r from-crimson-500 to-flame-500 shadow-[0_0_0_3px_rgba(212,175,55,0.2)]"
+              : "bg-gradient-to-r from-crimson-500 to-flame-500"
+        }`
+      : "";
+    const fieldBoxClass = staticLabel
+      ? "group relative rounded-[10px] bg-white"
+      : `group relative rounded-xl border bg-white transition-colors duration-300 ${
+          error
+            ? "border-crimson-500/70"
+            : focused
+              ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
+              : "border-gray-200 hover:border-gray-300"
+        }`;
+
     return (
       <div className="w-full">
-        <div
-          className={`group relative rounded-xl border bg-white transition-colors duration-300 ${
-            error
-              ? "border-crimson-500/70"
-              : focused
-                ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
-                : "border-gold-500/20 hover:border-gold-400/40"
-          }`}
-        >
-          <div className="flex gap-2 px-4 pt-5 pb-2">
+        <div className={outerWrapClass}>
+        <div className={fieldBoxClass}>
+          <div className={`flex gap-2 px-4 ${staticLabel ? "pt-6 pb-2.5" : "pt-5 pb-2"}`}>
             <div className="relative w-full">
               <textarea
                 {...rest}
@@ -76,11 +95,12 @@ const DivineTextarea = forwardRef<HTMLTextAreaElement, DivineTextareaProps>(
                 }}
                 className={`divine-input w-full min-h-[104px] resize-none overflow-hidden bg-transparent font-body text-[15px] text-ink-100 outline-none placeholder:text-transparent ${className}`}
               />
-              <label htmlFor={inputId} className="divine-label font-body">
+              <label htmlFor={inputId} className={`${staticLabel ? "divine-label-lg" : "divine-label"} font-body`}>
                 {label}
               </label>
             </div>
           </div>
+        </div>
         </div>
 
         <AnimatePresence mode="wait">

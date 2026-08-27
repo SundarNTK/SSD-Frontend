@@ -21,6 +21,10 @@ type FormDrawerProps = {
   /** Defaults to max-w-2xl — a master with an especially large form (Item,
    *  Service) passes a wider class still. */
   maxWidthClassName?: string;
+  /** Circular badge in the header identifying what this form is for (a
+   *  shopping bag for Item, etc.) — optional so existing call sites that
+   *  haven't picked an icon yet keep the plain title/subtitle layout. */
+  icon?: ReactNode;
 };
 
 /**
@@ -41,6 +45,7 @@ export default function FormDrawer({
   children,
   footer,
   maxWidthClassName = "max-w-2xl",
+  icon,
 }: FormDrawerProps) {
   return (
     <AnimatePresence>
@@ -64,27 +69,35 @@ export default function FormDrawer({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.97 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
-              className={`pointer-events-auto flex max-h-[85vh] w-full ${maxWidthClassName} flex-col overflow-hidden rounded-2xl border border-gold-500/20 bg-navy-900 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]`}
+              className={`pointer-events-auto flex max-h-[85vh] w-full ${maxWidthClassName} flex-col overflow-hidden rounded-2xl border border-gold-500/25 bg-navy-900 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]`}
             >
-              <div className="flex items-start justify-between border-b border-gold-500/10 px-4 py-4 sm:px-6 sm:py-5">
-                <div>
-                  <h2 className="text-[19px] font-bold text-ink-100">{title}</h2>
-                  {subtitle && <p className="mt-0.5 text-[12.5px] text-ink-500">{subtitle}</p>}
+              <div className="relative flex shrink-0 items-start justify-between overflow-hidden bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFA733] px-4 py-4 sm:px-6 sm:py-5">
+                <div className="relative flex items-center gap-3">
+                  {icon && (
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/25 text-white">{icon}</span>
+                  )}
+                  <div>
+                    <h2 className="text-[19px] font-bold text-white">{title}</h2>
+                    {subtitle && <p className="mt-0.5 text-[12.5px] text-white/85">{subtitle}</p>}
+                  </div>
                 </div>
                 <button
                   onClick={onClose}
                   aria-label="Close"
-                  className="rounded-lg p-1.5 text-ink-500 transition-colors hover:bg-ivory-100 hover:text-ink-100"
+                  className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-crimson-600 text-white shadow-[0_2px_8px_-2px_rgba(0,0,0,0.45)] transition-colors hover:bg-crimson-500"
                 >
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                     <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
                   </svg>
                 </button>
               </div>
 
-              <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">{children}</div>
+              {/* A tinted well behind the fields, not plain white — every
+                  DivineInput/DivineListbox is itself white-on-gold-border, so
+                  without this the whole form read as white-on-white. */}
+              <div className="flex-1 space-y-4 overflow-y-auto bg-ivory-100 px-4 py-4 sm:px-6 sm:py-5">{children}</div>
 
-              <div className="border-t border-gold-500/10 px-4 py-3 sm:px-6 sm:py-4">{footer}</div>
+              <div className="border-t border-gold-500/15 bg-navy-900 px-4 py-3 sm:px-6 sm:py-4">{footer}</div>
             </motion.div>
           </div>
         </>

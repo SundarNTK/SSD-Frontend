@@ -82,33 +82,41 @@ export default function DataTable<T>({
 }: DataTableProps<T>) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  const addButton = onCreate && (
+    <button
+      onClick={onCreate}
+      className="ml-auto flex items-center gap-2 rounded-xl border border-crimson-600/40 bg-gradient-to-r from-crimson-600 to-flame-500 px-4 py-2.5 font-accent text-[13.5px] font-semibold text-white shadow-[0_2px_6px_-1px_rgba(0,0,0,0.15)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-6px_rgba(220,38,38,0.5)] active:translate-y-0 active:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.15)]"
+    >
+      <PlusIcon />
+      {createLabel}
+    </button>
+  );
+
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        {title && (
+      {title && (
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="font-display text-[28px] font-bold text-ink-100">{title}</h1>
             {subtitle && <p className="mt-1 text-[13px] text-ink-500">{subtitle}</p>}
           </div>
-        )}
-        {onCreate && (
-          <button
-            onClick={onCreate}
-            className="ml-auto flex items-center gap-2 rounded-xl border border-gold-600/25 bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 px-4 py-2.5 font-accent text-[13.5px] font-semibold text-navy-950 shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-6px_rgba(184,137,42,0.55)] active:translate-y-0 active:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]"
-          >
-            <PlusIcon />
-            {createLabel}
-          </button>
-        )}
-      </div>
+          {addButton}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <input
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={searchPlaceholder}
-          className="w-full max-w-xs rounded-xl border border-gold-500/20 bg-white px-4 py-2.5 text-[13.5px] text-ink-100 outline-none placeholder:text-ink-500 focus:border-gold-400/60"
-        />
+        {/* The gradient border is a two-layer trick (gradient-filled outer
+            box, white inner box inset by the border width) — Tailwind has
+            no real gradient-border utility, and border-image doesn't
+            respect border-radius reliably across browsers. */}
+        <div className="w-full max-w-xs rounded-xl bg-gradient-to-r from-crimson-500 to-flame-500 p-[1.5px] shadow-[0_6px_18px_-10px_rgba(220,38,38,0.45)]">
+          <input
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder={searchPlaceholder}
+            className="w-full rounded-[10px] bg-white px-4 py-2.5 text-[13.5px] text-ink-100 outline-none placeholder:text-ink-500"
+          />
+        </div>
         {onStatusFilterChange && (
           <DivineListbox
             value={statusFilter ?? ""}
@@ -118,47 +126,71 @@ export default function DataTable<T>({
           />
         )}
         {extraFilters}
+        {/* When there's no page title (only GL Group's tabbed layout omits
+            it — its own <h1> sits above the tabs instead), the button has
+            nowhere else to live, so it joins the filter row instead of
+            sitting alone above it. */}
+        {!title && addButton}
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-gold-500/15 bg-navy-900">
-        <table className="w-full min-w-[640px] text-left text-[13.5px]">
-          <thead>
-            <tr className="border-b border-gold-500/15 bg-navy-600 text-[11px] uppercase tracking-wide text-ink-100">
-              {columns.map((col) => (
-                <th key={col.key} className={`px-5 py-3 font-semibold ${col.className ?? ""}`}>
-                  {col.label}
-                </th>
-              ))}
-              {rowActions && <th className="px-5 py-3 text-right font-semibold">Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={columns.length + (rowActions ? 1 : 0)} className="px-5 py-10 text-center text-ink-500">
-                  Loading…
-                </td>
-              </tr>
-            ) : rows.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length + (rowActions ? 1 : 0)} className="px-5 py-10 text-center text-ink-500">
-                  {emptyMessage}
-                </td>
-              </tr>
-            ) : (
-              rows.map((row) => (
-                <tr key={rowKey(row)} className="border-b border-gold-500/5 text-ink-100 last:border-0 hover:bg-ivory-100">
+      {/* Same gradient-border trick as the filters above, wrapping the
+          whole table so the rounded corners actually clip the header's
+          gradient row instead of the container's own white background
+          showing through the curve (which is what a plain `overflow-x-auto`
+          on the rounded box did — it only clips horizontal scroll overflow,
+          not content peeking past the border-radius). */}
+      <div className="rounded-2xl bg-gradient-to-r from-crimson-500 to-flame-500 p-[1.5px] shadow-[0_10px_30px_-14px_rgba(220,38,38,0.4)]">
+        <div className="overflow-hidden rounded-[15px] bg-navy-900">
+          <div className="overflow-x-auto">
+            {/* border-collapse is load-bearing, not cosmetic — without it
+                the header row's gradient background paints independently
+                inside each <th>'s own box (the default border-collapse:
+                separate gives every cell its own background layer), so it
+                renders as a fragmented, refading-per-column mess instead of
+                one continuous band across the row. */}
+            <table className="w-full min-w-[640px] border-collapse text-left text-[13.5px]">
+              <thead>
+                <tr className="bg-gradient-to-r from-[#6b1524] via-crimson-600 to-flame-500 text-[11px] uppercase tracking-wide text-white">
                   {columns.map((col) => (
-                    <td key={col.key} className={`px-5 py-3.5 ${col.className ?? ""}`}>
-                      {col.render(row)}
-                    </td>
+                    <th key={col.key} className={`px-5 py-3 font-semibold ${col.className ?? ""}`}>
+                      {col.label}
+                    </th>
                   ))}
-                  {rowActions && <td className="px-5 py-3.5 text-right">{rowActions(row)}</td>}
+                  {rowActions && <th className="px-5 py-3 text-right font-semibold">Actions</th>}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={columns.length + (rowActions ? 1 : 0)} className="px-5 py-10 text-center text-ink-500">
+                      Loading…
+                    </td>
+                  </tr>
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={columns.length + (rowActions ? 1 : 0)} className="px-5 py-10 text-center text-ink-500">
+                      {emptyMessage}
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((row) => (
+                    <tr
+                      key={rowKey(row)}
+                      className="border-b border-gold-500/5 text-ink-100 transition-colors last:border-0 hover:bg-[linear-gradient(to_right,rgba(143,28,48,0.14),rgba(255,157,66,0.14),rgba(255,193,69,0.14))]"
+                    >
+                      {columns.map((col) => (
+                        <td key={col.key} className={`px-5 py-3.5 ${col.className ?? ""}`}>
+                          {col.render(row)}
+                        </td>
+                      ))}
+                      {rowActions && <td className="px-5 py-3.5 text-right">{rowActions(row)}</td>}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {(total > 0 || onPageSizeChange) && (
@@ -172,34 +204,30 @@ export default function DataTable<T>({
                 <button
                   onClick={() => onPageChange(Math.max(1, page - 1))}
                   disabled={page <= 1}
-                  className="rounded-lg border border-gold-500/20 px-3 py-1.5 disabled:opacity-40"
+                  className="rounded-lg bg-gradient-to-r from-crimson-600 to-flame-500 px-3.5 py-1.5 font-medium text-white shadow-[0_2px_8px_-3px_rgba(220,38,38,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_16px_-4px_rgba(220,38,38,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-[0_2px_8px_-3px_rgba(220,38,38,0.5)]"
                 >
                   Prev
                 </button>
                 <button
                   onClick={() => onPageChange(Math.min(totalPages, page + 1))}
                   disabled={page >= totalPages}
-                  className="rounded-lg border border-gold-500/20 px-3 py-1.5 disabled:opacity-40"
+                  className="rounded-lg bg-gradient-to-r from-crimson-600 to-flame-500 px-3.5 py-1.5 font-medium text-white shadow-[0_2px_8px_-3px_rgba(220,38,38,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_16px_-4px_rgba(220,38,38,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-[0_2px_8px_-3px_rgba(220,38,38,0.5)]"
                 >
                   Next
                 </button>
               </div>
             )}
             {onPageSizeChange && (
-              <label className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5">
                 <span>Rows</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                  className="rounded-lg border border-gold-500/20 bg-white px-2 py-1.5 text-[12.5px] text-ink-100 outline-none focus:border-gold-400/60"
-                >
-                  {pageSizeOptions.map((n) => (
-                    <option key={n} value={n}>
-                      {n} / page
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <DivineListbox
+                  value={String(pageSize)}
+                  onChange={(v) => onPageSizeChange(Number(v))}
+                  options={pageSizeOptions.map((n) => ({ value: String(n), label: `${n} / page` }))}
+                  className="w-36"
+                  clearable={false}
+                />
+              </div>
             )}
           </div>
         </div>
@@ -242,11 +270,11 @@ export function DeleteIconButton({ onClick, label = "Delete" }: { onClick: () =>
 
 export function StatusPill({ status }: { status: number }) {
   return status === 1 ? (
-    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] tracking-wide text-emerald-400">
+    <span className="rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(16,185,129,0.5)]">
       Active
     </span>
   ) : (
-    <span className="rounded-full border border-ink-500/30 bg-ink-500/10 px-2.5 py-1 text-[11px] tracking-wide text-ink-500">
+    <span className="rounded-full bg-gradient-to-b from-slate-400 to-slate-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(100,116,139,0.4)]">
       Inactive
     </span>
   );

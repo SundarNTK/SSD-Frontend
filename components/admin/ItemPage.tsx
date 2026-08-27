@@ -15,7 +15,19 @@ import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
-import { PlusIcon } from "../divine/icons";
+import {
+  PlusIcon,
+  CloseIcon,
+  ShoppingBagIcon,
+  FolderIcon,
+  BoxIcon,
+  PencilIcon,
+  GaugeIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
+  RefreshIcon,
+  SaveIcon,
+} from "../divine/icons";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
@@ -315,6 +327,7 @@ export default function ItemPage() {
         onClose={() => setDrawerOpen(false)}
         title={editing ? "Edit Item" : "Add Item"}
         subtitle={editing ? `${editing.name} · ${editing.code}` : "Define a new sellable item."}
+        icon={<ShoppingBagIcon />}
         error={create.error || update.error}
         maxWidthClassName="max-w-5xl"
         footer={
@@ -323,24 +336,25 @@ export default function ItemPage() {
               Cancel
             </DivineButton>
             <DivineButton fullWidth={false} type="submit" form="item-form" loading={create.submitting || update.submitting}>
-              {editing ? "Save changes" : "Save"}
+              <SaveIcon /> {editing ? "Save changes" : "Save"}
             </DivineButton>
           </div>
         }
       >
         <form id="item-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <DivineInput label="Item Code" error={errors.code?.message} {...register("code")} />
-            <DivineInput label="Item Name" error={errors.name?.message} {...register("name")} />
+            <DivineInput staticLabel label="Item Code" error={errors.code?.message} {...register("code")} />
+            <DivineInput staticLabel label="Item Name" error={errors.name?.message} {...register("name")} />
             <TamilNameField
               englishName={nameValue}
               value={tamilNameValue}
               onChange={(v) => setValue("tamilName", v, { shouldDirty: true })}
               error={errors.tamilName?.message}
+              staticLabel
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Controller
               control={control}
               name="generalLedger"
@@ -356,22 +370,37 @@ export default function ItemPage() {
               )}
             />
             <DivineInput
+              staticLabel
               label="Sale Price"
               type="number"
               step="0.01"
               error={errors.salePrice?.message}
               {...register("salePrice", { valueAsNumber: true })}
             />
+            <Controller
+              control={control}
+              name="printingGroup"
+              render={({ field }) => (
+                <DivineListbox
+                  label="Printing Group"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={printingGroupOptions}
+                  placeholder="Select Printing Group"
+                  error={errors.printingGroup?.message}
+                />
+              )}
+            />
           </div>
           <p className="-mt-3 pl-1 text-[11.5px] text-ink-500">GST is derived from the selected GL account.</p>
 
-          <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
+          <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Controller
               control={control}
               name="isDeityMappingRequired"
-              render={({ field }) => <DivineRadioGroup label="Deity Mapping Required" value={field.value} onChange={field.onChange} />}
+              render={({ field }) => <DivineRadioGroup boxed label="Deity Mapping Required" value={field.value} onChange={field.onChange} />}
             />
             {isDeityMappingRequired && (
               <Controller
@@ -391,34 +420,25 @@ export default function ItemPage() {
             )}
           </div>
 
-          <Controller
-            control={control}
-            name="printingGroup"
-            render={({ field }) => (
-              <DivineListbox
-                label="Printing Group"
-                value={field.value}
-                onChange={field.onChange}
-                options={printingGroupOptions}
-                placeholder="Select Printing Group"
-                error={errors.printingGroup?.message}
-              />
-            )}
-          />
-
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-[11px] uppercase tracking-wide text-amber-600">Category Details</p>
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <div className="flex items-center justify-between border-b border-orange-100 bg-orange-50 px-4 py-3">
+              <p className="flex items-center gap-2 text-[13px] font-bold text-ink-100">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-100 text-orange-600">
+                  <FolderIcon className="h-4 w-4" />
+                </span>
+                CATEGORY DETAILS
+              </p>
               <button
                 type="button"
                 onClick={() => append({ category: "", subCategory: "", displayOrder: fields.length + 1 })}
-                className="flex items-center gap-1.5 rounded-lg border border-gold-500/30 px-2.5 py-1.5 text-[12px] text-amber-600 hover:border-gold-400/60 hover:bg-gold-500/5"
+                className="flex items-center gap-1.5 rounded-lg border border-orange-300 bg-white px-2.5 py-1.5 text-[12px] font-medium text-orange-600 transition-colors hover:bg-orange-50"
               >
                 <PlusIcon /> Add Row
               </button>
             </div>
+
             {fields.length > 0 && (
-              <div className="mb-1 hidden grid-cols-[1fr_1fr_70px_28px] gap-2 px-1 text-[11px] uppercase tracking-wide text-ink-500 sm:grid">
+              <div className="hidden grid-cols-[1fr_1fr_90px_44px] gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2 text-[11px] uppercase tracking-wide text-gray-500 sm:grid">
                 <span>Category</span>
                 <span>Sub Category</span>
                 <span>Order</span>
@@ -426,17 +446,10 @@ export default function ItemPage() {
               </div>
             )}
 
-            <div className="space-y-2">
-              {fields.length === 0 && (
-                <p className="rounded-xl border border-gold-500/15 bg-ivory-100 px-3 py-2.5 text-[12.5px] text-ink-500">
-                  No category pairings yet.
-                </p>
-              )}
+            <div className="divide-y divide-gray-100">
+              {fields.length === 0 && <p className="px-4 py-3 text-[12.5px] text-ink-500">No category pairings yet.</p>}
               {fields.map((row, index) => (
-                <div
-                  key={row.id}
-                  className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_1fr_70px_28px]"
-                >
+                <div key={row.id} className="grid grid-cols-1 items-start gap-3 px-4 py-3 sm:grid-cols-[1fr_1fr_90px_44px]">
                   <Controller
                     control={control}
                     name={`categoryDetails.${index}.category`}
@@ -446,6 +459,11 @@ export default function ItemPage() {
                         onChange={field.onChange}
                         options={categoryOptions}
                         placeholder="Category"
+                        icon={
+                          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-red-50 text-red-500">
+                            <FolderIcon className="h-4 w-4" />
+                          </span>
+                        }
                         error={errors.categoryDetails?.[index]?.category?.message}
                       />
                     )}
@@ -468,17 +486,17 @@ export default function ItemPage() {
                     <input
                       type="number"
                       {...register(`categoryDetails.${index}.displayOrder`, { valueAsNumber: true })}
-                      className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => removeRow(index)}
                     aria-label="Remove row"
-                    className="text-crimson-500 hover:text-crimson-600 sm:mt-1"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-crimson-500/10 text-crimson-500 transition-colors hover:bg-crimson-500/20 sm:justify-self-start"
                   >
-                    <span className="sm:hidden">Remove row</span>
-                    <span className="hidden sm:inline">×</span>
+                    <CloseIcon className="h-4 w-4" />
+                    <span className="sr-only">Remove row</span>
                   </button>
                 </div>
               ))}
@@ -489,7 +507,19 @@ export default function ItemPage() {
             <Controller
               control={control}
               name="isInventoryApplicable"
-              render={({ field }) => <DivineRadioGroup label="Inventory Applicable" value={field.value} onChange={field.onChange} />}
+              render={({ field }) => (
+                <DivineRadioGroup
+                  boxed
+                  label="Inventory Applicable"
+                  value={field.value}
+                  onChange={field.onChange}
+                  icon={
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 text-orange-500">
+                      <BoxIcon />
+                    </span>
+                  }
+                />
+              )}
             />
             {isInventoryApplicable && (
               <>
@@ -497,14 +527,30 @@ export default function ItemPage() {
                   control={control}
                   name="unitOfMeasure"
                   render={({ field }) => (
-                    <DivineListbox label="Unit of Measure" value={field.value} onChange={field.onChange} options={UNIT_OPTIONS} placeholder="Select…" />
+                    <DivineListbox
+                      label="Unit of Measure"
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={UNIT_OPTIONS}
+                      placeholder="Select…"
+                      icon={
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-500">
+                          <PencilIcon className="h-4 w-4" />
+                        </span>
+                      }
+                    />
                   )}
                 />
                 <DivineInput
+                  staticLabel
                   label="Threshold"
                   type="number"
-                  hint="0 - unlimited"
                   error={errors.threshold?.message}
+                  icon={
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-500">
+                      <GaugeIcon />
+                    </span>
+                  }
                   {...register("threshold", { valueAsNumber: true })}
                 />
               </>
@@ -514,41 +560,58 @@ export default function ItemPage() {
           {isInventoryApplicable && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <DivineInput
+                staticLabel
                 label="Min Quantity"
                 type="number"
                 error={errors.minQuantity?.message}
+                icon={
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-500">
+                    <ArrowDownIcon />
+                  </span>
+                }
                 {...register("minQuantity", { valueAsNumber: true })}
               />
               <DivineInput
+                staticLabel
                 label="Max Quantity"
                 type="number"
-                hint="0 - unlimited"
                 error={errors.maxQuantity?.message}
+                icon={
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-500">
+                    <ArrowUpIcon />
+                  </span>
+                }
                 {...register("maxQuantity", { valueAsNumber: true })}
               />
               <DivineInput
+                staticLabel
                 label="Quantity Reduction"
                 type="number"
                 error={errors.quantityReduction?.message}
+                icon={
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-50 text-pink-500">
+                    <RefreshIcon />
+                  </span>
+                }
                 {...register("quantityReduction", { valueAsNumber: true })}
               />
             </div>
           )}
 
-          <Controller
-            control={control}
-            name="futureBookingCutOffDate"
-            render={({ field }) => (
-              <DivineDatePicker label="Future Booking Cut-off Date" value={field.value} onChange={field.onChange} placeholder="No cut-off" />
-            )}
-          />
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Controller
+              control={control}
+              name="futureBookingCutOffDate"
+              render={({ field }) => (
+                <DivineDatePicker staticLabel label="Future Booking Cut-off Date" value={field.value} onChange={field.onChange} placeholder="No cut-off" />
+              )}
+            />
             <Controller
               control={control}
               name="isFamilyMembersRequired"
               render={({ field }) => (
                 <DivineRadioGroup
+                  boxed
                   label="Family Members Required"
                   value={field.value}
                   onChange={(v) => {
@@ -562,6 +625,7 @@ export default function ItemPage() {
             />
             {isFamilyMembersRequired && (
               <DivineInput
+                staticLabel
                 label="Max Members"
                 type="number"
                 error={errors.maxFamilyMembers?.message}
@@ -570,25 +634,22 @@ export default function ItemPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Controller
               control={control}
               name="posAvailability"
-              render={({ field }) => <DivineRadioGroup label="POS Availability" value={field.value} onChange={field.onChange} />}
+              render={({ field }) => <DivineRadioGroup boxed label="POS Availability" value={field.value} onChange={field.onChange} />}
             />
             <Controller
               control={control}
               name="customerPortalAvailability"
-              render={({ field }) => <DivineRadioGroup label="Customer Portal Availability" value={field.value} onChange={field.onChange} />}
+              render={({ field }) => <DivineRadioGroup boxed label="Customer Portal Availability" value={field.value} onChange={field.onChange} />}
             />
-          </div>
-
-          <div className="pt-2">
             <Controller
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
               )}
             />
           </div>

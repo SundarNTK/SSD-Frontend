@@ -26,11 +26,11 @@ export type PaymentMode = {
 
 function AvailabilityPill({ available }: { available: boolean }) {
   return available ? (
-    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] tracking-wide text-emerald-400">
+    <span className="rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(16,185,129,0.5)]">
       Yes
     </span>
   ) : (
-    <span className="rounded-full border border-ink-500/30 bg-ink-500/10 px-2.5 py-1 text-[11px] tracking-wide text-ink-500">
+    <span className="rounded-full bg-gradient-to-b from-slate-400 to-slate-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(100,116,139,0.4)]">
       No
     </span>
   );
@@ -199,7 +199,7 @@ export default function PaymentModePage() {
             <p className="text-[11px] uppercase tracking-wide text-amber-600">Payment Mode</p>
             <p className="mt-1 text-[15px] text-ink-100">{editing?.name}</p>
           </div>
-          <DivineTextarea label="Description" error={errors.description?.message} {...register("description")} />
+          <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
           <div className="grid grid-cols-2 gap-4">
             <Controller
               control={control}

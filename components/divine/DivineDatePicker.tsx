@@ -21,11 +21,18 @@ type DivineDatePickerProps = {
   hint?: string;
   /** Blocks selection before this date — pass startOfToday() for "future only". */
   minDate?: Date | null;
+  /** Blocks selection after this date — e.g. an "end date" field passing the paired "start date" field's value blocks a range that runs backwards. */
+  maxDate?: Date | null;
   placeholder?: string;
   /** Extra classes appended to the trigger button — e.g. a page that wants
    *  this field to carry a themed border/shadow at rest, not just on focus.
    *  Empty by default, so every existing call site is unaffected. */
   containerClassName?: string;
+  /** Same convention as DivineInput's `staticLabel` — marks an admin
+   *  master-form field, which gets the same built-in gradient border
+   *  DivineListbox always shows. Off by default so POS keeps its plain
+   *  gray/gold-focus border. */
+  staticLabel?: boolean;
 };
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -69,8 +76,10 @@ export default function DivineDatePicker({
   error,
   hint,
   minDate,
+  maxDate,
   placeholder = "Select a date",
   containerClassName = "",
+  staticLabel = false,
 }: DivineDatePickerProps) {
   const selected = parseISODateString(value);
   const today = startOfToday();
@@ -133,11 +142,34 @@ export default function DivineDatePicker({
     setOpen(false);
   }
 
-  const isDisabled = (date: Date) => Boolean(minDate && date < minDate);
+  const isDisabled = (date: Date) => Boolean((minDate && date < minDate) || (maxDate && date > maxDate));
   const cells = buildMonthGrid(view.getFullYear(), view.getMonth());
+
+  // Same gradient-border scoping as DivineInput/DivineTextarea: staticLabel
+  // marks an admin master-form field, which gets the two-layer gradient
+  // border; POS (staticLabel off) keeps the original plain border.
+  const outerWrapClass = staticLabel
+    ? `rounded-xl p-[1.5px] transition-[box-shadow] duration-300 ${
+        error
+          ? "bg-crimson-500"
+          : open
+            ? "bg-gradient-to-r from-crimson-500 to-flame-500 shadow-[0_0_0_3px_rgba(212,175,55,0.2)]"
+            : "bg-gradient-to-r from-crimson-500 to-flame-500"
+      }`
+    : "";
+  const triggerClass = staticLabel
+    ? "group relative w-full rounded-[10px] bg-white text-left"
+    : `group relative w-full rounded-xl border bg-white text-left transition-colors duration-300 ${
+        error
+          ? "border-crimson-500/70"
+          : open
+            ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
+            : "border-gray-200 hover:border-gray-300"
+      }`;
 
   return (
     <div className="w-full">
+      <div className={outerWrapClass}>
       <button
         ref={triggerRef}
         type="button"
@@ -145,13 +177,7 @@ export default function DivineDatePicker({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-labelledby={labelId}
-        className={`group relative w-full rounded-xl border bg-white text-left transition-colors duration-300 ${
-          error
-            ? "border-crimson-500/70"
-            : open
-              ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
-              : "border-gold-500/20 hover:border-gold-400/40"
-        } ${containerClassName}`}
+        className={`${triggerClass} ${containerClassName}`}
       >
         <div className="flex items-center gap-2 px-4 pt-5 pb-2">
           <span className={`shrink-0 transition-colors ${open ? "text-amber-600" : "text-ink-500"}`}>
@@ -160,7 +186,7 @@ export default function DivineDatePicker({
           <div className="relative w-full">
             <span
               id={labelId}
-              className="pointer-events-none absolute -top-[18px] left-0 right-0 truncate text-[11px] tracking-wide text-amber-600"
+              className="pointer-events-none absolute -top-[18px] left-0 right-0 truncate text-[11px] tracking-wide text-gray-700"
             >
               {label}
             </span>
@@ -186,6 +212,7 @@ export default function DivineDatePicker({
           )}
         </div>
       </button>
+      </div>
 
       {error ? (
         <p className="mt-1.5 pl-1 text-[12.5px] text-crimson-500">{error}</p>

@@ -36,6 +36,7 @@ import { useAuthStore, endSession } from "../../lib/authStore";
 import { USER_TYPE_LABEL } from "../../lib/userTypes";
 import TempleClock from "../admin/TempleClock";
 import { formatTempleDateTime } from "../../lib/datetime";
+import { sanitizeMobileInput, isValidSgMobile, SG_MOBILE_ERROR } from "../../lib/mobileNumber";
 import DivineInput from "../divine/DivineInput";
 import DivineButton from "../divine/DivineButton";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
@@ -2780,6 +2781,10 @@ function CreateCustomerModal({
       setError("Name and email are required.");
       return;
     }
+    if (mobileNumber && !isValidSgMobile(mobileNumber)) {
+      setError(SG_MOBILE_ERROR);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -2862,9 +2867,9 @@ function CreateCustomerModal({
               />
               <DivineInput
                 label="Mobile Number"
-                icon={<PhoneIcon />}
+                icon={<span className="text-[13.5px] font-semibold text-ink-500">+65</span>}
                 value={mobileNumber}
-                onChange={(e) => setMobileNumber(e.target.value)}
+                onChange={(e) => setMobileNumber(sanitizeMobileInput(e.target.value))}
                 hint={checkingMobile ? "Checking…" : undefined}
                 containerClassName={FIELD_ACCENT}
               />
