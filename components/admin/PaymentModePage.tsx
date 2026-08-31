@@ -26,11 +26,11 @@ export type PaymentMode = {
 
 function AvailabilityPill({ available }: { available: boolean }) {
   return available ? (
-    <span className="rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(16,185,129,0.5)]">
+    <span className="inline-flex items-center rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11.5px] font-medium text-emerald-700">
       Yes
     </span>
   ) : (
-    <span className="rounded-full bg-gradient-to-b from-slate-400 to-slate-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(100,116,139,0.4)]">
+    <span className="inline-flex items-center rounded-md border border-slate-400/30 bg-slate-100 px-2 py-0.5 text-[11.5px] font-medium text-slate-500">
       No
     </span>
   );

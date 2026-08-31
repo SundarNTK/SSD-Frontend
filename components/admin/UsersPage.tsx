@@ -419,7 +419,7 @@ function PasswordStatePill({ setAt }: { setAt: string | null }) {
     return (
       <span
         title={`Set on ${formatTempleDateTime(setAt)}`}
-        className="whitespace-nowrap rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(16,185,129,0.5)]"
+        className="inline-flex items-center whitespace-nowrap rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11.5px] font-medium text-emerald-700"
       >
         Set
       </span>
@@ -428,7 +428,7 @@ function PasswordStatePill({ setAt }: { setAt: string | null }) {
   return (
     <span
       title="Activation email sent — the link stays valid until it is used."
-      className="whitespace-nowrap rounded-full bg-gradient-to-b from-gold-400 to-gold-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-navy-950 shadow-[0_1px_4px_-1px_rgba(212,175,55,0.5)]"
+      className="inline-flex items-center whitespace-nowrap rounded-md border border-gold-500/30 bg-gold-500/10 px-2 py-0.5 text-[11.5px] font-medium text-amber-700"
     >
       Invite pending
     </span>

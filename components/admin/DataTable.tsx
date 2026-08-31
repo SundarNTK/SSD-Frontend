@@ -85,7 +85,7 @@ export default function DataTable<T>({
   const addButton = onCreate && (
     <button
       onClick={onCreate}
-      className="ml-auto flex items-center gap-2 rounded-xl border border-crimson-600/40 bg-gradient-to-r from-crimson-600 to-flame-500 px-4 py-2.5 font-accent text-[13.5px] font-semibold text-white shadow-[0_2px_6px_-1px_rgba(0,0,0,0.15)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-6px_rgba(220,38,38,0.5)] active:translate-y-0 active:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.15)]"
+      className="ml-auto flex items-center gap-2 rounded-xl border border-dark-orange/40 bg-dark-orange px-4 py-2.5 font-accent text-[13.5px] font-semibold text-white shadow-[0_2px_6px_-1px_rgba(0,0,0,0.15)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-dark-orange-hover hover:shadow-[0_10px_24px_-6px_rgba(230,81,0,0.5)] active:translate-y-0 active:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.15)]"
     >
       <PlusIcon />
       {createLabel}
@@ -143,14 +143,14 @@ export default function DataTable<T>({
         <div className="overflow-hidden rounded-[15px] bg-navy-900">
           <div className="overflow-x-auto">
             {/* border-collapse is load-bearing, not cosmetic — without it
-                the header row's gradient background paints independently
-                inside each <th>'s own box (the default border-collapse:
-                separate gives every cell its own background layer), so it
-                renders as a fragmented, refading-per-column mess instead of
-                one continuous band across the row. */}
+                the header row's background paints independently inside each
+                <th>'s own box (the default border-collapse: separate gives
+                every cell its own background layer), so it renders as a
+                fragmented, refading-per-column mess instead of one
+                continuous band across the row. */}
             <table className="w-full min-w-[640px] border-collapse text-left text-[13.5px]">
               <thead>
-                <tr className="bg-gradient-to-r from-[#6b1524] via-crimson-600 to-flame-500 text-[11px] uppercase tracking-wide text-white">
+                <tr className="bg-[#7c1527] text-[11px] uppercase tracking-wide text-white">
                   {columns.map((col) => (
                     <th key={col.key} className={`px-5 py-3 font-semibold ${col.className ?? ""}`}>
                       {col.label}
@@ -204,14 +204,14 @@ export default function DataTable<T>({
                 <button
                   onClick={() => onPageChange(Math.max(1, page - 1))}
                   disabled={page <= 1}
-                  className="rounded-lg bg-gradient-to-r from-crimson-600 to-flame-500 px-3.5 py-1.5 font-medium text-white shadow-[0_2px_8px_-3px_rgba(220,38,38,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_16px_-4px_rgba(220,38,38,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-[0_2px_8px_-3px_rgba(220,38,38,0.5)]"
+                  className="rounded-lg bg-dark-orange px-3.5 py-1.5 font-medium text-white shadow-[0_2px_8px_-3px_rgba(230,81,0,0.5)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-dark-orange-hover hover:shadow-[0_6px_16px_-4px_rgba(230,81,0,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-dark-orange disabled:hover:shadow-[0_2px_8px_-3px_rgba(230,81,0,0.5)]"
                 >
                   Prev
                 </button>
                 <button
                   onClick={() => onPageChange(Math.min(totalPages, page + 1))}
                   disabled={page >= totalPages}
-                  className="rounded-lg bg-gradient-to-r from-crimson-600 to-flame-500 px-3.5 py-1.5 font-medium text-white shadow-[0_2px_8px_-3px_rgba(220,38,38,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_16px_-4px_rgba(220,38,38,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-[0_2px_8px_-3px_rgba(220,38,38,0.5)]"
+                  className="rounded-lg bg-dark-orange px-3.5 py-1.5 font-medium text-white shadow-[0_2px_8px_-3px_rgba(230,81,0,0.5)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-dark-orange-hover hover:shadow-[0_6px_16px_-4px_rgba(230,81,0,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-dark-orange disabled:hover:shadow-[0_2px_8px_-3px_rgba(230,81,0,0.5)]"
                 >
                   Next
                 </button>
@@ -270,11 +270,11 @@ export function DeleteIconButton({ onClick, label = "Delete" }: { onClick: () =>
 
 export function StatusPill({ status }: { status: number }) {
   return status === 1 ? (
-    <span className="rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(16,185,129,0.5)]">
+    <span className="inline-flex items-center rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11.5px] font-medium text-emerald-700">
       Active
     </span>
   ) : (
-    <span className="rounded-full bg-gradient-to-b from-slate-400 to-slate-500 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(100,116,139,0.4)]">
+    <span className="inline-flex items-center rounded-md border border-slate-400/30 bg-slate-100 px-2 py-0.5 text-[11.5px] font-medium text-slate-500">
       Inactive
     </span>
   );
