@@ -84,7 +84,7 @@ export default function ConfirmDialog({
                     disabled={loading}
                     className="w-auto rounded-md border border-maroon/30 bg-white px-4 py-2 font-accent text-[13.5px] font-semibold tracking-wide text-maroon shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:bg-[#faf6f1] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {loading ? "Working…" : altConfirmLabel}
+                    {altConfirmLabel}
                   </button>
                 )}
                 <button
@@ -97,7 +97,7 @@ export default function ConfirmDialog({
                       : "border-maroon/30 bg-maroon text-white hover:bg-maroon-hover hover:shadow-[0_10px_24px_-6px_rgba(124,21,39,0.55)]"
                   }`}
                 >
-                  {loading ? "Working…" : confirmLabel}
+                  {confirmLabel}
                 </button>
               </div>
             </motion.div>

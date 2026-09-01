@@ -504,3 +504,58 @@ select option {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Screen: keep the body-level print clone out of the UI. Print: hide the
+   app (fixed modals don't paint in Chrome's preview) and show only this root. */
+.pos-receipt-print-root {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #1c1917 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  body > *:not(.pos-receipt-print-root) {
+    display: none !important;
+  }
+
+  .pos-receipt-print-root {
+    display: block !important;
+    position: static !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    padding: 10mm 14mm !important;
+    background: #fff !important;
+    color: #1c1917 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .receipt-keep {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .receipt-section--table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .receipt-section--table thead {
+    display: table-header-group;
+  }
+}

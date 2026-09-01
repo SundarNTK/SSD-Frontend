@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import DataTable, { type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineButton from "../divine/DivineButton";
 import DivineInput from "../divine/DivineInput";
-import { EyeIcon } from "../divine/icons";
+import { EyeIcon, PrinterIcon } from "../divine/icons";
 import { api, unwrap, extractErrorMessage, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { formatTempleDateTime } from "../../lib/datetime";
@@ -243,6 +244,12 @@ export default function PosTransactionsPage() {
   const [detail, setDetail] = useState<BookingDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [printHost, setPrintHost] = useState<HTMLElement | null>(null);
+  const printAfterLoad = useRef(false);
+
+  useEffect(() => {
+    setPrintHost(document.body);
+  }, []);
 
   // ── record payment (collect the rest of a partial payment) ────────────────
   const [paymentAmountInput, setPaymentAmountInput] = useState("");
@@ -265,7 +272,8 @@ export default function PosTransactionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, search, statusFilter, portalFilter, paymentStatusFilter]);
 
-  async function openDetail(id: string) {
+  async function openDetail(id: string, opts?: { print?: boolean }) {
+    printAfterLoad.current = !!opts?.print;
     setDetailOpen(true);
     setDetailLoading(true);
     setDetail(null);
@@ -279,12 +287,20 @@ export default function PosTransactionsPage() {
       // active mode (e.g. booked on Cash, balance topped up via PayNow).
       setPaymentModeIdInput(data.paymentMode?._id ?? "");
     } catch (err) {
+      printAfterLoad.current = false;
       toast.error(extractErrorMessage(err));
       setDetailOpen(false);
     } finally {
       setDetailLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!printAfterLoad.current || detailLoading || !detail) return;
+    printAfterLoad.current = false;
+    const id = window.setTimeout(() => printReceipt(), 300);
+    return () => window.clearTimeout(id);
+  }, [detail, detailLoading]);
 
   async function handleRecordPayment() {
     if (!detail) return;
@@ -371,25 +387,59 @@ export default function PosTransactionsPage() {
         }}
         emptyMessage="No transactions yet."
         rowActions={(b) => (
-          <button
-            onClick={() => openDetail(b._id)}
-            aria-label={`View ${b.bookingNumber}`}
-            className="text-ink-300 hover:text-ink-100"
-          >
-            <EyeIcon />
-          </button>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => openDetail(b._id)}
+              aria-label={`View receipt ${b.bookingNumber}`}
+              className="text-ink-300 hover:text-ink-100"
+            >
+              <EyeIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => openDetail(b._id, { print: true })}
+              aria-label={`Print receipt ${b.bookingNumber}`}
+              className="text-ink-300 hover:text-ink-100"
+            >
+              <PrinterIcon />
+            </button>
+          </div>
         )}
       />
 
       <FormDrawer
         open={detailOpen}
-        onClose={() => setDetailOpen(false)}
+        onClose={() => {
+          setDetailOpen(false);
+          setDetail(null);
+        }}
         title={detail ? `Booking ${detail.bookingNumber}` : "Booking Details"}
         maxWidthClassName="max-w-4xl"
+        printSheet
         footer={
-          <div className="flex justify-end">
-            <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDetailOpen(false)}>
+          <div className="flex justify-end gap-3">
+            <DivineButton
+              variant="ghost"
+              fullWidth={false}
+              type="button"
+              onClick={() => {
+                setDetailOpen(false);
+                setDetail(null);
+              }}
+            >
               Close
+            </DivineButton>
+            <DivineButton
+              fullWidth={false}
+              type="button"
+              onClick={() => printReceipt()}
+              disabled={detailLoading || !detail}
+            >
+              <span className="inline-flex items-center gap-2">
+                <PrinterIcon />
+                Print Receipt
+              </span>
             </DivineButton>
           </div>
         }
@@ -397,176 +447,290 @@ export default function PosTransactionsPage() {
         {detailLoading && <p className="py-8 text-center text-[13px] text-ink-500">Loading…</p>}
 
         {!detailLoading && detail && (
-          <div className="space-y-5 text-[13.5px]">
-            {/* ── Receipt masthead: Order No. / Receipt No. get real weight ── */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
-                <p className="text-[11px] uppercase tracking-wide text-ink-500">Order No.</p>
-                <p className="mt-0.5 text-[15px] font-bold tabular-nums text-ink-100">
-                  {detail.orderId?.orderNumber ?? "—"}
-                </p>
+          <div className="space-y-5">
+            <BookingReceiptDocument detail={detail} />
+            {detail.bookingStatus === "confirmed" && detail.balanceAmount > 0 && (
+              <div className="no-print space-y-2 rounded-xl border border-[#ead9c6] bg-white px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#7c1527]">Record Payment</p>
+                {canRecordPayment ? (
+                  <>
+                    <DivineInput
+                      label={`Amount to Collect (max ${formatCurrency(detail.balanceAmount)})`}
+                      type="number"
+                      min={0.01}
+                      max={detail.balanceAmount}
+                      step="0.01"
+                      inputMode="decimal"
+                      value={paymentAmountInput}
+                      onChange={(e) => setPaymentAmountInput(e.target.value)}
+                    />
+                    <DivineListbox
+                      value={paymentModeIdInput}
+                      onChange={setPaymentModeIdInput}
+                      options={paymentModes.map((m) => ({ value: m._id, label: m.name }))}
+                      placeholder="Payment mode"
+                    />
+                    <DivineButton fullWidth={false} type="button" loading={recordingPayment} onClick={handleRecordPayment}>
+                      Record Payment
+                    </DivineButton>
+                  </>
+                ) : (
+                  <p className="text-[12.5px] text-ink-500">
+                    You have view-only access — recording a payment requires full access on POS Transactions.
+                  </p>
+                )}
               </div>
-              <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3">
-                <p className="text-[11px] uppercase tracking-wide text-ink-500">Receipt No.</p>
-                <p className="mt-0.5 text-[15px] font-bold tabular-nums text-ink-100">
-                  {detail.transactions[0]?.receiptNo ?? "—"}
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gold-500/15 bg-white px-4 py-3.5">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-600">Booking Details</p>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
-                <DetailRow label="Status" value={<BookingStatusPill status={detail.bookingStatus} />} />
-                <DetailRow label="Portal" value={<PortalPill portal={detail.portal} />} />
-                <DetailRow label="Date & Time" value={formatTempleDateTime(detail.bookedAt)} />
-                <DetailRow label="Booked By" value={detail.bookedBy?.name ?? "—"} />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gold-500/15 bg-white px-4 py-3.5">
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-600">Customer</p>
-              <p className="font-medium text-ink-100">{detail.customer?.name ?? "—"}</p>
-              <p className="mt-0.5 text-[12px] text-ink-500">
-                {detail.customer?.customerCode}
-                {detail.customer?.email ? ` · ${detail.customer.email}` : ""}
-                {detail.customer?.mobileNumber ? ` · ${detail.customer.mobileNumber}` : ""}
-              </p>
-            </div>
-
-            <div>
-              <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-amber-600">Line Items</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {detail.lines.map((line, idx) => (
-                  <div key={idx} className="rounded-xl border border-gold-500/15 bg-white px-4 py-3.5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-medium text-ink-100">{line.name}</p>
-                        <p className="mt-0.5 text-[11.5px] text-ink-500">
-                          {line.refType} · {line.code} · Qty {line.quantity} &times; {formatCurrency(line.unitPrice)}
-                        </p>
-                        {line.deities.length > 0 && (
-                          <p className="mt-1 text-[11.5px] text-ink-500">
-                            Deities: {line.deities.map((d) => d.name).join(", ")}
-                          </p>
-                        )}
-                        {line.devotees.length > 0 && (
-                          <p className="text-[11.5px] text-ink-500">
-                            Devotees: {line.devotees.map((d) => `${d.name}${d.nakshatra ? ` (${d.nakshatra})` : ""}`).join(", ")}
-                          </p>
-                        )}
-                      </div>
-                      <span className="whitespace-nowrap font-semibold text-amber-600">{formatCurrency(line.lineTotal)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gold-500/15 bg-white px-4 py-3.5">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">Payment</p>
-                <PaymentStatusPill status={detail.paymentStatus} />
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-ink-500">Payment Mode</span>
-                  <span className="font-medium text-ink-100">{detail.paymentModeName}</span>
-                </div>
-                <div className="flex items-center justify-between border-t border-gold-500/10 pt-1.5">
-                  <span className="text-ink-500">Sub Total</span>
-                  <span className="text-ink-100">{formatCurrency(detail.subtotal)}</span>
-                </div>
-                <div className="flex items-center justify-between text-[15px] font-bold">
-                  <span className="flex items-center gap-1.5 text-ink-100">
-                    Total Payable Amount
-                    <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-emerald-700">
-                      GST Inclusive
-                    </span>
-                  </span>
-                  <span className="text-amber-600">{formatCurrency(detail.grandTotal)}</span>
-                </div>
-                <div className="flex items-center justify-between border-t border-gold-500/10 pt-1.5">
-                  <span className="text-ink-500">Amount Paid</span>
-                  <span className="font-medium text-emerald-600">{formatCurrency(detail.amountPaid)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-ink-500">Balance Due</span>
-                  <span className={`font-bold ${detail.balanceAmount > 0 ? "text-crimson-500" : "text-ink-100"}`}>
-                    {formatCurrency(detail.balanceAmount)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Payment history — every installment collected against this
-                  booking, oldest first. A fully-paid-at-confirm booking still
-                  shows exactly one row here. */}
-              {detail.transactions.length > 0 && (
-                <div className="mt-3 space-y-1.5 border-t border-gold-500/10 pt-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">Payment History</p>
-                  {detail.transactions.map((t) => (
-                    <div key={t._id} className="flex items-center justify-between text-[12.5px]">
-                      <span className="text-ink-500">
-                        {t.receiptNo} · {t.paymentModeName} · {formatTempleDateTime(t.transactionDate)}
-                      </span>
-                      <span className="font-medium text-ink-100">{formatCurrency(t.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Record another installment — only while something is still
-                  owed on a confirmed booking, and only for staff with
-                  fullAccess on POS Transactions. */}
-              {detail.bookingStatus === "confirmed" && detail.balanceAmount > 0 && (
-                <div className="mt-3 space-y-2 border-t border-gold-500/10 pt-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">Record Payment</p>
-                  {canRecordPayment ? (
-                    <>
-                      <DivineInput
-                        label={`Amount to Collect (max ${formatCurrency(detail.balanceAmount)})`}
-                        type="number"
-                        min={0.01}
-                        max={detail.balanceAmount}
-                        step="0.01"
-                        inputMode="decimal"
-                        value={paymentAmountInput}
-                        onChange={(e) => setPaymentAmountInput(e.target.value)}
-                      />
-                      {/* Doesn't have to be the booking's original mode — a
-                          balance can be paid off in a different mode than it
-                          was opened with (e.g. Cash at booking, PayNow for
-                          the top-up). */}
-                      <DivineListbox
-                        value={paymentModeIdInput}
-                        onChange={setPaymentModeIdInput}
-                        options={paymentModes.map((m) => ({ value: m._id, label: m.name }))}
-                        placeholder="Payment mode"
-                      />
-                      <DivineButton fullWidth={false} type="button" loading={recordingPayment} onClick={handleRecordPayment}>
-                        Record Payment
-                      </DivineButton>
-                    </>
-                  ) : (
-                    <p className="text-[12.5px] text-ink-500">
-                      You have view-only access — recording a payment requires full access on POS Transactions.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         )}
       </FormDrawer>
+
+      {printHost &&
+        detailOpen &&
+        detail &&
+        createPortal(
+          <div className="pos-receipt-print-root" aria-hidden="true">
+            <BookingReceiptDocument detail={detail} />
+          </div>,
+          printHost,
+        )}
     </>
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: ReactNode }) {
+function printReceipt() {
+  const root = document.querySelector(".pos-receipt-print-root");
+  const images = root ? Array.from(root.querySelectorAll("img")) : [];
+  const pending = images.map((img) =>
+    img.complete
+      ? Promise.resolve()
+      : new Promise<void>((resolve) => {
+          img.addEventListener("load", () => resolve(), { once: true });
+          img.addEventListener("error", () => resolve(), { once: true });
+        }),
+  );
+  const previousTitle = document.title;
+  document.title = " ";
+  const restoreTitle = () => {
+    document.title = previousTitle;
+    window.removeEventListener("afterprint", restoreTitle);
+  };
+  window.addEventListener("afterprint", restoreTitle);
+  void Promise.all(pending).then(() => {
+    window.setTimeout(() => window.print(), 80);
+  });
+}
+
+function ReceiptSection({
+  title,
+  children,
+  allowTableSplit = false,
+  keepTogether = false,
+}: {
+  title: string;
+  children: ReactNode;
+  allowTableSplit?: boolean;
+  keepTogether?: boolean;
+}) {
   return (
-    <div className="flex flex-col gap-0.5 py-0.5">
-      <span className="text-[11px] uppercase tracking-wide text-ink-500">{label}</span>
-      <span className="font-medium text-ink-100">{value}</span>
+    <section
+      className={`border-b border-[#1c1917] pb-2.5 ${allowTableSplit ? "receipt-section--table" : ""} ${keepTogether ? "receipt-keep" : ""}`}
+    >
+      <h3 className="mb-2.5 text-[17px] font-bold text-[#1c1917]">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function portalLabel(portal: BookingDetail["portal"]) {
+  if (portal === "admin") return "Admin Panel";
+  if (portal === "pos") return "POS Counter";
+  return "Customer";
+}
+
+function paymentStatusLabel(status: PaymentStatus) {
+  if (status === "paid") return "Paid";
+  if (status === "partial") return "Partial";
+  return "Pending";
+}
+
+function BookingReceiptDocument({ detail }: { detail: BookingDetail }) {
+  return (
+    <article className="mx-auto max-w-2xl bg-white text-[13px] leading-snug text-[#1c1917]">
+      <header className="receipt-keep pb-2 text-center">
+        <img
+          src="/SSD_Full_Logo.png"
+          alt="Sri Siva Durga Temple"
+          className="mx-auto h-[88px] w-auto max-w-[360px] object-contain sm:h-[104px]"
+        />
+        <p className="mt-3 text-[20px] font-bold leading-snug text-[#1c1917] sm:text-[22px]">
+          Sri Siva Durga Booking Official Receipt
+        </p>
+      </header>
+      <div className="mt-3 h-[2px] bg-[#1c1917]" />
+
+      <div className="mt-2.5 space-y-2.5">
+        <ReceiptSection title="Reference">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-3">
+            <ReceiptField label="Booking No." value={detail.bookingNumber} />
+            <ReceiptField label="Order No." value={detail.orderId?.orderNumber ?? "—"} />
+            <ReceiptField label="Receipt No." value={detail.transactions[0]?.receiptNo ?? "—"} />
+          </div>
+        </ReceiptSection>
+
+        <ReceiptSection title="Booking Details">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
+            <ReceiptField
+              label="Status"
+              value={detail.bookingStatus === "confirmed" ? "Completed" : "Cancelled"}
+            />
+            <ReceiptField label="Portal" value={portalLabel(detail.portal)} />
+            <ReceiptField label="Date & Time" value={formatTempleDateTime(detail.bookedAt)} />
+            <ReceiptField label="Booked By" value={detail.bookedBy?.name ?? "—"} />
+          </div>
+        </ReceiptSection>
+
+        <ReceiptSection title="Customer">
+          <p className="text-[15px] font-semibold text-[#1c1917]">{detail.customer?.name ?? "—"}</p>
+          <div className="mt-2 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-3">
+            <ReceiptField label="Customer ID" value={detail.customer?.customerCode ?? "—"} />
+            <ReceiptField label="Email" value={detail.customer?.email ?? "—"} />
+            <ReceiptField label="Mobile" value={detail.customer?.mobileNumber ?? "—"} />
+          </div>
+        </ReceiptSection>
+
+        <ReceiptSection title="Offerings" allowTableSplit>
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="border-b border-[#e8e4dc] text-[11px] font-medium text-[#6b6258]">
+                <th className="pb-1.5 pr-3 font-medium">Item / Service</th>
+                <th className="w-12 pb-1.5 text-center font-medium">Qty</th>
+                <th className="w-20 pb-1.5 text-right font-medium">Unit</th>
+                <th className="w-24 pb-1.5 pl-3 text-right font-medium">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.lines.map((line, idx) => (
+                <tr key={idx} className="border-b border-[#f3efe8] last:border-b-0">
+                  <td className="py-1.5 pr-3 align-top">
+                    <p className="font-medium text-[#1c1917]">{line.name}</p>
+                    <p className="mt-0.5 text-[11.5px] text-[#6b6258]">
+                      {line.refType} · {line.code}
+                    </p>
+                    {line.deities.length > 0 && (
+                      <p className="mt-0.5 text-[11.5px] text-[#6b6258]">
+                        Deities: {line.deities.map((d) => d.name).join(", ")}
+                      </p>
+                    )}
+                    {line.devotees.length > 0 && (
+                      <p className="text-[11.5px] text-[#6b6258]">
+                        Devotees:{" "}
+                        {line.devotees
+                          .map((d) => `${d.name}${d.nakshatra ? ` (${d.nakshatra})` : ""}`)
+                          .join(", ")}
+                      </p>
+                    )}
+                  </td>
+                  <td className="py-1.5 text-center tabular-nums">{line.quantity}</td>
+                  <td className="py-1.5 text-right tabular-nums text-[#6b6258]">{formatCurrency(line.unitPrice)}</td>
+                  <td className="py-1.5 pl-3 text-right font-medium tabular-nums">{formatCurrency(line.lineTotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </ReceiptSection>
+
+        <ReceiptSection title="Payment Records" allowTableSplit>
+            <div className="mb-2 flex items-center justify-between text-[13px]">
+              <span className="text-[#6b6258]">
+                Mode: <span className="font-medium text-[#1c1917]">{detail.paymentModeName}</span>
+              </span>
+              <span className="font-medium text-[#1c1917]">{paymentStatusLabel(detail.paymentStatus)}</span>
+            </div>
+            {detail.transactions.length > 0 ? (
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-[#e8e4dc] text-[11px] font-medium text-[#6b6258]">
+                    <th className="pb-1.5 pr-3 font-medium">Receipt No.</th>
+                    <th className="pb-1.5 pr-3 font-medium">Mode</th>
+                    <th className="pb-1.5 pr-3 font-medium">Date & Time</th>
+                    <th className="pb-1.5 text-right font-medium">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.transactions.map((t) => (
+                    <tr key={t._id} className="border-b border-[#f3efe8] last:border-b-0">
+                      <td className="py-1.5 pr-3 tabular-nums">{t.receiptNo}</td>
+                      <td className="py-1.5 pr-3">{t.paymentModeName}</td>
+                      <td className="py-1.5 pr-3 text-[#6b6258]">{formatTempleDateTime(t.transactionDate)}</td>
+                      <td className="py-1.5 text-right font-medium tabular-nums">{formatCurrency(t.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-[12.5px] text-[#6b6258]">No payments recorded yet.</p>
+            )}
+          </ReceiptSection>
+
+          <ReceiptSection title="Amount Summary" keepTogether>
+            <div className="ml-auto w-full max-w-sm space-y-1.5">
+              <SummaryRow label="Sub Total" value={formatCurrency(detail.subtotal)} />
+              <SummaryRow label="GST" value={formatCurrency(detail.gstAmount)} />
+              <div className="flex items-center justify-between border-y border-[#e8e4dc] py-2">
+                <span className="text-[13px] font-semibold text-[#1c1917]">
+                  Total Payable
+                  <span className="ml-2 text-[10px] font-medium text-[#6b6258]">GST Inclusive</span>
+                </span>
+                <span className="text-[15px] font-semibold tabular-nums text-[#1c1917]">
+                  {formatCurrency(detail.grandTotal)}
+                </span>
+              </div>
+              <SummaryRow label="Amount Paid" value={formatCurrency(detail.amountPaid)} emphasis="paid" />
+              <SummaryRow
+                label="Balance Due"
+                value={formatCurrency(detail.balanceAmount)}
+                emphasis={detail.balanceAmount > 0 ? "due" : "plain"}
+              />
+            </div>
+          </ReceiptSection>
+
+          <p className="receipt-keep pt-1 text-center text-[12px] text-[#6b6258]">
+            Thank you for your offering. Please retain this receipt for your records.
+          </p>
+      </div>
+    </article>
+  );
+}
+
+function ReceiptField({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10.5px] font-semibold uppercase tracking-wide text-[#8a8076]">{label}</p>
+      <div className="mt-1 break-all text-[13.5px] font-semibold tabular-nums text-[#1c1917]">{value}</div>
+    </div>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+  emphasis = "plain",
+}: {
+  label: string;
+  value: string;
+  emphasis?: "plain" | "paid" | "due";
+}) {
+  const valueClass =
+    emphasis === "paid"
+      ? "font-medium text-emerald-700"
+      : emphasis === "due"
+        ? "font-bold text-crimson-500"
+        : "text-[#1c1917]";
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-[#6b6258]">{label}</span>
+      <span className={`tabular-nums ${valueClass}`}>{value}</span>
     </div>
   );
 }
