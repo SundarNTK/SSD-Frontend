@@ -21,11 +21,11 @@ export type InventoryMovement = {
 
 export function ActionPill({ type }: { type: "Stock In" | "Stock Out" }) {
   return type === "Stock In" ? (
-    <span className="rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(16,185,129,0.5)]">
+    <span className="inline-flex items-center rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11.5px] font-medium text-emerald-700">
       Stock In
     </span>
   ) : (
-    <span className="rounded-full bg-gradient-to-b from-flame-500 to-flame-600 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white shadow-[0_1px_4px_-1px_rgba(255,122,46,0.5)]">
+    <span className="inline-flex items-center rounded-md border border-orange-500/30 bg-orange-500/10 px-2 py-0.5 text-[11.5px] font-medium text-orange-700">
       Stock Out
     </span>
   );

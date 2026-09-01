@@ -200,16 +200,16 @@ export default function GlGroupPage() {
           on the track, an outer drop shadow plus a lifted -translate-y and a
           glossy inset top highlight on whichever tab is active, so it reads
           as a raised physical button rather than a flat color swap. */}
-      <div className="mb-5 flex gap-1.5 rounded-2xl bg-ivory-100 p-1.5 shadow-inner">
+      <div className="mb-5 flex gap-1.5 rounded-md bg-ivory-100 p-1.5 shadow-inner">
         {TABS.map((tab) => {
           const isActive = activeLevel === tab.level;
           return (
             <button
               key={tab.level}
               onClick={() => setActiveLevel(tab.level)}
-              className={`flex-1 rounded-xl py-2.5 text-[13.5px] font-semibold transition-all duration-200 ${
+              className={`flex-1 rounded-md py-2.5 text-[13.5px] font-semibold transition-all duration-200 ${
                 isActive
-                  ? "-translate-y-0.5 bg-gradient-to-b from-crimson-500 via-flame-500 to-[#FFC145] text-white shadow-[0_6px_14px_-4px_rgba(220,38,38,0.55),inset_0_1px_0_rgba(255,255,255,0.35)]"
+                  ? "-translate-y-0.5 bg-maroon text-white shadow-[0_6px_14px_-4px_rgba(124,21,39,0.45),inset_0_1px_0_rgba(255,255,255,0.25)]"
                   : "text-ink-300 hover:bg-white hover:text-ink-100"
               }`}
             >

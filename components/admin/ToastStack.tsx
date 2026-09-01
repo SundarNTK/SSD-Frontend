@@ -4,14 +4,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useToastStore } from "../../lib/toastStore";
 import { PlusIcon, TrashIcon } from "../divine/icons";
 
-// Solid, saturated surfaces — the same gold-gradient-button language used
-// everywhere else in the app — rather than a white card with a small
-// tinted icon, which read as too close to the page background to notice.
 const TONE_CARD = {
-  create: "bg-gradient-to-r from-gold-300 via-gold-400 to-gold-500 text-navy-950 shadow-[0_20px_50px_-12px_rgba(212,175,55,0.6)]",
-  update: "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-[0_20px_50px_-12px_rgba(37,99,235,0.5)]",
-  delete: "bg-gradient-to-r from-crimson-500 to-crimson-600 text-white shadow-[0_20px_50px_-12px_rgba(179,39,63,0.55)]",
-  error: "bg-gradient-to-r from-crimson-500 to-crimson-600 text-white shadow-[0_20px_50px_-12px_rgba(179,39,63,0.55)]",
+  create: "bg-gold-500 text-navy-950 shadow-[0_10px_28px_-10px_rgba(212,175,55,0.55)]",
+  update: "bg-blue-600 text-white shadow-[0_10px_28px_-10px_rgba(37,99,235,0.45)]",
+  delete: "bg-crimson-600 text-white shadow-[0_10px_28px_-10px_rgba(179,39,63,0.5)]",
+  error: "bg-crimson-600 text-white shadow-[0_10px_28px_-10px_rgba(179,39,63,0.5)]",
 } as const;
 
 const TONE_ICON_BG = {
@@ -42,7 +39,6 @@ function ToastIcon({ tone }: { tone: keyof typeof TONE_CARD }) {
       </svg>
     );
   }
-  // update
   return (
     <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
       <path
@@ -55,45 +51,26 @@ function ToastIcon({ tone }: { tone: keyof typeof TONE_CARD }) {
 }
 
 /**
- * The confirmation half of every create/update/delete flow — mounted once
- * in AdminLayout, so any page just calls `toast.created/updated/deleted(...)`
- * and it shows up here regardless of which screen triggered it.
- *
- * Centered on the viewport like the modals it follows (FormDrawer,
- * ConfirmDialog), including their same dimmed/blurred backdrop, so it
- * reads as the direct continuation of the dialog that just closed instead
- * of a separate, easy-to-miss notification system. The backdrop is
- * pointer-events-none, though — unlike a modal this never actually blocks
- * interaction, it just looks the same for the second it's up.
+ * Short-lived notice on the same list/form screen — no dimmed full-page
+ * overlay. Create/update/delete just call `toast.created/updated/deleted(...)`
+ * and the banner sits in the top-right of the current page, then disappears.
  */
 export default function ToastStack() {
   const toasts = useToastStore((s) => s.toasts);
   const dismiss = useToastStore((s) => s.dismiss);
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[80] flex flex-col items-center justify-center gap-2.5 p-4">
-      <AnimatePresence>
-        {toasts.length > 0 && (
-          <motion.div
-            key="backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="fixed inset-0 -z-10 bg-navy-950/50 backdrop-blur-sm"
-          />
-        )}
-      </AnimatePresence>
+    <div className="pointer-events-none fixed top-20 right-4 z-[80] flex w-[min(100%-2rem,24rem)] flex-col items-end gap-2 sm:right-6">
       <AnimatePresence>
         {toasts.map((t) => (
           <motion.div
             key={t.id}
             layout
-            initial={{ opacity: 0, y: 12, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.96 }}
+            initial={{ opacity: 0, x: 24, scale: 0.98 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 16, scale: 0.98 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
-            className={`pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl px-4 py-3.5 text-[13.5px] font-medium ${TONE_CARD[t.tone]}`}
+            className={`pointer-events-auto flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[13.5px] font-medium ${TONE_CARD[t.tone]}`}
           >
             <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${TONE_ICON_BG[t.tone]}`}>
               <ToastIcon tone={t.tone} />

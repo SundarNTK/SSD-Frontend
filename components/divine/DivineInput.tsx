@@ -15,6 +15,8 @@ type DivineInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "placeholder
    *  wants this field to carry a themed border/shadow at rest, not just on
    *  focus. Empty by default, so every existing call site is unaffected. */
   containerClassName?: string;
+  /** Small spinner on the right — used while a typeahead search is in flight. */
+  loading?: boolean;
   /** Taller box, a touch more breathing room around the label, and a
    *  slightly larger floated font (12.5px vs 11px) — still the same
    *  animated placeholder-shown mechanism as the default field (large and
@@ -40,7 +42,7 @@ type DivineInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "placeholder
  * roomier `staticLabel={true}` one.
  */
 const DivineInput = forwardRef<HTMLInputElement, DivineInputProps>(
-  ({ label, error, icon, hint, id, className = "", type = "text", revealable, containerClassName = "", staticLabel = false, ...rest }, ref) => {
+  ({ label, error, icon, hint, id, className = "", type = "text", revealable, containerClassName = "", staticLabel = false, loading = false, ...rest }, ref) => {
     const [focused, setFocused] = useState(false);
     const [revealed, setRevealed] = useState(false);
     const autoId = useId();
@@ -54,7 +56,7 @@ const DivineInput = forwardRef<HTMLInputElement, DivineInputProps>(
     // the same two-layer trick. Login/POS fields (staticLabel off) keep the
     // original plain gray/gold-focus border untouched.
     const outerWrapClass = staticLabel
-      ? `rounded-xl p-[1.5px] transition-[box-shadow] duration-300 ${
+      ? `rounded-md p-[1.5px] transition-[box-shadow] duration-300 ${
           error
             ? "bg-crimson-500"
             : focused
@@ -63,8 +65,8 @@ const DivineInput = forwardRef<HTMLInputElement, DivineInputProps>(
         }`
       : "";
     const fieldBoxClass = staticLabel
-      ? "group relative rounded-[10px] bg-white"
-      : `group relative rounded-xl border bg-white transition-colors duration-300 ${
+      ? "group relative rounded-[4px] bg-white"
+      : `group relative rounded-md border bg-white transition-colors duration-300 ${
           error
             ? "border-crimson-500/70"
             : focused
@@ -109,6 +111,21 @@ const DivineInput = forwardRef<HTMLInputElement, DivineInputProps>(
                 {label}
               </label>
             </div>
+            {loading && (
+              <svg
+                className="h-4 w-4 shrink-0 animate-spin text-amber-600"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                <path
+                  className="opacity-90"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"
+                />
+              </svg>
+            )}
             {canReveal && (
               <button
                 type="button"

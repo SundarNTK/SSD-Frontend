@@ -106,7 +106,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
             onClick={() => setMenuOpen((v) => !v)}
             className="group flex items-center gap-2.5 rounded-full py-1 pl-1 pr-1 transition-colors hover:bg-ivory-100 sm:pr-3"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-b from-gold-300 to-gold-600 text-[12px] font-semibold text-navy-950 shadow-[0_0_0_0_rgba(212,175,55,0.5)] transition-shadow duration-300 group-hover:shadow-[0_0_14px_1px_rgba(212,175,55,0.5)]">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-maroon text-[12px] font-semibold text-white">
               {user ? initials(user.name) : "?"}
             </span>
             <span className="hidden text-left lg:block">

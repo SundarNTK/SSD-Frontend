@@ -12,8 +12,9 @@ import DivineTextarea from "../divine/DivineTextarea";
 import DivineColorPicker from "../divine/DivineColorPicker";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
+import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import TamilNameField from "./TamilNameField";
-import { api } from "../../lib/api";
+import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
@@ -27,12 +28,14 @@ export type SubCategory = {
   color: string;
   description: string;
   status: number;
+  category?: { _id: string; name: string } | null;
 };
 
 const schema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),
   tamilName: z.string().trim(),
   code: z.string().trim().min(1, "Code is required").max(30),
+  category: z.string().min(1, "Category is required"),
   displayOrder: z.number().int().min(0),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Enter a valid hex colour"),
   description: z.string().trim().max(300),
@@ -43,11 +46,21 @@ type FormValues = z.infer<typeof schema>;
 
 const DEFAULT_PAGE_SIZE = 10;
 
+async function fetchCategoryOptions(): Promise<ListboxOption[]> {
+  const res = await api.get<ApiEnvelope<{ items: { _id: string; name: string }[] }>>(
+    "/masters/categories",
+    { params: { status: 1, pageSize: 100 } }
+  );
+  return unwrap(res).items.map((c) => ({ value: c._id, label: c.name }));
+}
+
 export default function SubCategoryPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.subCategories, "fullAccess");
   const canEdit = can(MODULES.subCategories, "edit");
   const { items, total, list, create, update, remove } = useApiResource<SubCategory>(api, "/masters/sub-categories");
+
+  const [categoryOptions, setCategoryOptions] = useState<ListboxOption[]>([]);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -56,6 +69,11 @@ export default function SubCategoryPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<SubCategory | null>(null);
   const [deleting, setDeleting] = useState<SubCategory | null>(null);
+
+  // Load category dropdown once on mount
+  useEffect(() => {
+    fetchCategoryOptions().then(setCategoryOptions).catch(() => {});
+  }, []);
 
   useEffect(() => {
     list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined });
@@ -76,7 +94,7 @@ export default function SubCategoryPage() {
 
   function openCreate() {
     setEditing(null);
-    reset({ name: "", tamilName: "", code: "", displayOrder: 0, color: "#942237", description: "", status: 1 });
+    reset({ name: "", tamilName: "", code: "", category: "", displayOrder: 0, color: "#942237", description: "", status: 1 });
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -87,6 +105,7 @@ export default function SubCategoryPage() {
       name: sub.name,
       tamilName: sub.tamilName,
       code: sub.code,
+      category: sub.category?._id ?? "",
       displayOrder: sub.displayOrder,
       color: sub.color,
       description: sub.description,
@@ -115,6 +134,11 @@ export default function SubCategoryPage() {
           <span className="font-medium">{s.name}</span>
         </span>
       ),
+    },
+    {
+      key: "category",
+      label: "Category",
+      render: (s) => <span className="text-ink-500">{s.category?.name ?? "—"}</span>,
     },
     { key: "tamilName", label: "Tamil Name", render: (s) => <span className="text-ink-500">{s.tamilName || "—"}</span> },
     { key: "code", label: "Code", render: (s) => <span className="tabular-nums text-amber-700">{s.code}</span> },
@@ -219,6 +243,21 @@ export default function SubCategoryPage() {
               {...register("displayOrder", { valueAsNumber: true })}
             />
           </div>
+          {/* Category selector — full width so the dropdown has enough room */}
+          <Controller
+            control={control}
+            name="category"
+            render={({ field }) => (
+              <DivineListbox
+                label="Category"
+                value={field.value}
+                onChange={field.onChange}
+                options={categoryOptions}
+                placeholder="Select a category…"
+                error={errors.category?.message}
+              />
+            )}
+          />
           <div className="grid grid-cols-2 gap-4">
             <Controller
               control={control}

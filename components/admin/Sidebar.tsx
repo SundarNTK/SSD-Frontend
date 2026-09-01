@@ -124,11 +124,10 @@ function GradientChevron({ id, className = "" }: { id: string; className?: strin
 }
 
 // The selected-item treatment, shared by the top-level leaf, the group
-// header, and its nested children — a slim left accent bar plus a filled
-// crimson-to-flame gradient badge, white text. Every nav row carries a
-// transparent border-l-[3px] (see the base classes below) so toggling
-// active/inactive never shifts text by the border's width.
-const ACTIVE_NAV_CLASS = "border-crimson-500 bg-gradient-to-r from-crimson-600 to-flame-500 text-white font-semibold shadow-[0_2px_10px_-4px_rgba(220,38,38,0.5)]";
+// header, and its nested children — solid maroon fill, white text.
+// Every nav row carries a transparent border-l-[3px] (see the base classes
+// below) so toggling active/inactive never shifts text by the border's width.
+const ACTIVE_NAV_CLASS = "border-maroon bg-maroon text-white font-semibold";
 const INACTIVE_NAV_CLASS = "border-transparent text-ink-300 hover:bg-ivory-100 hover:text-ink-100";
 
 /**
@@ -238,7 +237,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           type="button"
           onClick={() => setCollapsed((v) => !v)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute -right-3.5 top-[18px] z-30 hidden h-7 w-7 items-center justify-center rounded-full border border-crimson-700/30 bg-gradient-to-r from-crimson-600 to-flame-500 text-white transition-[transform,box-shadow] duration-200 hover:scale-110 hover:shadow-[0_0_14px_2px_rgba(220,38,38,0.6)] md:flex"
+          className="absolute -right-3.5 top-[18px] z-30 hidden h-7 w-7 items-center justify-center rounded-full border border-maroon/30 bg-maroon text-white transition-[transform,box-shadow,background-color] duration-200 hover:scale-110 hover:bg-maroon-hover hover:shadow-[0_0_14px_2px_rgba(124,21,39,0.55)] md:flex"
         >
           <ChevronIcon className={`h-3.5 w-3.5 transition-transform duration-300 ${collapsed ? "-rotate-90" : "rotate-90"}`} />
         </button>

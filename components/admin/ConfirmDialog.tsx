@@ -75,10 +75,10 @@ export default function ConfirmDialog({
                   type="button"
                   onClick={onConfirm}
                   disabled={loading}
-                  className={`w-auto rounded-xl border px-4 py-2 font-accent text-[13.5px] font-semibold tracking-wide shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 active:translate-y-0 active:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] ${
+                  className={`w-auto rounded-md border px-4 py-2 font-accent text-[13.5px] font-semibold tracking-wide shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 active:translate-y-0 active:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] ${
                     tone === "danger"
-                      ? "border-crimson-600/25 bg-gradient-to-b from-crimson-500 to-crimson-600 text-white hover:shadow-[0_10px_24px_-6px_rgba(143,28,48,0.55)]"
-                      : "border-gold-600/25 bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 text-navy-950 hover:shadow-[0_10px_24px_-6px_rgba(184,137,42,0.55)]"
+                      ? "border-crimson-600/25 bg-crimson-600 text-white hover:shadow-[0_10px_24px_-6px_rgba(143,28,48,0.55)]"
+                      : "border-maroon/30 bg-maroon text-white hover:bg-maroon-hover hover:shadow-[0_10px_24px_-6px_rgba(124,21,39,0.55)]"
                   }`}
                 >
                   {loading ? "Working…" : confirmLabel}

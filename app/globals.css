@@ -40,6 +40,13 @@
   --color-flame-500: #ff9d42;
   --color-flame-600: #ff7a2e;
 
+  /* Solid action-button fill — maroon, shared with POS primary CTAs. */
+  --color-maroon: #7c1527;
+  --color-maroon-hover: #681221;
+
+  --color-dark-orange: #e65100;
+  --color-dark-orange-hover: #cc4900;
+
   --color-crimson-500: #b3273f;
   --color-crimson-600: #8f1c30;
 
