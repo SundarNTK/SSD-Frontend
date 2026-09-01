@@ -8,11 +8,12 @@ import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTable
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
+import DivineListbox from "../divine/DivineListbox";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
 import { formatTempleDate, parseISODateString } from "../../lib/datetime";
-import { api } from "../../lib/api";
+import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
@@ -27,9 +28,13 @@ export type Gst = {
   status: number;
 };
 
+const GST_TYPES = ["Standard GST", "Zero-Rated", "Exempt", "Out of Scope"] as const;
+
+const GST_TYPE_OPTIONS = GST_TYPES.map((value) => ({ value, label: value }));
+
 const schema = z
   .object({
-    type: z.string().trim().min(1, "Type is required").max(50),
+    type: z.enum(GST_TYPES, { message: "GST type is required" }),
     percentage: z.number().min(0, "Must be 0-100").max(100, "Must be 0-100"),
     code: z.string().trim().min(1, "Code is required").max(20),
     effectiveStartDate: z.string().min(1, "Start date is required"),
@@ -43,7 +48,29 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
+type PendingConflict = {
+  values: FormValues;
+  existing: Gst;
+  kind: "create" | "activate";
+};
+
 const DEFAULT_PAGE_SIZE = 10;
+
+async function findActiveOfType(type: string, excludeId?: string) {
+  const response = await api.get<ApiEnvelope<{ items: Gst[] }>>("/masters/gst", {
+    params: { status: 1, pageSize: 100, type },
+  });
+  const { items } = unwrap(response);
+  return items.find((g) => g._id !== excludeId) ?? null;
+}
+
+function isOfficialType(type: string) {
+  return (GST_TYPES as readonly string[]).includes(type);
+}
+
+function lastActiveError(type: string) {
+  return `Can't inactivate this GST. At least one "${type}" record must stay active.`;
+}
 
 export default function GstPage() {
   const { can } = usePermissions();
@@ -58,6 +85,8 @@ export default function GstPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Gst | null>(null);
   const [deleting, setDeleting] = useState<Gst | null>(null);
+  const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
+  const [checkingActive, setCheckingActive] = useState(false);
 
   useEffect(() => {
     list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined });
@@ -75,6 +104,7 @@ export default function GstPage() {
 
   const effectiveStartDate = watch("effectiveStartDate");
   const effectiveEndDate = watch("effectiveEndDate");
+  const selectedType = watch("type");
 
   function openCreate() {
     setEditing(null);
@@ -85,8 +115,9 @@ export default function GstPage() {
 
   function openEdit(gst: Gst) {
     setEditing(gst);
+    const knownType = (GST_TYPES as readonly string[]).includes(gst.type) ? gst.type : "";
     reset({
-      type: gst.type,
+      type: knownType,
       percentage: gst.percentage,
       code: gst.code,
       effectiveStartDate: gst.effectiveStartDate.slice(0, 10),
@@ -97,14 +128,56 @@ export default function GstPage() {
     setDrawerOpen(true);
   }
 
-  const submit = handleSubmit(async (values) => {
-    const payload = { ...values, effectiveEndDate: values.effectiveEndDate || null };
+  async function persist(values: FormValues, replaceActive = false) {
+    const payload = {
+      ...values,
+      effectiveEndDate: values.effectiveEndDate || null,
+      replaceActive,
+    };
     const ok = editing ? await update.run(editing._id, payload) : await create.run(payload);
     if (ok !== undefined) {
       setDrawerOpen(false);
+      setPendingConflict(null);
       if (editing) toast.updated("GST rate updated successfully.");
       else toast.created("GST rate created successfully.");
     }
+  }
+
+  const submit = handleSubmit(async (values) => {
+    setCheckingActive(true);
+    try {
+      const sameType = !editing || values.type === editing.type;
+      if (editing?.status === 1 && values.status === 0 && sameType && isOfficialType(editing.type)) {
+        const other = await findActiveOfType(editing.type, editing._id);
+        if (!other) {
+          toast.error(lastActiveError(editing.type));
+          return;
+        }
+      } else if (!editing && values.status === 0) {
+        const other = await findActiveOfType(values.type);
+        if (!other) {
+          toast.error(
+            `Can't create this GST as inactive. At least one "${values.type}" record must be active.`
+          );
+          return;
+        }
+      }
+
+      if (values.status === 1) {
+        const existing = await findActiveOfType(values.type, editing?._id);
+        if (existing) {
+          setPendingConflict({
+            values,
+            existing,
+            kind: editing ? "activate" : "create",
+          });
+          return;
+        }
+      }
+    } finally {
+      setCheckingActive(false);
+    }
+    await persist(values);
   });
 
   const columns: DataTableColumn<Gst>[] = [
@@ -158,7 +231,7 @@ export default function GstPage() {
         rowActions={(g) => (
           <div className="flex justify-end gap-2">
             {canEdit && <EditIconButton onClick={() => openEdit(g)} />}
-            {canCreate && <DeleteIconButton onClick={() => setDeleting(g)} />}
+            {canCreate && g.status !== 1 && <DeleteIconButton onClick={() => setDeleting(g)} />}
           </div>
         )}
       />
@@ -185,6 +258,37 @@ export default function GstPage() {
         }}
       />
 
+      <ConfirmDialog
+        open={Boolean(pendingConflict)}
+        title={
+          pendingConflict?.kind === "create"
+            ? "This GST type is already active"
+            : "Only one active GST record is allowed"
+        }
+        message={
+          pendingConflict
+            ? `An active "${pendingConflict.existing.type}" record already exists (${pendingConflict.existing.code}). Only one active record is allowed per GST type. Save this record as inactive, or deactivate the existing active record and keep this one active?`
+            : ""
+        }
+        cancelLabel="Cancel"
+        altConfirmLabel="Save as inactive"
+        onAltConfirm={async () => {
+          if (!pendingConflict) return;
+          await persist({ ...pendingConflict.values, status: 0 });
+        }}
+        confirmLabel={
+          pendingConflict?.kind === "create"
+            ? "Deactivate old and create as active"
+            : "Deactivate old and keep this active"
+        }
+        loading={create.submitting || update.submitting}
+        onCancel={() => setPendingConflict(null)}
+        onConfirm={async () => {
+          if (!pendingConflict) return;
+          await persist(pendingConflict.values, true);
+        }}
+      />
+
       <FormDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -196,7 +300,7 @@ export default function GstPage() {
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton fullWidth={false} type="submit" form="gst-form" loading={create.submitting || update.submitting}>
+            <DivineButton fullWidth={false} type="submit" form="gst-form" loading={checkingActive || create.submitting || update.submitting}>
               {editing ? "Save changes" : "Save"}
             </DivineButton>
           </div>
@@ -204,7 +308,20 @@ export default function GstPage() {
       >
         <form id="gst-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <DivineInput staticLabel label="Type" error={errors.type?.message} {...register("type")} />
+            <Controller
+              control={control}
+              name="type"
+              render={({ field }) => (
+                <DivineListbox
+                  label="GST Type"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={GST_TYPE_OPTIONS}
+                  placeholder="Select GST type"
+                  error={errors.type?.message}
+                />
+              )}
+            />
             <DivineInput staticLabel label="Code" error={errors.code?.message} {...register("code")} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -249,7 +366,26 @@ export default function GstPage() {
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineToggle
+                  boxed
+                  label="Status"
+                  checked={field.value === 1}
+                  onChange={async (checked) => {
+                    if (
+                      !checked &&
+                      editing?.status === 1 &&
+                      isOfficialType(editing.type) &&
+                      selectedType === editing.type
+                    ) {
+                      const other = await findActiveOfType(editing.type, editing._id);
+                      if (!other) {
+                        toast.error(lastActiveError(editing.type));
+                        return;
+                      }
+                    }
+                    field.onChange(checked ? 1 : 0);
+                  }}
+                />
               )}
             />
           </div>
