@@ -34,7 +34,10 @@ const GST_TYPE_OPTIONS = GST_TYPES.map((value) => ({ value, label: value }));
 
 const schema = z
   .object({
-    type: z.enum(GST_TYPES, { message: "GST type is required" }),
+    type: z
+      .string()
+      .min(1, "GST type is required")
+      .refine((value) => (GST_TYPES as readonly string[]).includes(value), "GST type is required"),
     percentage: z.number().min(0, "Must be 0-100").max(100, "Must be 0-100"),
     code: z.string().trim().min(1, "Code is required").max(20),
     effectiveStartDate: z.string().min(1, "Start date is required"),
@@ -100,7 +103,17 @@ export default function GstPage() {
     watch,
     control,
     formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      type: "",
+      percentage: 0,
+      code: "",
+      effectiveStartDate: "",
+      effectiveEndDate: "",
+      status: 1,
+    },
+  });
 
   const effectiveStartDate = watch("effectiveStartDate");
   const effectiveEndDate = watch("effectiveEndDate");
@@ -115,7 +128,7 @@ export default function GstPage() {
 
   function openEdit(gst: Gst) {
     setEditing(gst);
-    const knownType = (GST_TYPES as readonly string[]).includes(gst.type) ? gst.type : "";
+    const knownType = isOfficialType(gst.type) ? gst.type : "";
     reset({
       type: knownType,
       percentage: gst.percentage,
