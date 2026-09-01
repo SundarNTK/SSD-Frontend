@@ -15,6 +15,10 @@ type ConfirmDialogProps = {
   error?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Optional second confirm — used when the person can pick one of two
+   *  proceed paths (e.g. create GST as inactive vs replace the active one). */
+  altConfirmLabel?: string;
+  onAltConfirm?: () => void;
 };
 
 /**
@@ -36,6 +40,8 @@ export default function ConfirmDialog({
   error,
   onConfirm,
   onCancel,
+  altConfirmLabel,
+  onAltConfirm,
 }: ConfirmDialogProps) {
   return (
     <AnimatePresence>
@@ -67,10 +73,20 @@ export default function ConfirmDialog({
                 </p>
               )}
 
-              <div className="mt-6 flex justify-end gap-3">
+              <div className="mt-6 flex flex-wrap justify-end gap-3">
                 <DivineButton variant="ghost" fullWidth={false} type="button" onClick={onCancel} disabled={loading}>
                   {cancelLabel}
                 </DivineButton>
+                {altConfirmLabel && onAltConfirm && (
+                  <button
+                    type="button"
+                    onClick={onAltConfirm}
+                    disabled={loading}
+                    className="w-auto rounded-md border border-maroon/30 bg-white px-4 py-2 font-accent text-[13.5px] font-semibold tracking-wide text-maroon shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:bg-[#faf6f1] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {loading ? "Working…" : altConfirmLabel}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={onConfirm}
