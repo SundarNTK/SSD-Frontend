@@ -141,16 +141,27 @@ type BookingConfirmation = {
   _id: string;
   bookingNumber: string;
   orderNumber: string;
-  receiptNo: string;
+  receiptNo: string | null;
   customer: Customer;
   lines: CartLine[];
   subtotal: number;
   gstAmount: number;
   grandTotal: number;
   paymentModeName: string;
-  paymentStatus: string;
+  paymentStatus: "paid" | "partial" | "pending";
   bookingStatus: string;
   bookedAt: string;
+  amountPaid: number;
+  balanceAmount: number;
+};
+
+// Response shape of POST /pos/admin/booking/bookings/:id/payments — just
+// enough to patch a BookingConfirmation in place after collecting another
+// installment (see BookingSuccessView's "Pay Again").
+type RecordPaymentResult = {
+  paymentStatus: "paid" | "partial" | "pending";
+  amountPaid: number;
+  balanceAmount: number;
 };
 
 // The server, not the browser, decides when an order actually counts as
@@ -224,6 +235,13 @@ export default function AdminBookingPage() {
   // ── payment modes ───────────────────────────────────────────────────────────
   const [paymentModes, setPaymentModes] = useState<PaymentMode[]>([]);
   const [selectedPaymentModeId, setSelectedPaymentModeId] = useState("");
+
+  // ── partial payment ─────────────────────────────────────────────────────────
+  // What the cashier is actually collecting right now, as a string so the
+  // field can be freely edited (including transiently empty) without
+  // fighting a numeric useState. Re-seeded to the full grand total whenever
+  // the priced total changes — see the effect below.
+  const [paymentAmountInput, setPaymentAmountInput] = useState("");
 
   // ── summary ─────────────────────────────────────────────────────────────────
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
@@ -401,6 +419,22 @@ export default function AdminBookingPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cartSignature, selectedCustomer]);
 
+  // ─── keep the payment amount seeded to "pay in full" ─────────────────────
+  // Re-seeds to the freshly-priced grand total whenever it changes (a cart
+  // edit while sitting on the payment step, or the very first summary
+  // response landing) — a cashier who wants a partial payment then edits the
+  // amount down themselves; this only decides the *default*.
+  useEffect(() => {
+    if (summary) setPaymentAmountInput(summary.grandTotal.toFixed(2));
+  }, [summary?.grandTotal]);
+
+  const paymentAmount = Number(paymentAmountInput);
+  const isPartialPayment =
+    paymentAmountInput !== "" && !Number.isNaN(paymentAmount) && summary != null && paymentAmount < summary.grandTotal;
+  const balanceAmount = summary ? Math.max(0, +(summary.grandTotal - (Number.isNaN(paymentAmount) ? 0 : paymentAmount)).toFixed(2)) : 0;
+  const paymentAmountValid =
+    summary != null && paymentAmountInput !== "" && !Number.isNaN(paymentAmount) && paymentAmount >= 0 && paymentAmount <= summary.grandTotal;
+
   // ─── derived values for add-to-cart form ─────────────────────────────────
   const selectedItem = items.find((i) => i._id === selectedItemId) ?? null;
   const selectedService = services.find((s) => s._id === selectedServiceId) ?? null;
@@ -532,6 +566,7 @@ export default function AdminBookingPage() {
     if (cart.length === 0) { toast.error("Cart is empty."); return; }
     if (!selectedPaymentModeId) { toast.error("Please select a payment mode."); return; }
     if (summary?.hasStockIssues) { toast.error("Some items have insufficient stock. Please adjust quantities."); return; }
+    if (!paymentAmountValid) { toast.error(`Enter a payment amount between $0.00 and ${formatCurrency(summary?.grandTotal ?? 0)}.`); return; }
 
     setBookingLoading(true);
     try {
@@ -551,13 +586,18 @@ export default function AdminBookingPage() {
           devotees: l.devotees,
         })),
         paymentModeId: selectedPaymentModeId,
+        paidAmount: paymentAmount,
       });
       const created = unwrap(orderRes);
       const booking = created.status === "confirmed" ? created : await pollOrderStatus(created._id);
 
       setConfirmation(booking);
       setStep("done");
-      toast.created(`Booking ${booking.bookingNumber} confirmed!`);
+      toast.created(
+        booking.paymentStatus === "paid"
+          ? `Booking ${booking.bookingNumber} confirmed!`
+          : `Booking ${booking.bookingNumber} confirmed with a partial payment — ${formatCurrency(booking.balanceAmount)} still due.`
+      );
     } catch (err) {
       toast.error(extractErrorMessage(err));
     } finally {
@@ -570,6 +610,7 @@ export default function AdminBookingPage() {
     clearCustomer();
     setItemSearch("");
     setSelectedPaymentModeId("");
+    setPaymentAmountInput("");
     setConfirmation(null);
     setStep("cart");
     lineCounter = 0;
@@ -593,7 +634,14 @@ export default function AdminBookingPage() {
 
   // ─── done state ───────────────────────────────────────────────────────────
   if (step === "done" && confirmation) {
-    return <BookingSuccessView confirmation={confirmation} onNewBooking={startNewBooking} />;
+    return (
+      <BookingSuccessView
+        confirmation={confirmation}
+        paymentModes={paymentModes}
+        onNewBooking={startNewBooking}
+        onPaymentRecorded={(result) => setConfirmation((prev) => (prev ? { ...prev, ...result } : prev))}
+      />
+    );
   }
 
   return (
@@ -874,7 +922,7 @@ export default function AdminBookingPage() {
                 type="button"
                 onClick={addToCart}
                 disabled={!canBook || !selectedCustomer || !(selectedItemId || selectedServiceId)}
-                className="flex items-center gap-2 rounded-xl border border-gold-600/25 bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 px-4 py-2.5 font-accent text-[13.5px] font-semibold text-navy-950 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-6px_rgba(184,137,42,0.55)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex items-center gap-2 rounded-md border border-maroon/30 bg-maroon px-4 py-2.5 font-accent text-[13.5px] font-semibold text-white transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-maroon-hover hover:shadow-[0_8px_20px_-6px_rgba(124,21,39,0.55)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <CartIcon />
                 Add to Cart
@@ -996,6 +1044,45 @@ export default function AdminBookingPage() {
                 <p className="text-[12px] text-ink-500">
                   Cash payment is confirmed immediately upon booking.
                 </p>
+
+                {/* Partial payment: how much is being collected right now. Defaults
+                    to the full grand total — a cashier only needs to touch this to
+                    take less than that. */}
+                <div className="space-y-2 pt-1">
+                  <DivineInput
+                    label="Payment Amount (S$)"
+                    type="number"
+                    min={0}
+                    max={summary?.grandTotal ?? undefined}
+                    step="0.01"
+                    inputMode="decimal"
+                    value={paymentAmountInput}
+                    onChange={(e) => setPaymentAmountInput(e.target.value)}
+                    error={
+                      paymentAmountInput !== "" && !paymentAmountValid
+                        ? `Enter an amount between $0.00 and ${formatCurrency(summary?.grandTotal ?? 0)}.`
+                        : undefined
+                    }
+                  />
+                  <div className="flex items-center justify-between rounded-lg bg-navy-800/60 px-3 py-2 text-[12.5px]">
+                    <span className="text-ink-500">Total Payable Amount</span>
+                    <span className="font-medium text-ink-100">{formatCurrency(summary?.grandTotal ?? 0)}</span>
+                  </div>
+                  <div
+                    className={`flex items-center justify-between rounded-lg px-3 py-2 text-[12.5px] ${
+                      isPartialPayment ? "bg-crimson-500/10 text-crimson-400" : "bg-emerald-500/10 text-emerald-700"
+                    }`}
+                  >
+                    <span>Balance Amount (after this payment)</span>
+                    <span className="font-semibold">{formatCurrency(balanceAmount)}</span>
+                  </div>
+                  {isPartialPayment && (
+                    <p className="text-[11.5px] text-ink-500">
+                      The booking will be confirmed now for the full order. The remaining balance can be collected
+                      later from POS Transactions — this booking supports multiple payments.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1038,10 +1125,10 @@ export default function AdminBookingPage() {
                   <DivineButton
                     fullWidth
                     loading={bookingLoading}
-                    disabled={bookingLoading || !selectedPaymentModeId || !canBook}
+                    disabled={bookingLoading || !selectedPaymentModeId || !canBook || !paymentAmountValid}
                     onClick={handleConfirmBooking}
                   >
-                    Confirm Booking
+                    {isPartialPayment ? "Confirm Booking with Partial Payment" : "Confirm Booking"}
                   </DivineButton>
                   <DivineButton
                     fullWidth
@@ -1116,11 +1203,70 @@ function CartLineRow({ line, onRemove }: { line: CartLine; onRemove: () => void 
 
 function BookingSuccessView({
   confirmation,
+  paymentModes,
   onNewBooking,
+  onPaymentRecorded,
 }: {
   confirmation: BookingConfirmation;
+  paymentModes: PaymentMode[];
   onNewBooking: () => void;
+  onPaymentRecorded: (result: RecordPaymentResult) => void;
 }) {
+  // "Pay Again" collects one more installment right here, in a different
+  // payment mode than the one the booking was opened with if needed — e.g.
+  // $50 Cash at confirm time, then $50 PayNow a moment later for the same
+  // booking. "Close Now" is just onNewBooking: any remaining balance is
+  // always still collectible later from POS Transactions.
+  const [payAgainOpen, setPayAgainOpen] = useState(false);
+  const [amountInput, setAmountInput] = useState("");
+  const [modeId, setModeId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  function openPayAgain() {
+    setAmountInput(confirmation.balanceAmount.toFixed(2));
+    setModeId((prev) => prev || paymentModes[0]?._id || "");
+    setPayAgainOpen(true);
+  }
+
+  async function submitPayAgain() {
+    const amount = Number(amountInput);
+    if (amountInput === "" || Number.isNaN(amount) || amount <= 0) {
+      toast.error("Enter a payment amount greater than $0.00.");
+      return;
+    }
+    if (amount > confirmation.balanceAmount + 0.005) {
+      toast.error(`Amount cannot exceed the outstanding balance of ${formatCurrency(confirmation.balanceAmount)}.`);
+      return;
+    }
+    if (!modeId) {
+      toast.error("Select a payment mode.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const r = await api.post<ApiEnvelope<RecordPaymentResult>>(
+        `/pos/admin/booking/bookings/${confirmation._id}/payments`,
+        { amount, paymentModeId: modeId }
+      );
+      const result = unwrap(r);
+      onPaymentRecorded(result);
+      if (result.balanceAmount > 0.005) {
+        toast.created(`Payment recorded — ${formatCurrency(result.balanceAmount)} still due.`);
+        setAmountInput(result.balanceAmount.toFixed(2));
+      } else {
+        toast.created("Payment recorded — booking is now fully paid!");
+        setPayAgainOpen(false);
+      }
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const modeOptions: ListboxOption[] = paymentModes.map((m) => ({ value: m._id, label: m.name }));
+
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center">
       <motion.div
@@ -1137,19 +1283,76 @@ function BookingSuccessView({
         </div>
 
         <h2 className="font-display text-[24px] font-bold text-ink-100">Booking Confirmed!</h2>
-        <p className="mt-1 text-[13px] text-ink-500">Payment received · Inventory updated</p>
+        <p className="mt-1 text-[13px] text-ink-500">
+          {confirmation.paymentStatus === "paid" ? "Payment received · Inventory updated" : "Partial payment received · Inventory updated"}
+        </p>
 
         <div className="my-6 space-y-2 rounded-xl border border-gold-500/15 bg-navy-800/60 px-5 py-4 text-left text-[13px]">
           <Row label="Booking No." value={confirmation.bookingNumber} highlight />
           <Row label="Order No." value={confirmation.orderNumber} />
-          <Row label="Receipt No." value={confirmation.receiptNo} />
+          <Row label="Receipt No." value={confirmation.receiptNo ?? "—"} />
           <Row label="Customer" value={`${confirmation.customer.name} (${confirmation.customer.customerCode})`} />
-          <Row label="Payment" value={`${confirmation.paymentModeName} — ${confirmation.paymentStatus}`} />
+          <Row label="Payment Mode" value={confirmation.paymentModeName} />
           <Row label="Items / Services" value={`${confirmation.lines.length} line(s)`} />
           <div className="border-t border-gold-500/10 pt-2">
-            <Row label="Grand Total" value={formatCurrency(confirmation.grandTotal)} highlight />
+            <Row label="Total Payable Amount" value={formatCurrency(confirmation.grandTotal)} />
+            <Row label="Amount Paid" value={formatCurrency(confirmation.amountPaid)} />
+            <Row
+              label="Balance Due"
+              value={formatCurrency(confirmation.balanceAmount)}
+              highlight={confirmation.balanceAmount > 0}
+            />
           </div>
         </div>
+
+        {confirmation.balanceAmount > 0.005 && !payAgainOpen && (
+          <div className="mb-4 space-y-3 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-4 py-3 text-left">
+            <p className="text-[12.5px] text-crimson-400">
+              Only partially paid — {formatCurrency(confirmation.balanceAmount)} still due. Collect the rest now
+              (any payment mode), or close and settle it later from POS Transactions.
+            </p>
+            <div className="flex gap-2">
+              <DivineButton fullWidth={false} type="button" onClick={openPayAgain} className="flex-1">
+                Pay Again
+              </DivineButton>
+              <DivineButton fullWidth={false} variant="ghost" type="button" onClick={onNewBooking} className="flex-1">
+                Close Now
+              </DivineButton>
+            </div>
+          </div>
+        )}
+
+        {payAgainOpen && (
+          <div className="mb-4 space-y-3 rounded-lg border border-gold-500/20 bg-navy-800/60 px-4 py-3.5 text-left">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">Collect Another Payment</p>
+            <DivineInput
+              label={`Amount (max ${formatCurrency(confirmation.balanceAmount)})`}
+              type="number"
+              min={0.01}
+              max={confirmation.balanceAmount}
+              step="0.01"
+              inputMode="decimal"
+              value={amountInput}
+              onChange={(e) => setAmountInput(e.target.value)}
+            />
+            <DivineListbox value={modeId} onChange={setModeId} options={modeOptions} placeholder="Payment mode" />
+            <div className="flex gap-2">
+              <DivineButton fullWidth={false} type="button" loading={submitting} onClick={submitPayAgain} className="flex-1">
+                Collect Payment
+              </DivineButton>
+              <DivineButton
+                fullWidth={false}
+                variant="ghost"
+                type="button"
+                disabled={submitting}
+                onClick={() => setPayAgainOpen(false)}
+                className="flex-1"
+              >
+                Cancel
+              </DivineButton>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-3">
           <DivineButton fullWidth onClick={onNewBooking}>

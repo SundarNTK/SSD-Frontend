@@ -9,7 +9,7 @@ type ToastState = {
 };
 
 let nextId = 1;
-const AUTO_DISMISS_MS = 3000;
+const AUTO_DISMISS_MS = 2000;
 
 export const useToastStore = create<ToastState>((set) => ({
   toasts: [],
@@ -25,12 +25,8 @@ function show(message: string, tone: ToastTone) {
 }
 
 /**
- * Fire-and-forget notices for actions that already closed their own modal —
- * create/update/delete across every master screen call the matching one
- * right after the drawer/dialog closes, so "it worked" is confirmed
- * somewhere durable rather than only implied by the modal disappearing.
- * Each tone gets its own color in ToastStack (gold/blue/crimson) so the
- * kind of change that just happened is legible at a glance.
+ * Fire-and-forget notices for create/update/delete. Shown as a short toast
+ * on the same screen (the list stays visible — no full-page overlay).
  */
 export const toast = {
   created: (message: string) => show(message, "create"),
