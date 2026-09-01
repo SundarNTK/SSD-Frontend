@@ -36,6 +36,7 @@ import { toast } from "../../lib/toastStore";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import DivineInput from "../divine/DivineInput";
 import DivineButton from "../divine/DivineButton";
+import { StayOnPageWarning } from "../divine/StatusBanner";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineMultiSelect from "../divine/DivineMultiSelect";
 import {
@@ -1212,19 +1213,30 @@ function BookingSuccessView({
   onNewBooking: () => void;
   onPaymentRecorded: (result: RecordPaymentResult) => void;
 }) {
-  // "Pay Again" collects one more installment right here, in a different
-  // payment mode than the one the booking was opened with if needed — e.g.
-  // $50 Cash at confirm time, then $50 PayNow a moment later for the same
-  // booking. "Close Now" is just onNewBooking: any remaining balance is
-  // always still collectible later from POS Transactions.
-  const [payAgainOpen, setPayAgainOpen] = useState(false);
-  const [amountInput, setAmountInput] = useState("");
-  const [modeId, setModeId] = useState("");
+  // Until the booking is fully paid, the only action is collecting the
+  // remaining balance. Booking success (and New Booking) appear only after
+  // balance is $0.00.
+  const stillDue = confirmation.balanceAmount > 0.005;
+  const [payAgainOpen, setPayAgainOpen] = useState(stillDue);
+  const [amountInput, setAmountInput] = useState(stillDue ? confirmation.balanceAmount.toFixed(2) : "");
+  const [modeId, setModeId] = useState(
+    paymentModes.find((m) => m.name.toLowerCase() === "cash")?._id || "",
+  );
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!stillDue) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [stillDue]);
 
   function openPayAgain() {
     setAmountInput(confirmation.balanceAmount.toFixed(2));
-    setModeId((prev) => prev || paymentModes[0]?._id || "");
+    setModeId((prev) => prev || paymentModes.find((m) => m.name.toLowerCase() === "cash")?._id || "");
     setPayAgainOpen(true);
   }
 
@@ -1265,10 +1277,8 @@ function BookingSuccessView({
     }
   }
 
-  const modeOptions: ListboxOption[] = paymentModes.map((m) => ({ value: m._id, label: m.name }));
-
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1282,10 +1292,17 @@ function BookingSuccessView({
           </svg>
         </div>
 
-        <h2 className="font-display text-[24px] font-bold text-ink-100">Booking Confirmed!</h2>
+        <h2 className="font-display text-[24px] font-bold text-ink-100">
+          {stillDue ? "Partial Payment Success" : "Booking Confirmed!"}
+        </h2>
         <p className="mt-1 text-[13px] text-ink-500">
-          {confirmation.paymentStatus === "paid" ? "Payment received · Inventory updated" : "Partial payment received · Inventory updated"}
+          {stillDue ? "Partial payment received · Inventory updated" : "Payment received · Inventory updated"}
         </p>
+        {stillDue && (
+          <StayOnPageWarning>
+            Do not close or refresh this page until the remaining balance is collected. Leaving now will interrupt payment collection.
+          </StayOnPageWarning>
+        )}
 
         <div className="my-6 space-y-2 rounded-xl border border-gold-500/15 bg-navy-800/60 px-5 py-4 text-left text-[13px]">
           <Row label="Booking No." value={confirmation.bookingNumber} highlight />
@@ -1305,26 +1322,21 @@ function BookingSuccessView({
           </div>
         </div>
 
-        {confirmation.balanceAmount > 0.005 && !payAgainOpen && (
+        {stillDue && !payAgainOpen && (
           <div className="mb-4 space-y-3 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-4 py-3 text-left">
             <p className="text-[12.5px] text-crimson-400">
-              Only partially paid — {formatCurrency(confirmation.balanceAmount)} still due. Collect the rest now
-              (any payment mode), or close and settle it later from POS Transactions.
+              Only partially paid — {formatCurrency(confirmation.balanceAmount)} still due. Collect the remaining
+              amount now. The booking is confirmed only after full payment.
             </p>
-            <div className="flex gap-2">
-              <DivineButton fullWidth={false} type="button" onClick={openPayAgain} className="flex-1">
-                Pay Again
-              </DivineButton>
-              <DivineButton fullWidth={false} variant="ghost" type="button" onClick={onNewBooking} className="flex-1">
-                Close Now
-              </DivineButton>
-            </div>
+            <DivineButton fullWidth type="button" onClick={openPayAgain}>
+              Pay Again
+            </DivineButton>
           </div>
         )}
 
-        {payAgainOpen && (
+        {payAgainOpen && stillDue && (
           <div className="mb-4 space-y-3 rounded-lg border border-gold-500/20 bg-navy-800/60 px-4 py-3.5 text-left">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">Collect Another Payment</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">Collect Remaining Payment</p>
             <DivineInput
               label={`Amount (max ${formatCurrency(confirmation.balanceAmount)})`}
               type="number"
@@ -1335,31 +1347,55 @@ function BookingSuccessView({
               value={amountInput}
               onChange={(e) => setAmountInput(e.target.value)}
             />
-            <DivineListbox value={modeId} onChange={setModeId} options={modeOptions} placeholder="Payment mode" />
-            <div className="flex gap-2">
-              <DivineButton fullWidth={false} type="button" loading={submitting} onClick={submitPayAgain} className="flex-1">
-                Collect Payment
-              </DivineButton>
-              <DivineButton
-                fullWidth={false}
-                variant="ghost"
-                type="button"
-                disabled={submitting}
-                onClick={() => setPayAgainOpen(false)}
-                className="flex-1"
-              >
-                Cancel
-              </DivineButton>
+            <div className="grid grid-cols-2 gap-2">
+              {paymentModes.map((m) => {
+                const isCash = m.name.toLowerCase() === "cash";
+                const selected = isCash && modeId === m._id;
+                if (!isCash) {
+                  return (
+                    <button
+                      key={m._id}
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      title={`${m.name} isn't available yet`}
+                      className="cursor-not-allowed rounded-xl border border-gold-500/15 bg-navy-800/40 px-3 py-3 text-center opacity-50"
+                    >
+                      <span className="block text-[13px] font-semibold text-ink-400">{m.name}</span>
+                      <span className="mt-0.5 block text-[10px] text-ink-500">Coming soon</span>
+                    </button>
+                  );
+                }
+                return (
+                  <button
+                    key={m._id}
+                    type="button"
+                    onClick={() => setModeId(m._id)}
+                    className={`rounded-xl border px-3 py-3 text-[13px] font-semibold transition-colors ${
+                      selected
+                        ? "border-maroon bg-maroon text-white"
+                        : "border-gold-500/20 bg-navy-800/60 text-ink-100 hover:border-maroon/40"
+                    }`}
+                  >
+                    {m.name}
+                  </button>
+                );
+              })}
             </div>
+            <DivineButton fullWidth type="button" loading={submitting} onClick={submitPayAgain}>
+              Collect Payment
+            </DivineButton>
           </div>
         )}
 
-        <div className="space-y-3">
-          <DivineButton fullWidth onClick={onNewBooking}>
-            <PlusIcon />
-            New Booking
-          </DivineButton>
-        </div>
+        {!stillDue && (
+          <div className="space-y-3">
+            <DivineButton fullWidth onClick={onNewBooking}>
+              <PlusIcon />
+              New Booking
+            </DivineButton>
+          </div>
+        )}
       </motion.div>
     </div>
   );

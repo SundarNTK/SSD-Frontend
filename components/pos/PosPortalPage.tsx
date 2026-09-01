@@ -39,6 +39,7 @@ import { formatTempleDateTime } from "../../lib/datetime";
 import { sanitizeMobileInput, isValidSgMobile, SG_MOBILE_ERROR } from "../../lib/mobileNumber";
 import DivineInput from "../divine/DivineInput";
 import DivineButton from "../divine/DivineButton";
+import { StayOnPageWarning } from "../divine/StatusBanner";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import {
@@ -337,6 +338,7 @@ export default function PosPortalPage() {
   const [uncategorizedServices, setUncategorizedServices] = useState<
     PosService[]
   >([]);
+  const [catalogueTotalCount, setCatalogueTotalCount] = useState(0);
   const [catalogueLoading, setCatalogueLoading] = useState(true);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [activeFolder, setActiveFolder] = useState<Folder | null>(null);
@@ -348,7 +350,9 @@ export default function PosPortalPage() {
   const [searchServices, setSearchServices] = useState<PosService[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
-  const totalOfferingCount = categories.reduce((sum, c) => sum + c.count, 0);
+  const totalOfferingCount =
+    catalogueTotalCount ||
+    folders.length + uncategorizedItems.length + uncategorizedServices.length;
 
   async function loadCatalogue() {
     setCatalogueLoading(true);
@@ -356,6 +360,7 @@ export default function PosPortalPage() {
       const r = await api.get<
         ApiEnvelope<{
           categories: CategoryTab[];
+          totalCount?: number;
           folders: Folder[];
           uncategorizedItems: PosItem[];
           uncategorizedServices: PosService[];
@@ -366,6 +371,7 @@ export default function PosPortalPage() {
       setFolders(data.folders);
       setUncategorizedItems(data.uncategorizedItems);
       setUncategorizedServices(data.uncategorizedServices);
+      setCatalogueTotalCount(data.totalCount ?? 0);
     } catch (err) {
       toast.error(extractErrorMessage(err));
     } finally {
@@ -1067,7 +1073,7 @@ export default function PosPortalPage() {
 
   return (
     <PosShell user={user} onNewTransaction={startNewTransaction}>
-      <div className="relative z-10 grid grid-cols-1 gap-4 p-4 lg:h-full lg:grid-cols-[260px_1fr_360px]">
+      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto p-4 lg:h-full lg:grid-cols-[260px_1fr_360px] lg:overflow-hidden">
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
         <div className="relative flex flex-col gap-3 overflow-hidden rounded-md border border-white/70 bg-white/90 p-4 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-md lg:h-full lg:overflow-y-auto">
           {!selectedCustomer && <PanelGlow />}
@@ -1496,84 +1502,11 @@ export default function PosPortalPage() {
             </div>
 
             <div className="mt-3 space-y-1.5">
-              <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-amber-600">
-                <CashIcon className="h-3.5 w-3.5" /> Payment Method
-              </p>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() =>
-                    cashMode && setSelectedPaymentModeId(cashMode._id)
-                  }
-                  disabled={!cashMode}
-                  className={`group relative flex flex-col items-center gap-1 overflow-hidden rounded-lg border-2 px-2 py-1.5 text-center transition-[border-color,box-shadow,transform,background-color] duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
-                    selectedPaymentModeId &&
-                    selectedPaymentModeId === cashMode?._id
-                      ? "border-transparent bg-gradient-to-br from-emerald-600 via-emerald-500 to-emerald-400 shadow-[0_8px_18px_-8px_rgba(16,185,129,0.6)]"
-                      : "border-gold-500/20 hover:-translate-y-0.5 hover:border-flame-400/50 hover:shadow-[0_4px_12px_-6px_rgba(255,122,46,0.35)]"
-                  }`}
-                >
-                  <AnimatePresence initial={false}>
-                    {selectedPaymentModeId &&
-                      selectedPaymentModeId === cashMode?._id && (
-                        <motion.span
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0, opacity: 0 }}
-                          transition={{ duration: 0.18 }}
-                          className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white/25"
-                        >
-                          <svg
-                            className="h-2 w-2 text-white"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="3.5"
-                          >
-                            <path
-                              d="M5 13l4 4L19 7"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </motion.span>
-                      )}
-                  </AnimatePresence>
-                  <CashIcon
-                    className={`h-4 w-4 transition-colors duration-200 ${
-                      selectedPaymentModeId &&
-                      selectedPaymentModeId === cashMode?._id
-                        ? "text-white"
-                        : "text-emerald-600"
-                    }`}
-                  />
-                  <span
-                    className={`text-[11.5px] font-semibold transition-colors duration-200 ${
-                      selectedPaymentModeId &&
-                      selectedPaymentModeId === cashMode?._id
-                        ? "text-white"
-                        : "text-ink-100"
-                    }`}
-                  >
-                    Cash
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  disabled
-                  aria-disabled="true"
-                  title="PayNow isn't available yet"
-                  className="flex cursor-not-allowed flex-col items-center gap-1 rounded-lg border-2 border-gold-500/15 bg-ivory-50/60 px-2 py-1.5 text-center opacity-50"
-                >
-                  <span className="text-[12.5px] font-black italic tracking-tight text-ink-300">
-                    PayNow
-                  </span>
-                  <span className="text-[9px] font-medium text-ink-500">
-                    Coming soon
-                  </span>
-                </button>
-              </div>
+              <PaymentModeBoxes
+                modes={paymentModes}
+                value={selectedPaymentModeId}
+                onChange={setSelectedPaymentModeId}
+              />
             </div>
 
             {/* Partial payment: how much is being collected right now.
@@ -1758,13 +1691,15 @@ function PosShell({
           >
             Reprint
           </FlameActionButton>
-          <FlameActionButton
-            icon={<PlusIcon />}
-            tone="muted"
-            onClick={onNewTransaction}
-          >
-            New Transaction
-          </FlameActionButton>
+          {onNewTransaction && (
+            <FlameActionButton
+              icon={<PlusIcon />}
+              tone="muted"
+              onClick={onNewTransaction}
+            >
+              New Transaction
+            </FlameActionButton>
+          )}
         </div>
 
         <div className="col-start-3 flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
@@ -1817,7 +1752,7 @@ function PosShell({
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {children}
       </main>
     </div>
@@ -2169,6 +2104,77 @@ function CashIcon({ className = "" }: { className?: string }) {
       <circle cx="12" cy="12" r="3" />
       <path d="M5.5 9v0M18.5 15v0" strokeLinecap="round" strokeWidth="2.2" />
     </svg>
+  );
+}
+
+function PaymentModeBoxes({
+  modes,
+  value,
+  onChange,
+}: {
+  modes: PaymentMode[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5 text-left">
+      <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-amber-600">
+        <CashIcon className="h-3.5 w-3.5" /> Payment Method
+      </p>
+      <div className="grid grid-cols-2 gap-1.5">
+        {modes.map((m) => {
+          const isCash = m.name.toLowerCase() === "cash";
+          const selected = isCash && value === m._id;
+          if (!isCash) {
+            return (
+              <button
+                key={m._id}
+                type="button"
+                disabled
+                aria-disabled="true"
+                title={`${m.name} isn't available yet`}
+                className="flex cursor-not-allowed flex-col items-center gap-0.5 rounded-lg border-2 border-gold-500/15 bg-ivory-50/60 px-2 py-1.5 text-center opacity-50"
+              >
+                <span className="text-[11.5px] font-semibold text-ink-300">{m.name}</span>
+                <span className="text-[9px] font-medium text-ink-500">Coming soon</span>
+              </button>
+            );
+          }
+          return (
+            <button
+              key={m._id}
+              type="button"
+              onClick={() => onChange(m._id)}
+              className={`group relative flex flex-col items-center gap-1 overflow-hidden rounded-lg border-2 px-2 py-1.5 text-center transition-[border-color,box-shadow,transform,background-color] duration-200 ${
+                selected
+                  ? "border-transparent bg-gradient-to-br from-emerald-600 via-emerald-500 to-emerald-400 shadow-[0_8px_18px_-8px_rgba(16,185,129,0.6)]"
+                  : "border-gold-500/20 hover:-translate-y-0.5 hover:border-flame-400/50 hover:shadow-[0_4px_12px_-6px_rgba(255,122,46,0.35)]"
+              }`}
+            >
+              <AnimatePresence initial={false}>
+                {selected && (
+                  <motion.span
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white/25"
+                  >
+                    <svg className="h-2 w-2 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5">
+                      <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              <CashIcon className={`h-4 w-4 transition-colors duration-200 ${selected ? "text-white" : "text-emerald-600"}`} />
+              <span className={`text-[11.5px] font-semibold transition-colors duration-200 ${selected ? "text-white" : "text-ink-100"}`}>
+                {m.name}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -3199,15 +3205,15 @@ function BookingSuccessView({
   onNewTransaction: () => void;
   onPaymentRecorded: (result: RecordPaymentResult) => void;
 }) {
-  // "Pay Again" lets the counter collect one more installment right here,
-  // in a different payment mode than the one the booking was opened with —
-  // e.g. $50 in PayNow at confirm time, then $50 in Cash a moment later for
-  // the same booking. "Close Now" is just onNewTransaction: the balance (if
-  // any) is always still collectible later from POS Transactions in the
-  // Admin Panel, so closing out never loses it.
-  const [payAgainOpen, setPayAgainOpen] = useState(false);
-  const [amountInput, setAmountInput] = useState("");
-  const [modeId, setModeId] = useState("");
+  // Until the booking is fully paid, the only action is "Pay Again" —
+  // cashiers cannot skip a remaining balance from this screen. Booking
+  // success (and New Transaction) appear only after balance is $0.00.
+  const stillDue = confirmation.balanceAmount > 0.005;
+  const [payAgainOpen, setPayAgainOpen] = useState(stillDue);
+  const [amountInput, setAmountInput] = useState(stillDue ? confirmation.balanceAmount.toFixed(2) : "");
+  const [modeId, setModeId] = useState(
+    paymentModes.find((m) => m.name.toLowerCase() === "cash")?._id || "",
+  );
   const [submitting, setSubmitting] = useState(false);
   // Drives the success popup — set from the API response the moment a
   // payment lands, cleared when the cashier dismisses it. A toast alone
@@ -3215,9 +3221,19 @@ function BookingSuccessView({
   // needs an explicit acknowledgment.
   const [paymentPopup, setPaymentPopup] = useState<RecordPaymentResult | null>(null);
 
+  useEffect(() => {
+    if (!stillDue) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [stillDue]);
+
   function openPayAgain() {
     setAmountInput(confirmation.balanceAmount.toFixed(2));
-    setModeId((prev) => prev || paymentModes[0]?._id || "");
+    setModeId((prev) => prev || paymentModes.find((m) => m.name.toLowerCase() === "cash")?._id || "");
     setPayAgainOpen(true);
   }
 
@@ -3257,16 +3273,14 @@ function BookingSuccessView({
     }
   }
 
-  const modeOptions: ListboxOption[] = paymentModes.map((m) => ({ value: m._id, label: m.name }));
-
   return (
     <>
-    <div className="flex h-full flex-col items-center justify-center p-4">
+    <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-8">
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        className="w-full max-w-lg rounded-2xl border border-gold-500/20 bg-white p-8 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)]"
+        className="mx-auto w-full max-w-lg rounded-2xl border border-gold-500/20 bg-white p-6 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)] sm:p-8"
       >
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-emerald-500/40 bg-emerald-500/10">
           <svg
@@ -3284,11 +3298,16 @@ function BookingSuccessView({
           </svg>
         </div>
         <h2 className="font-display text-[24px] font-bold text-ink-100">
-          Booking Confirmed!
+          {stillDue ? "Partial Payment Success" : "Booking Confirmed!"}
         </h2>
         <p className="mt-1 text-[13px] text-ink-500">
-          {confirmation.paymentStatus === "paid" ? "Payment received · Inventory updated" : "Partial payment received · Inventory updated"}
+          {stillDue ? "Partial payment received · Inventory updated" : "Payment received · Inventory updated"}
         </p>
+        {stillDue && (
+          <StayOnPageWarning>
+            Do not close or refresh this page until the remaining balance is collected. Leaving now will interrupt payment collection.
+          </StayOnPageWarning>
+        )}
         <div className="my-6 space-y-2 rounded-xl border border-gold-500/15 bg-ivory-100 px-5 py-4 text-left text-[13px]">
           <Row
             label="Booking No."
@@ -3319,27 +3338,22 @@ function BookingSuccessView({
           </div>
         </div>
 
-        {confirmation.balanceAmount > 0.005 && !payAgainOpen && (
+        {stillDue && !payAgainOpen && (
           <div className="mb-4 space-y-3 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-4 py-3 text-left">
             <p className="text-[12px] text-crimson-500">
-              Only partially paid — {formatCurrency(confirmation.balanceAmount)} still due. Collect the rest now
-              (any payment mode), or close and settle it later from Admin Panel → POS Transactions.
+              Only partially paid — {formatCurrency(confirmation.balanceAmount)} still due. Collect the remaining
+              amount now. The booking is confirmed only after full payment.
             </p>
-            <div className="flex gap-2">
-              <DivineButton fullWidth={false} type="button" onClick={openPayAgain} className="flex-1">
-                Pay Again
-              </DivineButton>
-              <DivineButton fullWidth={false} variant="ghost" type="button" onClick={onNewTransaction} className="flex-1">
-                Close Now
-              </DivineButton>
-            </div>
+            <DivineButton fullWidth type="button" onClick={openPayAgain}>
+              Pay Again
+            </DivineButton>
           </div>
         )}
 
-        {payAgainOpen && (
+        {payAgainOpen && stillDue && (
           <div className="mb-4 space-y-3 rounded-lg border border-gold-500/20 bg-ivory-50 px-4 py-3.5 text-left">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">
-              Collect Another Payment
+              Collect Remaining Payment
             </p>
             <DivineInput
               label={`Amount (max ${formatCurrency(confirmation.balanceAmount)})`}
@@ -3351,38 +3365,23 @@ function BookingSuccessView({
               value={amountInput}
               onChange={(e) => setAmountInput(e.target.value)}
             />
-            <DivineListbox
-              value={modeId}
-              onChange={setModeId}
-              options={modeOptions}
-              placeholder="Payment mode"
-            />
-            <div className="flex gap-2">
-              <DivineButton fullWidth={false} type="button" loading={submitting} onClick={submitPayAgain} className="flex-1">
-                Collect Payment
-              </DivineButton>
-              <DivineButton
-                fullWidth={false}
-                variant="ghost"
-                type="button"
-                disabled={submitting}
-                onClick={() => setPayAgainOpen(false)}
-                className="flex-1"
-              >
-                Cancel
-              </DivineButton>
-            </div>
+            <PaymentModeBoxes modes={paymentModes} value={modeId} onChange={setModeId} />
+            <DivineButton fullWidth type="button" loading={submitting} onClick={submitPayAgain}>
+              Collect Payment
+            </DivineButton>
           </div>
         )}
 
-        <FlameActionButton
-          icon={<PlusIcon />}
-          chevron={false}
-          onClick={onNewTransaction}
-          className="w-full justify-center"
-        >
-          New Transaction
-        </FlameActionButton>
+        {!stillDue && (
+          <FlameActionButton
+            icon={<PlusIcon />}
+            chevron={false}
+            onClick={onNewTransaction}
+            className="w-full justify-center"
+          >
+            New Transaction
+          </FlameActionButton>
+        )}
       </motion.div>
     </div>
     {paymentPopup && <PaymentRecordedModal result={paymentPopup} onClose={() => setPaymentPopup(null)} />}
@@ -3422,9 +3421,11 @@ function PaymentRecordedModal({
               <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h3 className="font-display text-[19px] font-bold text-ink-100">Payment Recorded!</h3>
+          <h3 className="font-display text-[19px] font-bold text-ink-100">
+            {fullyPaid ? "Booking Confirmed!" : "Partial Payment Success"}
+          </h3>
           <p className="mt-1 text-[12.5px] text-ink-500">
-            {fullyPaid ? "This booking is now fully paid." : "Collected — a balance is still due."}
+            {fullyPaid ? "This booking is now fully paid." : "Collected — a balance is still due. Continue paying until the balance is $0.00."}
           </p>
           <div className="my-5 space-y-1.5 rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3.5 text-left text-[13px]">
             <Row label="Amount Collected" value={formatCurrency(result.amount)} highlight />

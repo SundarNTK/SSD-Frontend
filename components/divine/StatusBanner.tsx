@@ -3,10 +3,19 @@
 import { AnimatePresence, motion } from "framer-motion";
 import type { ReactNode } from "react";
 
-type Tone = "error" | "success";
+type Tone = "error" | "success" | "warning";
 
-export default function StatusBanner({ tone, children }: { tone: Tone; children: ReactNode }) {
+export default function StatusBanner({
+  tone,
+  children,
+  className = "mb-6",
+}: {
+  tone: Tone;
+  children: ReactNode;
+  className?: string;
+}) {
   const isError = tone === "error";
+  const isWarning = tone === "warning";
   return (
     <AnimatePresence>
       <motion.div
@@ -16,18 +25,33 @@ export default function StatusBanner({ tone, children }: { tone: Tone; children:
         className="overflow-hidden"
       >
         <div
-          className={`mb-6 flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[13.5px] ${
+          role={isError || isWarning ? "alert" : undefined}
+          className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-[13.5px] ${className} ${
             isError
               ? "border-crimson-500/40 bg-crimson-500/10 text-crimson-600"
-              : "border-gold-400/40 bg-gold-500/10 text-amber-700"
+              : isWarning
+                ? "border-amber-500/50 bg-amber-50 text-left text-amber-950 shadow-[0_8px_22px_-14px_rgba(166,116,32,0.55)]"
+                : "border-gold-400/40 bg-gold-500/10 text-amber-700"
           }`}
         >
-          <span className="mt-0.5 shrink-0">
+          <span
+            className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+              isWarning ? "bg-amber-500/20 text-amber-700" : ""
+            }`}
+          >
             {isError ? (
               <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 6a1 1 0 112 0v4a1 1 0 11-2 0V6zm1 8a1.25 1.25 0 100-2.5A1.25 1.25 0 0010 14z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            ) : isWarning ? (
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  fillRule="evenodd"
+                  d="M10.29 3.86c.77-1.33 2.65-1.33 3.42 0l8.09 14.01c.75 1.3-.19 2.93-1.71 2.93H3.91c-1.52 0-2.46-1.63-1.71-2.93L10.29 3.86zM12 9a1 1 0 00-1 1v3.5a1 1 0 102 0V10a1 1 0 00-1-1zm0 8a1.25 1.25 0 100-2.5A1.25 1.25 0 0012 17z"
                   clipRule="evenodd"
                 />
               </svg>
@@ -41,9 +65,42 @@ export default function StatusBanner({ tone, children }: { tone: Tone; children:
               </svg>
             )}
           </span>
-          <span>{children}</span>
+          {isWarning ? (
+            <div className="min-w-0 pt-0.5">
+              <p className="font-accent text-[11px] font-bold uppercase tracking-[0.16em] text-amber-800">Warning</p>
+              <p className="mt-1 leading-relaxed text-[13px] text-amber-950">{children}</p>
+            </div>
+          ) : (
+            <span>{children}</span>
+          )}
         </div>
       </motion.div>
     </AnimatePresence>
+  );
+}
+
+/** Urgent stay-on-page notice — crimson with a warm amber wash, not the gold “success” banner. */
+export function StayOnPageWarning({ children }: { children: ReactNode }) {
+  return (
+    <div
+      role="alert"
+      className="mt-4 rounded-xl border-2 border-crimson-500/70 bg-gradient-to-r from-crimson-500/18 via-[#fff5f5] to-amber-500/15 text-left shadow-[0_10px_28px_-12px_rgba(179,39,63,0.55)]"
+    >
+      <div className="flex items-start gap-3 border-l-[6px] border-crimson-600 px-3.5 py-3.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-crimson-500 text-white shadow-[0_4px_10px_-2px_rgba(179,39,63,0.65)]">
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path
+              fillRule="evenodd"
+              d="M10.29 3.86c.77-1.33 2.65-1.33 3.42 0l8.09 14.01c.75 1.3-.19 2.93-1.71 2.93H3.91c-1.52 0-2.46-1.63-1.71-2.93L10.29 3.86zM12 9a1 1 0 00-1 1v3.5a1 1 0 102 0V10a1 1 0 00-1-1zm0 8a1.25 1.25 0 100-2.5A1.25 1.25 0 0012 17z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </span>
+        <div className="min-w-0 pt-0.5">
+          <p className="font-accent text-[11px] font-bold uppercase tracking-[0.18em] text-crimson-600">Warning</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-crimson-600">{children}</p>
+        </div>
+      </div>
+    </div>
   );
 }
