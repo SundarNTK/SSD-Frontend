@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -15,6 +15,8 @@ import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
+import DivineImageUpload from "../divine/DivineImageUpload";
+import { withOptionalImage } from "../../lib/withOptionalImage";
 import {
   PlusIcon,
   CloseIcon,
@@ -61,6 +63,7 @@ export type Item = {
   posAvailability: boolean;
   customerPortalAvailability: boolean;
   status: number;
+  image: string | null;
 };
 
 const UNIT_OPTIONS = ["PCS", "KG", "GRAM", "LTR", "ML", "BOX", "SET", "PACK"].map((u) => ({ value: u, label: u }));
@@ -158,6 +161,8 @@ export default function ItemPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
   const [deleting, setDeleting] = useState<Item | null>(null);
+  const [createImage, setCreateImage] = useState<File | null>(null);
+  const [editImage, setEditImage] = useState<File | null>(null);
 
   useEffect(() => {
     fetchOptions("/masters/general-ledgers").then(setGlOptions);
@@ -192,6 +197,7 @@ export default function ItemPage() {
   function openCreate() {
     setEditing(null);
     reset(DEFAULT_VALUES);
+    setCreateImage(null);
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -226,21 +232,22 @@ export default function ItemPage() {
       customerPortalAvailability: item.customerPortalAvailability,
       status: item.status,
     });
+    setEditImage(null);
     update.setError(null);
     setDrawerOpen(true);
   }
 
   const submit = handleSubmit(async (values) => {
-    const payload = {
-      ...values,
-      deityMapping: values.isDeityMappingRequired ? values.deityMapping : [],
-      unitOfMeasure: values.isInventoryApplicable && values.unitOfMeasure ? values.unitOfMeasure : null,
-      futureBookingCutOffDate: values.futureBookingCutOffDate || null,
-      // Sub Category is optional per row — DivineListbox reports "no
-      // selection" as "", which the backend's ObjectId validator rejects
-      // outright, so an unselected row goes as null instead.
-      categoryDetails: values.categoryDetails.map((c) => ({ ...c, subCategory: c.subCategory || null })),
-    };
+    const payload = withOptionalImage(
+      {
+        ...values,
+        deityMapping: values.isDeityMappingRequired ? values.deityMapping : [],
+        unitOfMeasure: values.isInventoryApplicable && values.unitOfMeasure ? values.unitOfMeasure : null,
+        futureBookingCutOffDate: values.futureBookingCutOffDate || null,
+        categoryDetails: values.categoryDetails.map((c) => ({ ...c, subCategory: c.subCategory || null })),
+      },
+      editing ? editImage : createImage,
+    );
     const ok = editing ? await update.run(editing._id, payload) : await create.run(payload);
     if (ok !== undefined) {
       setDrawerOpen(false);
@@ -250,6 +257,7 @@ export default function ItemPage() {
   });
 
   const columns: DataTableColumn<Item>[] = [
+    { key: "image", label: "Image", render: (i) => <MasterImageCell src={i.image} alt={i.name} /> },
     { key: "code", label: "Code", render: (i) => <span className="font-medium tabular-nums text-amber-700">{i.code}</span> },
     { key: "name", label: "Name", render: (i) => i.name },
     {
@@ -653,6 +661,11 @@ export default function ItemPage() {
               )}
             />
           </div>
+          <DivineImageUpload
+            label="Item Image"
+            value={editing?.image}
+            onChange={editing ? setEditImage : setCreateImage}
+          />
         </form>
       </FormDrawer>
     </>

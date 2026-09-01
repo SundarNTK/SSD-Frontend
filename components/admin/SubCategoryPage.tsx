@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -12,12 +12,14 @@ import DivineTextarea from "../divine/DivineTextarea";
 import DivineColorPicker from "../divine/DivineColorPicker";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
+import DivineImageUpload from "../divine/DivineImageUpload";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import TamilNameField from "./TamilNameField";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { withOptionalImage } from "../../lib/withOptionalImage";
 
 export type SubCategory = {
   _id: string;
@@ -28,6 +30,7 @@ export type SubCategory = {
   color: string;
   description: string;
   status: number;
+  image: string | null;
   category?: { _id: string; name: string } | null;
 };
 
@@ -69,6 +72,8 @@ export default function SubCategoryPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<SubCategory | null>(null);
   const [deleting, setDeleting] = useState<SubCategory | null>(null);
+  const [createImage, setCreateImage] = useState<File | null>(null);
+  const [editImage, setEditImage] = useState<File | null>(null);
 
   // Load category dropdown once on mount
   useEffect(() => {
@@ -95,6 +100,7 @@ export default function SubCategoryPage() {
   function openCreate() {
     setEditing(null);
     reset({ name: "", tamilName: "", code: "", category: "", displayOrder: 0, color: "#942237", description: "", status: 1 });
+    setCreateImage(null);
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -111,12 +117,14 @@ export default function SubCategoryPage() {
       description: sub.description,
       status: sub.status,
     });
+    setEditImage(null);
     update.setError(null);
     setDrawerOpen(true);
   }
 
   const submit = handleSubmit(async (values) => {
-    const ok = editing ? await update.run(editing._id, values) : await create.run(values);
+    const payload = withOptionalImage(values, editing ? editImage : createImage);
+    const ok = editing ? await update.run(editing._id, payload) : await create.run(payload);
     if (ok !== undefined) {
       setDrawerOpen(false);
       if (editing) toast.updated("Sub category updated successfully.");
@@ -126,13 +134,20 @@ export default function SubCategoryPage() {
 
   const columns: DataTableColumn<SubCategory>[] = [
     {
+      key: "image",
+      label: "Image",
+      render: (s) => <MasterImageCell src={s.image} alt={s.name} />,
+    },
+    {
       key: "name",
       label: "Name",
+      render: (s) => <span className="font-medium">{s.name}</span>,
+    },
+    {
+      key: "color",
+      label: "Color",
       render: (s) => (
-        <span className="flex items-center gap-2.5">
-          <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-gold-500/20" style={{ backgroundColor: s.color }} />
-          <span className="font-medium">{s.name}</span>
-        </span>
+        <span className="inline-flex h-5 w-5 rounded-full border border-gold-500/25" style={{ backgroundColor: s.color }} />
       ),
     },
     {
@@ -275,6 +290,11 @@ export default function SubCategoryPage() {
             />
           </div>
           <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
+          <DivineImageUpload
+            label="Sub Category Image"
+            value={editing?.image}
+            onChange={editing ? setEditImage : setCreateImage}
+          />
         </form>
       </FormDrawer>
     </>

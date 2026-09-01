@@ -3,6 +3,20 @@
 import type { ReactNode } from "react";
 import { PlusIcon, PencilIcon, TrashIcon } from "../divine/icons";
 import DivineListbox from "../divine/DivineListbox";
+import { resolveImageUrl } from "../../lib/imageUrl";
+
+export function MasterImageCell({ src, alt = "" }: { src: string | null; alt?: string }) {
+  const url = resolveImageUrl(src);
+  return (
+    <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-gold-500/20 bg-ivory-100">
+      {url ? (
+        <img src={url} alt={alt} className="h-full w-full object-cover" />
+      ) : (
+        <span className="text-[10px] text-ink-500">—</span>
+      )}
+    </span>
+  );
+}
 
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
