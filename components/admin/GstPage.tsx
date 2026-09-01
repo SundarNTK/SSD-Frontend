@@ -28,16 +28,37 @@ export type Gst = {
   status: number;
 };
 
-const GST_TYPES = ["Standard GST", "Zero-Rated", "Exempt", "Out of Scope"] as const;
+const GST_TYPES = ["Standard Rated", "Zero-Rated", "Exempt", "Out of Scope"] as const;
+const ZERO_RATE_TYPES = ["Zero-Rated", "Exempt", "Out of Scope"] as const;
 
 const GST_TYPE_OPTIONS = GST_TYPES.map((value) => ({ value, label: value }));
+
+const GST_TYPE_HELP: Record<(typeof GST_TYPES)[number], string> = {
+  "Standard Rated": "GST is applicable. Configure the GST rate (for example 9%). The system calculates GST during transactions.",
+  Exempt: "GST is not applicable. Rate is fixed at 0% and GST amount is zero.",
+  "Zero-Rated": "GST is applicable at 0%. GST amount is zero.",
+  "Out of Scope": "Outside GST calculation. GST is not calculated. Rate is fixed at 0%.",
+};
+
+function canonicalGstType(type: string) {
+  if (type === "Standard GST") return "Standard Rated";
+  return type;
+}
+
+function isZeroRateType(type: string) {
+  return (ZERO_RATE_TYPES as readonly string[]).includes(canonicalGstType(type));
+}
+
+function isOfficialType(type: string) {
+  return (GST_TYPES as readonly string[]).includes(canonicalGstType(type));
+}
 
 const schema = z
   .object({
     type: z
       .string()
       .min(1, "GST type is required")
-      .refine((value) => (GST_TYPES as readonly string[]).includes(value), "GST type is required"),
+      .refine((value) => isOfficialType(value), "GST type is required"),
     percentage: z.number().min(0, "Must be 0-100").max(100, "Must be 0-100"),
     code: z.string().trim().min(1, "Code is required").max(20),
     effectiveStartDate: z.string().min(1, "Start date is required"),
@@ -47,6 +68,23 @@ const schema = z
   .refine((v) => !v.effectiveEndDate || v.effectiveEndDate >= v.effectiveStartDate, {
     message: "End date can't be before the start date.",
     path: ["effectiveEndDate"],
+  })
+  .superRefine((v, ctx) => {
+    const type = canonicalGstType(v.type);
+    if (isZeroRateType(type) && v.percentage !== 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["percentage"],
+        message: `GST rate must be 0% for ${type}.`,
+      });
+    }
+    if (type === "Standard Rated" && !(v.percentage > 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["percentage"],
+        message: "Standard Rated GST requires a configured rate greater than 0% (for example 9%).",
+      });
+    }
   });
 
 type FormValues = z.infer<typeof schema>;
@@ -65,10 +103,6 @@ async function findActiveOfType(type: string, excludeId?: string) {
   });
   const { items } = unwrap(response);
   return items.find((g) => g._id !== excludeId) ?? null;
-}
-
-function isOfficialType(type: string) {
-  return (GST_TYPES as readonly string[]).includes(type);
 }
 
 function lastActiveError(type: string) {
@@ -90,6 +124,7 @@ export default function GstPage() {
   const [deleting, setDeleting] = useState<Gst | null>(null);
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
   const [checkingActive, setCheckingActive] = useState(false);
+  const [conflictBusy, setConflictBusy] = useState(false);
 
   useEffect(() => {
     list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined });
@@ -102,6 +137,7 @@ export default function GstPage() {
     reset,
     watch,
     control,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -118,6 +154,7 @@ export default function GstPage() {
   const effectiveStartDate = watch("effectiveStartDate");
   const effectiveEndDate = watch("effectiveEndDate");
   const selectedType = watch("type");
+  const rateLocked = isZeroRateType(selectedType);
 
   function openCreate() {
     setEditing(null);
@@ -128,10 +165,10 @@ export default function GstPage() {
 
   function openEdit(gst: Gst) {
     setEditing(gst);
-    const knownType = isOfficialType(gst.type) ? gst.type : "";
+    const knownType = isOfficialType(gst.type) ? canonicalGstType(gst.type) : "";
     reset({
       type: knownType,
-      percentage: gst.percentage,
+      percentage: isZeroRateType(gst.type) ? 0 : gst.percentage,
       code: gst.code,
       effectiveStartDate: gst.effectiveStartDate.slice(0, 10),
       effectiveEndDate: gst.effectiveEndDate ? gst.effectiveEndDate.slice(0, 10) : "",
@@ -144,6 +181,8 @@ export default function GstPage() {
   async function persist(values: FormValues, replaceActive = false) {
     const payload = {
       ...values,
+      type: canonicalGstType(values.type),
+      percentage: isZeroRateType(values.type) ? 0 : values.percentage,
       effectiveEndDate: values.effectiveEndDate || null,
       replaceActive,
     };
@@ -286,19 +325,32 @@ export default function GstPage() {
         cancelLabel="Cancel"
         altConfirmLabel="Save as inactive"
         onAltConfirm={async () => {
-          if (!pendingConflict) return;
-          await persist({ ...pendingConflict.values, status: 0 });
+          if (!pendingConflict || conflictBusy) return;
+          setConflictBusy(true);
+          try {
+            await persist({ ...pendingConflict.values, status: 0 });
+          } finally {
+            setConflictBusy(false);
+          }
         }}
         confirmLabel={
           pendingConflict?.kind === "create"
             ? "Deactivate old and create as active"
             : "Deactivate old and keep this active"
         }
-        loading={create.submitting || update.submitting}
-        onCancel={() => setPendingConflict(null)}
+        loading={conflictBusy}
+        onCancel={() => {
+          if (conflictBusy) return;
+          setPendingConflict(null);
+        }}
         onConfirm={async () => {
-          if (!pendingConflict) return;
-          await persist(pendingConflict.values, true);
+          if (!pendingConflict || conflictBusy) return;
+          setConflictBusy(true);
+          try {
+            await persist(pendingConflict.values, true);
+          } finally {
+            setConflictBusy(false);
+          }
         }}
       />
 
@@ -328,7 +380,10 @@ export default function GstPage() {
                 <DivineListbox
                   label="GST Type"
                   value={field.value}
-                  onChange={field.onChange}
+                  onChange={(value) => {
+                    field.onChange(value);
+                    if (isZeroRateType(value)) setValue("percentage", 0, { shouldValidate: true });
+                  }}
                   options={GST_TYPE_OPTIONS}
                   placeholder="Select GST type"
                   error={errors.type?.message}
@@ -337,11 +392,25 @@ export default function GstPage() {
             />
             <DivineInput staticLabel label="Code" error={errors.code?.message} {...register("code")} />
           </div>
+          {selectedType && isOfficialType(selectedType) && (
+            <p className="-mt-2 text-[12.5px] leading-relaxed text-ink-500">
+              {GST_TYPE_HELP[canonicalGstType(selectedType) as (typeof GST_TYPES)[number]]}
+            </p>
+          )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <DivineInput staticLabel
-              label="Percentage"
+            <DivineInput
+              staticLabel
+              label="GST Rate (%)"
               type="number"
               step="0.01"
+              min={rateLocked ? 0 : 0.01}
+              max={100}
+              readOnly={rateLocked}
+              hint={
+                rateLocked
+                  ? "Fixed at 0% for this GST type."
+                  : "Enter the applicable GST rate, for example 9."
+              }
               error={errors.percentage?.message}
               {...register("percentage", { valueAsNumber: true })}
             />
@@ -388,7 +457,7 @@ export default function GstPage() {
                       !checked &&
                       editing?.status === 1 &&
                       isOfficialType(editing.type) &&
-                      selectedType === editing.type
+                      canonicalGstType(selectedType) === canonicalGstType(editing.type)
                     ) {
                       const other = await findActiveOfType(editing.type, editing._id);
                       if (!other) {
