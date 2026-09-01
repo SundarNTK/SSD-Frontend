@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -15,12 +15,14 @@ import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
+import DivineImageUpload from "../divine/DivineImageUpload";
 import { PlusIcon } from "../divine/icons";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
 import TamilNameField from "./TamilNameField";
+import { withOptionalImage } from "../../lib/withOptionalImage";
 
 type Ref = { _id: string; name: string };
 type GlRef = { _id: string; name: string; code: string };
@@ -46,6 +48,7 @@ export type Service = {
   isPosAvailable: boolean;
   publicAvailability: boolean;
   status: number;
+  image: string | null;
 };
 
 const categoryDetailSchema = z.object({
@@ -135,6 +138,8 @@ export default function ServicePage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Service | null>(null);
   const [deleting, setDeleting] = useState<Service | null>(null);
+  const [createImage, setCreateImage] = useState<File | null>(null);
+  const [editImage, setEditImage] = useState<File | null>(null);
 
   useEffect(() => {
     fetchOptions("/masters/general-ledgers").then(setGlOptions);
@@ -169,6 +174,7 @@ export default function ServicePage() {
   function openCreate() {
     setEditing(null);
     reset(DEFAULT_VALUES);
+    setCreateImage(null);
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -200,20 +206,21 @@ export default function ServicePage() {
       publicAvailability: service.publicAvailability,
       status: service.status,
     });
+    setEditImage(null);
     update.setError(null);
     setDrawerOpen(true);
   }
 
   const submit = handleSubmit(async (values) => {
-    const payload = {
-      ...values,
-      deityMapping: values.isDeityMappingRequired ? values.deityMapping : [],
-      bookingCutoffDate: values.bookingCutoffDate || null,
-      // Sub Category is optional per row — DivineListbox reports "no
-      // selection" as "", which the backend's ObjectId validator rejects
-      // outright, so an unselected row goes as null instead.
-      categoryDetails: values.categoryDetails.map((c) => ({ ...c, subCategory: c.subCategory || null })),
-    };
+    const payload = withOptionalImage(
+      {
+        ...values,
+        deityMapping: values.isDeityMappingRequired ? values.deityMapping : [],
+        bookingCutoffDate: values.bookingCutoffDate || null,
+        categoryDetails: values.categoryDetails.map((c) => ({ ...c, subCategory: c.subCategory || null })),
+      },
+      editing ? editImage : createImage,
+    );
     const ok = editing ? await update.run(editing._id, payload) : await create.run(payload);
     if (ok !== undefined) {
       setDrawerOpen(false);
@@ -223,6 +230,7 @@ export default function ServicePage() {
   });
 
   const columns: DataTableColumn<Service>[] = [
+    { key: "image", label: "Image", render: (s) => <MasterImageCell src={s.image} alt={s.name} /> },
     { key: "code", label: "Code", render: (s) => <span className="font-medium tabular-nums text-amber-700">{s.code}</span> },
     { key: "name", label: "Name", render: (s) => s.name },
     {
@@ -558,6 +566,11 @@ export default function ServicePage() {
               )}
             />
           </div>
+          <DivineImageUpload
+            label="Service Image"
+            value={editing?.image}
+            onChange={editing ? setEditImage : setCreateImage}
+          />
         </form>
       </FormDrawer>
     </>

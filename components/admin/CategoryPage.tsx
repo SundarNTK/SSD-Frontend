@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -14,7 +14,6 @@ import DivineImageUpload from "../divine/DivineImageUpload";
 import DivineToggle from "../divine/DivineToggle";
 import DivineButton from "../divine/DivineButton";
 import TamilNameField from "./TamilNameField";
-import { resolveImageUrl } from "../../lib/imageUrl";
 import { api } from "../../lib/api";
 import { useApiResource, type WriteBody } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
@@ -124,17 +123,21 @@ export default function CategoryPage() {
 
   const columns: DataTableColumn<Category>[] = [
     {
+      key: "image",
+      label: "Image",
+      render: (c) => <MasterImageCell src={c.image} alt={c.name} />,
+    },
+    {
       key: "name",
       label: "Name",
+      render: (c) => <span className="font-medium">{c.name}</span>,
+    },
+    {
+      key: "color",
+      label: "Color",
       render: (c) => (
-        <span className="flex items-center gap-2.5">
-          <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold-500/20"
-            style={{ backgroundColor: c.color }}
-          >
-            {c.image && <img src={resolveImageUrl(c.image) ?? ""} alt="" className="h-full w-full object-cover" />}
-          </span>
-          <span className="font-medium">{c.name}</span>
+        <span className="inline-flex items-center gap-2">
+          <span className="h-5 w-5 rounded-full border border-gold-500/25" style={{ backgroundColor: c.color }} />
         </span>
       ),
     },
