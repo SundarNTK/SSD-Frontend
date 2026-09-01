@@ -85,7 +85,7 @@ export default function DataTable<T>({
   const addButton = onCreate && (
     <button
       onClick={onCreate}
-      className="ml-auto flex items-center gap-2 rounded-xl border border-dark-orange/40 bg-dark-orange px-4 py-2.5 font-accent text-[13.5px] font-semibold text-white shadow-[0_2px_6px_-1px_rgba(0,0,0,0.15)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-dark-orange-hover hover:shadow-[0_10px_24px_-6px_rgba(230,81,0,0.5)] active:translate-y-0 active:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.15)]"
+      className="ml-auto flex items-center gap-2 rounded-md border border-maroon/40 bg-maroon px-4 py-2.5 font-accent text-[13.5px] font-semibold text-white shadow-[0_2px_6px_-1px_rgba(0,0,0,0.15)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-maroon-hover hover:shadow-[0_10px_24px_-6px_rgba(124,21,39,0.5)] active:translate-y-0 active:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.15)]"
     >
       <PlusIcon />
       {createLabel}
@@ -109,12 +109,12 @@ export default function DataTable<T>({
             box, white inner box inset by the border width) — Tailwind has
             no real gradient-border utility, and border-image doesn't
             respect border-radius reliably across browsers. */}
-        <div className="w-full max-w-xs rounded-xl bg-gradient-to-r from-crimson-500 to-flame-500 p-[1.5px] shadow-[0_6px_18px_-10px_rgba(220,38,38,0.45)]">
+        <div className="w-full max-w-xs rounded-md bg-gradient-to-r from-crimson-500 to-flame-500 p-[1.5px] shadow-[0_6px_18px_-10px_rgba(220,38,38,0.45)]">
           <input
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
-            className="w-full rounded-[10px] bg-white px-4 py-2.5 text-[13.5px] text-ink-100 outline-none placeholder:text-ink-500"
+            className="w-full rounded-[4px] bg-white px-4 py-2.5 text-[13.5px] text-ink-100 outline-none placeholder:text-ink-500"
           />
         </div>
         {onStatusFilterChange && (
@@ -139,8 +139,8 @@ export default function DataTable<T>({
           showing through the curve (which is what a plain `overflow-x-auto`
           on the rounded box did — it only clips horizontal scroll overflow,
           not content peeking past the border-radius). */}
-      <div className="rounded-2xl bg-gradient-to-r from-crimson-500 to-flame-500 p-[1.5px] shadow-[0_10px_30px_-14px_rgba(220,38,38,0.4)]">
-        <div className="overflow-hidden rounded-[15px] bg-navy-900">
+      <div className="rounded-md bg-gradient-to-r from-crimson-500 to-flame-500 p-[1.5px] shadow-[0_10px_30px_-14px_rgba(220,38,38,0.4)]">
+        <div className="overflow-hidden rounded-[4px] bg-navy-900">
           <div className="overflow-x-auto">
             {/* border-collapse is load-bearing, not cosmetic — without it
                 the header row's background paints independently inside each
@@ -150,13 +150,13 @@ export default function DataTable<T>({
                 continuous band across the row. */}
             <table className="w-full min-w-[640px] border-collapse text-left text-[13.5px]">
               <thead>
-                <tr className="bg-[#7c1527] text-[11px] uppercase tracking-wide text-white">
-                  {columns.map((col) => (
-                    <th key={col.key} className={`px-5 py-3 font-semibold ${col.className ?? ""}`}>
+                <tr className="border-b border-slate-200 bg-[#7c1527] text-[11px] uppercase tracking-wide text-white">
+                  {columns.map((col, i) => (
+                    <th key={col.key} className={`px-5 py-3 font-semibold ${i > 0 ? "border-l border-white/50" : ""} ${col.className ?? ""}`}>
                       {col.label}
                     </th>
                   ))}
-                  {rowActions && <th className="px-5 py-3 text-right font-semibold">Actions</th>}
+                  {rowActions && <th className="border-l border-white/50 px-5 py-3 text-right font-semibold">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -173,17 +173,21 @@ export default function DataTable<T>({
                     </td>
                   </tr>
                 ) : (
-                  rows.map((row) => (
+                  rows.map((row, rowIdx) => (
                     <tr
                       key={rowKey(row)}
-                      className="border-b border-gold-500/5 text-ink-100 transition-colors last:border-0 hover:bg-[linear-gradient(to_right,rgba(143,28,48,0.14),rgba(255,157,66,0.14),rgba(255,193,69,0.14))]"
+                      className={`border-b border-slate-200 text-ink-100 transition-colors hover:bg-[linear-gradient(to_right,rgba(143,28,48,0.02),rgba(255,157,66,0.02),rgba(255,193,69,0.02))] ${rowIdx % 2 === 1 ? "bg-navy-900/30" : ""}`}
                     >
-                      {columns.map((col) => (
-                        <td key={col.key} className={`px-5 py-3.5 ${col.className ?? ""}`}>
+                      {columns.map((col, colIdx) => (
+                        <td key={col.key} className={`px-5 py-3.5 ${colIdx > 0 ? "border-l border-slate-200" : ""} ${col.className ?? ""}`}>
                           {col.render(row)}
                         </td>
                       ))}
-                      {rowActions && <td className="px-5 py-3.5 text-right">{rowActions(row)}</td>}
+                      {rowActions && (
+                        <td className="border-l border-slate-200 px-5 py-3.5 text-right">
+                          {rowActions(row)}
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -204,14 +208,14 @@ export default function DataTable<T>({
                 <button
                   onClick={() => onPageChange(Math.max(1, page - 1))}
                   disabled={page <= 1}
-                  className="rounded-lg bg-dark-orange px-3.5 py-1.5 font-medium text-white shadow-[0_2px_8px_-3px_rgba(230,81,0,0.5)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-dark-orange-hover hover:shadow-[0_6px_16px_-4px_rgba(230,81,0,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-dark-orange disabled:hover:shadow-[0_2px_8px_-3px_rgba(230,81,0,0.5)]"
+                  className="rounded-md bg-maroon px-3.5 py-1.5 font-medium text-white shadow-[0_2px_8px_-3px_rgba(124,21,39,0.5)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-maroon-hover hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-maroon disabled:hover:shadow-[0_2px_8px_-3px_rgba(124,21,39,0.5)]"
                 >
                   Prev
                 </button>
                 <button
                   onClick={() => onPageChange(Math.min(totalPages, page + 1))}
                   disabled={page >= totalPages}
-                  className="rounded-lg bg-dark-orange px-3.5 py-1.5 font-medium text-white shadow-[0_2px_8px_-3px_rgba(230,81,0,0.5)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-dark-orange-hover hover:shadow-[0_6px_16px_-4px_rgba(230,81,0,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-dark-orange disabled:hover:shadow-[0_2px_8px_-3px_rgba(230,81,0,0.5)]"
+                  className="rounded-md bg-maroon px-3.5 py-1.5 font-medium text-white shadow-[0_2px_8px_-3px_rgba(124,21,39,0.5)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-maroon-hover hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-maroon disabled:hover:shadow-[0_2px_8px_-3px_rgba(124,21,39,0.5)]"
                 >
                   Next
                 </button>

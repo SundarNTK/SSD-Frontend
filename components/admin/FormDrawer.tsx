@@ -92,10 +92,7 @@ export default function FormDrawer({
                 </button>
               </div>
 
-              {/* A tinted well behind the fields, not plain white — every
-                  DivineInput/DivineListbox is itself white-on-gold-border, so
-                  without this the whole form read as white-on-white. */}
-              <div className="flex-1 space-y-4 overflow-y-auto bg-ivory-100 px-4 py-4 sm:px-6 sm:py-5">{children}</div>
+              <div className="flex-1 space-y-4 overflow-y-auto bg-white px-4 py-4 sm:px-6 sm:py-5">{children}</div>
 
               <div className="border-t border-gold-500/15 bg-navy-900 px-4 py-3 sm:px-6 sm:py-4">{footer}</div>
             </motion.div>

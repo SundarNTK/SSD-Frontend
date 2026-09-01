@@ -77,11 +77,6 @@ export default function DivineListbox({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [panel, setPanel] = useState<PanelPosition | null>(null);
-  // Tracked in JS rather than a Tailwind `hover:` variant — a gradient
-  // background-image (not background-color) applied purely via a CSS
-  // hover class kept rendering as a washed-out blend instead of the same
-  // solid gradient the selected row gets, and mouse state is the one thing
-  // that's guaranteed to make the two states pixel-identical.
   const [hoveredValue, setHoveredValue] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -161,7 +156,7 @@ export default function DivineListbox({
           gradient-filled outer box with the real content inset by the
           border width, since a border-color can't itself be a gradient. */}
       <div
-        className={`rounded-xl p-[1.5px] transition-[box-shadow] duration-300 ${
+        className={`rounded-md p-[1.5px] transition-[box-shadow] duration-300 ${
           disabled
             ? "cursor-not-allowed bg-gold-500/15 opacity-60"
             : error
@@ -180,7 +175,7 @@ export default function DivineListbox({
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-disabled={disabled}
-          className={`group relative w-full rounded-[10px] bg-white text-left ${disabled ? "cursor-not-allowed" : ""} ${containerClassName}`}
+          className={`group relative w-full rounded-[4px] bg-white text-left ${disabled ? "cursor-not-allowed" : ""} ${containerClassName}`}
         >
         {label ? (
           <div className="flex items-center gap-2 px-4 pt-6 pb-2.5">
@@ -243,7 +238,7 @@ export default function DivineListbox({
                 exit={{ opacity: 0, y: panel.upward ? 6 : -6, scale: 0.98 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
                 style={{ left: panel.left, width: panel.width, maxHeight: panel.maxHeight, top: panel.top, bottom: panel.bottom }}
-                className="fixed z-[61] flex flex-col overflow-hidden rounded-xl border border-crimson-500/25 bg-navy-900/90 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl"
+                className="fixed z-[61] flex flex-col overflow-hidden rounded-md border border-crimson-500/25 bg-navy-900/90 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.75)] backdrop-blur-xl"
               >
                 {searchable && (
                   <div className="flex shrink-0 items-center gap-2 border-b border-crimson-500/15 px-3 py-2">
@@ -271,10 +266,6 @@ export default function DivineListbox({
                   )}
                   {filtered.map((opt) => {
                     const isSelected = opt.value === value;
-                    // Hover is deliberately a *lighter* wash of the same
-                    // gradient, not the same bold fill selected gets — the
-                    // two states need to read as different at a glance, not
-                    // just by the checkmark's presence.
                     const isHoveredOnly = !isSelected && opt.value === hoveredValue;
                     return (
                       <li
@@ -284,18 +275,12 @@ export default function DivineListbox({
                         onClick={() => pick(opt.value)}
                         onMouseEnter={() => setHoveredValue(opt.value)}
                         onMouseLeave={() => setHoveredValue((v) => (v === opt.value ? null : v))}
-                        style={
-                          isSelected
-                            ? { background: "linear-gradient(to right, #8f1c30, #ff9d42, #ffc145)" }
-                            : isHoveredOnly
-                              ? {
-                                  background:
-                                    "linear-gradient(to right, rgba(143,28,48,0.14), rgba(255,157,66,0.14), rgba(255,193,69,0.14))",
-                                }
-                              : undefined
-                        }
                         className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-[13.5px] ${
-                          isSelected ? "text-white font-medium" : "text-ink-100"
+                          isSelected
+                            ? "bg-[#e70000] font-medium text-white"
+                            : isHoveredOnly
+                              ? "bg-[#e70000]/15 text-ink-100"
+                              : "text-ink-100"
                         }`}
                       >
                         <span className="truncate">{opt.label}</span>

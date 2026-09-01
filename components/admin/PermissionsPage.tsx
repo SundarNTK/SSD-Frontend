@@ -195,26 +195,26 @@ export default function PermissionsPage() {
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl bg-gradient-to-r from-crimson-500 to-flame-500 p-[1.5px] shadow-[0_10px_30px_-14px_rgba(220,38,38,0.4)]"
+        className="rounded-md bg-gradient-to-r from-crimson-500 to-flame-500 p-[1.5px] shadow-[0_10px_30px_-14px_rgba(220,38,38,0.4)]"
       >
-        <div className="overflow-hidden rounded-[15px] bg-navy-900">
+        <div className="overflow-hidden rounded-[4px] bg-navy-900">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[480px] border-collapse text-left text-[13.5px]">
               <thead>
-                <tr className="bg-gradient-to-r from-[#6b1524] via-crimson-600 to-flame-500 text-[11px] uppercase tracking-wide text-white">
+                <tr className="border-b border-slate-200 bg-[#7c1527] text-[11px] uppercase tracking-wide text-white">
                   <th className="px-5 py-3 font-semibold">Module</th>
                   {(["view", "edit", "fullAccess"] as const).map((field) => (
-                    <th key={field} className="px-5 py-3 text-center font-semibold">
+                    <th key={field} className="border-l border-white/50 px-5 py-3 text-center font-semibold">
                       {field === "view" ? "View" : field === "edit" ? "Edit" : "Full Access"}
                     </th>
                   ))}
                 </tr>
-                <tr className="border-b border-gold-500/10 bg-ivory-100 text-ink-300">
+                <tr className="border-b border-slate-200 bg-ivory-100 text-ink-300">
                   <th className="px-5 py-2.5 text-left text-[12px] font-medium text-amber-600">Select all</th>
                   {(["view", "edit", "fullAccess"] as const).map((field) => {
                     const columnChecked = rows.length > 0 && rows.every((r) => r[field]);
                     return (
-                      <th key={field} className="px-5 py-2.5">
+                      <th key={field} className="border-l border-slate-200 px-5 py-2.5">
                         <div className="flex justify-center">
                           <Checkbox
                             checked={columnChecked}
@@ -235,14 +235,14 @@ export default function PermissionsPage() {
                 const indexes = entries.map((e) => e.index);
                 return (
                   <tbody key={group}>
-                    <tr className="border-b border-gold-500/10 bg-ivory-100/70">
+                    <tr className="border-b border-slate-200 bg-ivory-100/70">
                       <td className="px-5 py-2.5 font-accent text-[12px] uppercase tracking-[0.12em] text-amber-600">
                         {group}
                       </td>
                       {(["view", "edit", "fullAccess"] as const).map((field) => {
                         const groupChecked = indexes.every((i) => rows[i]?.[field]);
                         return (
-                          <td key={field} className="px-5 py-2.5">
+                          <td key={field} className="border-l border-slate-200 px-5 py-2.5">
                             <div className="flex justify-center">
                               <Checkbox
                                 checked={groupChecked}
@@ -260,7 +260,7 @@ export default function PermissionsPage() {
                       const row = rows[index];
                       if (!row) return null;
                       return (
-                        <tr key={m.key} className="border-b border-gold-500/5 text-ink-100">
+                        <tr key={m.key} className="border-b border-slate-200 text-ink-100">
                           <td className="py-3.5 pl-10 pr-5">
                             <span className="relative">
                               <span
@@ -271,7 +271,7 @@ export default function PermissionsPage() {
                             </span>
                           </td>
                           {(["view", "edit", "fullAccess"] as const).map((field) => (
-                            <td key={field} className="px-5 py-3.5">
+                            <td key={field} className="border-l border-slate-200 px-5 py-3.5">
                               <div className="flex justify-center">
                                 <Checkbox
                                   checked={row[field]}

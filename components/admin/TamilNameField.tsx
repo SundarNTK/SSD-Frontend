@@ -130,7 +130,7 @@ export default function TamilNameField({ label = "Tamil Name", englishName, valu
               onChange(suggestion);
               setSuggestion("");
             }}
-            className="shrink-0 rounded-full bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 px-3 py-1 text-[11px] font-semibold text-navy-950 shadow-[0_2px_5px_-1px_rgba(184,137,42,0.5)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
+            className="shrink-0 rounded-md bg-maroon px-3 py-1 text-[11px] font-semibold text-white shadow-[0_2px_5px_-1px_rgba(124,21,39,0.5)] transition-[transform,background-color] duration-200 hover:-translate-y-0.5 hover:bg-maroon-hover active:translate-y-0"
           >
             OK
           </button>

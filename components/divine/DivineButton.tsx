@@ -37,7 +37,7 @@ export default function DivineButton({
   if (variant === "ghost") {
     return (
       <button
-        className={`relative ${fullWidth ? "w-full" : "w-auto"} rounded-xl border border-gold-500/35 bg-gold-500/[0.06] ${sizing} font-accent tracking-wide text-amber-600 transition-[color,border-color,background-color,box-shadow] duration-300 hover:border-gold-400/60 hover:bg-gold-500/10 hover:shadow-[0_0_20px_-4px_rgba(212,175,55,0.55)] disabled:opacity-50 disabled:hover:shadow-none ${className}`}
+        className={`relative ${fullWidth ? "w-full" : "w-auto"} rounded-md border border-gold-500/35 bg-gold-500/[0.06] ${sizing} font-accent tracking-wide text-amber-600 transition-[color,border-color,background-color,box-shadow] duration-300 hover:border-gold-400/60 hover:bg-gold-500/10 hover:shadow-[0_0_20px_-4px_rgba(212,175,55,0.55)] disabled:opacity-50 disabled:hover:shadow-none ${className}`}
         disabled={disabled || loading}
         {...rest}
       >
@@ -49,13 +49,13 @@ export default function DivineButton({
   if (variant === "marigold") {
     return (
       <button
-        className={`group relative ${fullWidth ? "w-full" : "w-auto"} overflow-hidden rounded-full border border-orange-700/25 bg-gradient-to-r from-[#FF6B35] via-[#FFA630] to-[#FFD23F] ${sizing} font-accent font-bold tracking-wide text-navy-950 shadow-[0_3px_8px_-2px_rgba(255,255,255,0.5),0_10px_26px_-10px_rgba(255,120,30,0.65)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_10px_-2px_rgba(255,255,255,0.6),0_16px_34px_-8px_rgba(255,140,30,0.8)] active:translate-y-0 active:shadow-[0_3px_8px_-2px_rgba(255,255,255,0.5),0_10px_26px_-10px_rgba(255,120,30,0.65)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-[0_3px_8px_-2px_rgba(255,255,255,0.5),0_10px_26px_-10px_rgba(255,120,30,0.65)] ${className}`}
+        className={`group relative ${fullWidth ? "w-full" : "w-auto"} overflow-hidden rounded-md border border-maroon/30 bg-maroon ${sizing} font-accent font-bold tracking-wide text-white shadow-[0_3px_8px_-2px_rgba(0,0,0,0.15),0_10px_26px_-10px_rgba(124,21,39,0.55)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-maroon-hover hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.2),0_16px_34px_-8px_rgba(124,21,39,0.7)] active:translate-y-0 active:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.15),0_10px_26px_-10px_rgba(124,21,39,0.55)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-maroon disabled:hover:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.15),0_10px_26px_-10px_rgba(124,21,39,0.55)] ${className}`}
         disabled={disabled || loading}
         {...rest}
       >
         <span className="relative z-10 flex items-center justify-center gap-2">
           {loading && (
-            <svg className="h-4 w-4 animate-spin text-navy-950" viewBox="0 0 24 24" fill="none">
+            <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
             </svg>
@@ -75,7 +75,7 @@ export default function DivineButton({
   if (variant === "flame") {
     return (
       <button
-        className={`group relative ${fullWidth ? "w-full" : "w-auto"} overflow-hidden rounded-xl border border-[#8f1c30]/30 bg-gradient-to-r from-[#b3273f] via-[#ff7a2e] to-[#ffb703] ${sizing} font-accent font-bold tracking-wide text-white shadow-[0_3px_8px_-2px_rgba(0,0,0,0.15),0_10px_26px_-10px_rgba(255,122,46,0.7)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.2),0_16px_34px_-8px_rgba(255,122,46,0.85)] active:translate-y-0 active:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.15),0_10px_26px_-10px_rgba(255,122,46,0.7)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.15),0_10px_26px_-10px_rgba(255,122,46,0.7)] ${className}`}
+        className={`group relative ${fullWidth ? "w-full" : "w-auto"} overflow-hidden rounded-md border border-maroon/30 bg-maroon ${sizing} font-accent font-bold tracking-wide text-white shadow-[0_3px_8px_-2px_rgba(0,0,0,0.15),0_10px_26px_-10px_rgba(124,21,39,0.55)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-maroon-hover hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.2),0_16px_34px_-8px_rgba(124,21,39,0.7)] active:translate-y-0 active:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.15),0_10px_26px_-10px_rgba(124,21,39,0.55)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-maroon disabled:hover:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.15),0_10px_26px_-10px_rgba(124,21,39,0.55)] ${className}`}
         disabled={disabled || loading}
         {...rest}
       >
@@ -100,13 +100,13 @@ export default function DivineButton({
 
   return (
     <button
-      className={`group relative ${fullWidth ? "w-full" : "w-auto"} overflow-hidden rounded-xl border border-gold-600/25 bg-gradient-to-b from-gold-300 via-gold-500 to-gold-600 ${sizing} font-accent font-semibold tracking-wide text-navy-950 shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-6px_rgba(184,137,42,0.55)] active:translate-y-0 active:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] ${className}`}
+      className={`group relative ${fullWidth ? "w-full" : "w-auto"} overflow-hidden rounded-md border border-maroon/30 bg-maroon ${sizing} font-accent font-semibold tracking-wide text-white shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-maroon-hover hover:shadow-[0_10px_24px_-6px_rgba(124,21,39,0.55)] active:translate-y-0 active:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-maroon disabled:hover:shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)] ${className}`}
       disabled={disabled || loading}
       {...rest}
     >
       <span className="relative z-10 flex items-center justify-center gap-2">
         {loading && (
-          <svg className="h-4 w-4 animate-spin text-navy-950" viewBox="0 0 24 24" fill="none">
+          <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path
               className="opacity-90"
