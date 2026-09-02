@@ -7,6 +7,7 @@ import { isAdminPanelType } from "../../../lib/userTypes";
 import Sidebar from "../../../components/admin/Sidebar";
 import Topbar from "../../../components/admin/Topbar";
 import ToastStack from "../../../components/admin/ToastStack";
+import { EmblemLoader, warmLoaderAssets } from "../../../components/divine/EmblemLoader";
 
 /**
  * Signed in AND an admin-panel user type. The Customer check matters:
@@ -56,7 +57,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const ready = useAdminGuard();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  if (!ready) return null;
+  useEffect(() => {
+    warmLoaderAssets();
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-white">
+        <EmblemLoader size="md" label="Loading…" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-white">

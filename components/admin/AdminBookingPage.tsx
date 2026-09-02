@@ -37,6 +37,7 @@ import { MODULES, usePermissions } from "../../lib/permissions";
 import DivineInput from "../divine/DivineInput";
 import DivineButton from "../divine/DivineButton";
 import { StayOnPageWarning } from "../divine/StatusBanner";
+import { EmblemLoaderOverlay } from "../divine/EmblemLoader";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineMultiSelect from "../divine/DivineMultiSelect";
 import {
@@ -646,6 +647,8 @@ export default function AdminBookingPage() {
   }
 
   return (
+    <>
+    <EmblemLoaderOverlay show={bookingLoading} label="Confirming payment…" className="z-[60]" />
     <div className="space-y-4">
       {/* Header */}
       <div>
@@ -1146,6 +1149,7 @@ export default function AdminBookingPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

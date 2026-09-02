@@ -12,6 +12,7 @@ import StatusBanner from "../divine/StatusBanner";
 import PasswordStrengthMeter from "../divine/PasswordStrengthMeter";
 import SuccessState, { CheckIcon } from "../divine/SuccessState";
 import { LockIcon } from "../divine/icons";
+import { EmblemLoader } from "../divine/EmblemLoader";
 import { authApi, extractErrorMessage, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useAsyncAction } from "../../lib/useAsyncAction";
 import { newPasswordPairSchema } from "../../lib/validation";
@@ -100,10 +101,7 @@ export default function SetPasswordView({ mode, token }: { mode: "activate" | "r
     <AuthShell eyebrow={copy.eyebrow} title={copy.title} subtitle={copy.subtitle}>
       {checkingToken ? (
         <div className="flex justify-center py-6">
-          <svg className="h-6 w-6 animate-spin text-amber-500" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
-          </svg>
+          <EmblemLoader size="sm" label="Checking link…" />
         </div>
       ) : tokenError ? (
         <div className="py-2 text-center">
