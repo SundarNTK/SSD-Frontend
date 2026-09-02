@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { PlusIcon, PencilIcon, TrashIcon } from "../divine/icons";
 import DivineListbox from "../divine/DivineListbox";
 import { resolveImageUrl } from "../../lib/imageUrl";
+import { EmblemLoader } from "../divine/EmblemLoader";
 
 export function MasterImageCell({ src, alt = "" }: { src: string | null; alt?: string }) {
   const url = resolveImageUrl(src);
@@ -176,8 +177,8 @@ export default function DataTable<T>({
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={columns.length + (rowActions ? 1 : 0)} className="px-5 py-10 text-center text-ink-500">
-                      Loading…
+                    <td colSpan={columns.length + (rowActions ? 1 : 0)} className="px-5 py-8">
+                      <EmblemLoader size="sm" label="Loading…" />
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (

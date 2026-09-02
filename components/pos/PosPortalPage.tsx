@@ -40,6 +40,7 @@ import { sanitizeMobileInput, isValidSgMobile, SG_MOBILE_ERROR } from "../../lib
 import DivineInput from "../divine/DivineInput";
 import DivineButton from "../divine/DivineButton";
 import { StayOnPageWarning } from "../divine/StatusBanner";
+import { EmblemLoader, EmblemLoaderOverlay } from "../divine/EmblemLoader";
 import { resolveImageUrl } from "../../lib/imageUrl";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineDatePicker from "../divine/DivineDatePicker";
@@ -1325,17 +1326,17 @@ export default function PosPortalPage() {
 
           <div className="p-4 pt-2 lg:flex-1 lg:overflow-y-auto">
             {catalogueLoading && (
-              <p className="py-12 text-center text-[13px] text-ink-500">
-                Loading catalogue…
-              </p>
+              <div className="flex justify-center py-10">
+                <EmblemLoader size="md" label="Loading catalogue…" />
+              </div>
             )}
 
             {!catalogueLoading && showingSearch && (
               <>
                 {searchLoading && (
-                  <p className="py-8 text-center text-[13px] text-ink-500">
-                    Searching…
-                  </p>
+                  <div className="flex justify-center py-8">
+                    <EmblemLoader size="sm" label="Searching…" />
+                  </div>
                 )}
                 {!searchLoading &&
                   searchItems.length === 0 &&
@@ -1384,9 +1385,9 @@ export default function PosPortalPage() {
                     </button>
                   </div>
                   {folderLoading ? (
-                    <p className="py-8 text-center text-[13px] text-ink-500">
-                      Loading…
-                    </p>
+                    <div className="flex justify-center py-8">
+                      <EmblemLoader size="sm" label="Loading…" />
+                    </div>
                   ) : (
                     <OfferingGrid
                       items={folderItems}
@@ -1662,6 +1663,7 @@ export default function PosPortalPage() {
       />
 
       <AddedToCartPopup notice={cartNotice} onClear={() => setCartNotice(null)} />
+      <EmblemLoaderOverlay show={bookingLoading} label="Confirming payment…" className="z-[75]" />
     </PosShell>
   );
 }
@@ -1802,25 +1804,7 @@ function SignOutOverlay() {
       exit={{ opacity: 0 }}
       className="pos-flame-canvas fixed inset-0 z-50 flex flex-col items-center justify-center gap-5"
     >
-      <div className="relative flex h-20 w-20 items-center justify-center">
-        <span className="absolute inset-0 animate-soft-pulse rounded-full bg-[#FFC145]/40 blur-2xl" />
-        <span className="absolute inset-0 rounded-full border-4 border-white/40" />
-        <span
-          className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-[#FFC145] border-r-flame-500"
-          style={{ animationDuration: "0.9s" }}
-        />
-        <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white text-flame-600 shadow-[0_8px_20px_-6px_rgba(255,122,46,0.5)]">
-          <LogoutIcon />
-        </span>
-      </div>
-      <div className="text-center">
-        <p className="font-accent text-[15px] font-extrabold tracking-tight text-ink-100">
-          Signing you out…
-        </p>
-        <p className="mt-1 text-[12.5px] text-ink-500">
-          Taking you back to the login screen.
-        </p>
-      </div>
+      <EmblemLoader size="md" label="Signing you out…" />
     </motion.div>
   );
 }
