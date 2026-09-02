@@ -188,7 +188,7 @@ export default function PaymentModePage() {
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setEditing(null)}>
               Cancel
             </DivineButton>
-            <DivineButton fullWidth={false} type="submit" form="payment-mode-form" loading={update.submitting}>
+            <DivineButton variant="flame" fullWidth={false} type="submit" form="payment-mode-form" loading={update.submitting}>
               Save changes
             </DivineButton>
           </div>

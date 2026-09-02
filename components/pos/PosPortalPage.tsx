@@ -35,7 +35,7 @@ import { toast } from "../../lib/toastStore";
 import { useAuthStore, endSession } from "../../lib/authStore";
 import { USER_TYPE_LABEL } from "../../lib/userTypes";
 import TempleClock from "../admin/TempleClock";
-import { formatTempleDateTime } from "../../lib/datetime";
+import { formatTempleDateTime, getTempleTimeParts } from "../../lib/datetime";
 import { sanitizeMobileInput, isValidSgMobile, SG_MOBILE_ERROR } from "../../lib/mobileNumber";
 import DivineInput from "../divine/DivineInput";
 import DivineButton from "../divine/DivineButton";
@@ -44,6 +44,7 @@ import { EmblemLoader, EmblemLoaderOverlay } from "../divine/EmblemLoader";
 import { resolveImageUrl } from "../../lib/imageUrl";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineDatePicker from "../divine/DivineDatePicker";
+import { FORM_LABEL } from "../divine/formFieldStyles";
 import {
   SearchIcon,
   TrashIcon,
@@ -69,13 +70,29 @@ import {
 // border-* utility on top of these components' own conditional border-*
 // classes would leave the winner up to Tailwind's generation order rather
 // than source order (same CSS property, same specificity).
-const FIELD_ACCENT =
-  "ring-1 ring-[#ead9c6] shadow-[0_2px_10px_-8px_rgba(124,21,39,0.12)] hover:ring-[#7c1527]/25";
-
 const POS_BTN_ON =
   "border-[#7c1527] bg-[#7c1527] text-white hover:bg-[#681221]";
 const POS_BTN_OFF =
-  "border-[#ead9c6] bg-white text-ink-300 hover:border-[#7c1527]/35 hover:bg-[#faf6f1] hover:text-[#7c1527]";
+  "border-[#7c1527]/30 bg-white text-ink-100 hover:border-[#7c1527]/55 hover:bg-[#faf6f1] hover:text-[#7c1527]";
+
+const POS_PANEL =
+  "overflow-hidden rounded-2xl border border-[#7c1527]/30 shadow-[0_16px_36px_-12px_rgba(0,0,0,0.28),0_6px_16px_-6px_rgba(124,21,39,0.32)]";
+
+const CUSTOMER_SECTION_BG = "/customer_section_bg.webp";
+
+/** Fills the panel shell and stays put — the photo lives outside the
+ *  scrolling body so recent bookings / cart lines can scroll over it. */
+function SectionPhotoBg({ mirror = false }: { mirror?: boolean }) {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+      <div
+        className={`h-full min-h-full w-full bg-cover bg-center bg-no-repeat ${mirror ? "-scale-x-100" : ""}`}
+        style={{ backgroundImage: `url('${CUSTOMER_SECTION_BG}')` }}
+      />
+      <div className="absolute inset-0 bg-white/40" />
+    </div>
+  );
+}
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -311,6 +328,16 @@ function newLineId() {
 
 function formatCurrency(v: number) {
   return `$${v.toFixed(2)}`;
+}
+
+function recentTxnStamp(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { date: "—", time: "—" };
+  const parts = getTempleTimeParts(date);
+  return {
+    date: parts.date,
+    time: `${parts.hour}:${parts.minute} ${parts.dayPeriod}`,
+  };
 }
 
 function initials(name: string) {
@@ -561,11 +588,9 @@ export default function PosPortalPage() {
         const data = unwrap(r);
         setSummary(data);
         setCart((prev) =>
-          prev.map((line) => {
-            const sl = data.lines.find(
-              (d) => d.refId === line.refId && d.refType === line.refType,
-            );
-            if (!sl) return line;
+          prev.map((line, idx) => {
+            const sl = data.lines[idx];
+            if (!sl || sl.refId !== line.refId || sl.refType !== line.refType) return line;
             return {
               ...line,
               lineTotal: sl.lineTotal,
@@ -918,6 +943,8 @@ export default function PosPortalPage() {
             ? {
                 ...l,
                 quantity: modalEffectiveQty || 1,
+                unitPrice: modalOffering.salePrice,
+                lineTotal: modalOffering.salePrice * (modalEffectiveQty || 1),
                 deities: modalDeities,
                 devotees: modalOffering.isFamilyMembersRequired
                   ? filledDevotees
@@ -941,6 +968,7 @@ export default function PosPortalPage() {
       code: modalOffering.code,
       quantity: modalEffectiveQty || 1,
       unitPrice: modalOffering.salePrice,
+      lineTotal: modalOffering.salePrice * (modalEffectiveQty || 1),
       deities: modalDeities,
       devotees: modalOffering.isFamilyMembersRequired ? filledDevotees : [],
       offering: modalOffering,
@@ -962,6 +990,7 @@ export default function PosPortalPage() {
   // ── checkout flow ────────────────────────────────────────────────────────
   const [step, setStep] = useState<"cart" | "done">("cart");
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [paymentPopupOpen, setPaymentPopupOpen] = useState(false);
   const [confirmation, setConfirmation] = useState<BookingConfirmation | null>(
     null,
   );
@@ -976,6 +1005,23 @@ export default function PosPortalPage() {
   // out right at the search box instead of only at the disabled checkout
   // button, which is easy to miss until the very end.
   const needsCustomerForCart = cart.length > 0 && !selectedCustomer;
+
+  function openPaymentPopup() {
+    if (!selectedCustomer) {
+      toast.error("Select a customer above to proceed.");
+      return;
+    }
+    if (cart.length === 0) {
+      toast.error("Add an item or service to the cart to proceed.");
+      return;
+    }
+    if (hasStockIssues) {
+      toast.error("Some items have insufficient stock. Please adjust quantities.");
+      return;
+    }
+    if (summary) setPaymentAmountInput(summary.grandTotal.toFixed(2));
+    setPaymentPopupOpen(true);
+  }
 
   async function handleConfirmBooking() {
     if (!selectedCustomer) {
@@ -1028,6 +1074,7 @@ export default function PosPortalPage() {
         created.status === "confirmed"
           ? created
           : await pollOrderStatus("/pos/booking/orders", created._id);
+      setPaymentPopupOpen(false);
       setConfirmation(booking);
       setStep("done");
       toast.created(
@@ -1052,6 +1099,7 @@ export default function PosPortalPage() {
     setStep("cart");
     setConfirmation(null);
     setPaymentAmountInput("");
+    setPaymentPopupOpen(false);
     lineCounter = 0;
     const cash = paymentModes.find((m) => m.name.toLowerCase() === "cash");
     setSelectedPaymentModeId(cash?._id ?? "");
@@ -1079,18 +1127,22 @@ export default function PosPortalPage() {
 
   return (
     <PosShell user={user} onNewTransaction={startNewTransaction}>
-      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto p-4 [perspective:1400px] lg:h-full lg:grid-cols-[260px_1fr_360px] lg:overflow-hidden">
+      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-2 sm:gap-4 sm:p-3 md:grid-cols-2 lg:h-full lg:grid-cols-[minmax(180px,0.7fr)_minmax(0,2.5fr)_minmax(210px,0.78fr)] lg:overflow-hidden lg:p-4 xl:grid-cols-[minmax(200px,240px)_minmax(0,1fr)_minmax(230px,300px)]">
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, x: -48, rotateY: 14 }}
           animate={{ opacity: 1, x: 0, rotateY: 0 }}
           transition={{ type: "spring", stiffness: 220, damping: 24 }}
-          className="relative flex flex-col gap-3 overflow-hidden rounded-md border border-white/70 bg-white/90 p-4 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-md lg:h-full lg:overflow-y-auto"
+          className={`relative flex min-h-[210px] max-h-[min(46vh,24rem)] w-full flex-col ${POS_PANEL} md:col-start-1 md:row-start-1 md:max-h-[min(50vh,28rem)] lg:h-full lg:max-h-none lg:min-h-0`}
         >
+          <SectionPhotoBg />
+          <div className="relative z-10 flex shrink-0 items-center bg-[#7c1527] px-4 py-3">
+            <p className="flex items-center gap-2 font-accent text-[16px] font-extrabold tracking-tight text-white">
+              <UserIcon /> Customer
+            </p>
+          </div>
+          <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
           {!selectedCustomer && <PanelGlow />}
-          <p className="font-accent text-[16px] font-extrabold tracking-tight text-ink-100">
-            Customer
-          </p>
           <div
             className={`relative rounded-xl transition-shadow duration-300 ${needsCustomerForCart ? "shadow-[0_0_0_3px_rgba(220,38,38,0.25)]" : ""}`}
           >
@@ -1162,7 +1214,10 @@ export default function PosPortalPage() {
               )}
             </AnimatePresence>
             <DivineInput
-              label="Search customer…"
+              staticLabel
+              iconPosition="start"
+              label="Search customer"
+              placeholder="Search by name, mobile or email"
               icon={<SearchIcon />}
               value={customerQuery}
               onChange={(e) => {
@@ -1171,7 +1226,6 @@ export default function PosPortalPage() {
               }}
               disabled={!!selectedCustomer}
               loading={customerSearching}
-              containerClassName={FIELD_ACCENT}
             />
             <AnimatePresence>
               {(customerSearching || customerResults.length > 0) && !selectedCustomer && (
@@ -1242,31 +1296,64 @@ export default function PosPortalPage() {
           )}
 
           {selectedCustomer && recentBookings.length > 0 && (
-            <div className="space-y-2">
-              <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-amber-600">
-                <HistoryIcon /> Recent Transactions
-              </p>
-              {recentBookings.map((b) => (
-                <button
-                  key={b._id}
-                  type="button"
-                  onClick={() => setViewingRecentBooking(b)}
-                  className="flex w-full flex-col items-start gap-0.5 rounded-md border border-orange-200/60 bg-white/60 px-3 py-2.5 text-left shadow-[0_2px_10px_-6px_rgba(255,122,46,0.3)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-white/80 hover:shadow-[0_10px_22px_-12px_rgba(255,122,46,0.45)]"
-                >
-                  <span className="flex w-full items-center justify-between text-[12.5px] font-medium text-ink-100">
-                    <span className="tabular-nums">{b.bookingNumber}</span>
-                    <span className="text-amber-600">
-                      {formatCurrency(b.grandTotal)}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7c1527]">
+                  <HistoryIcon /> Recent Transactions
+                </p>
+                <span className="rounded-full bg-[#7c1527]/10 px-2 py-0.5 text-[10px] font-bold tabular-nums text-[#7c1527]">
+                  {recentBookings.length}
+                </span>
+              </div>
+              {recentBookings.map((b) => {
+                const stamp = recentTxnStamp(b.bookedAt);
+                return (
+                  <button
+                    key={b._id}
+                    type="button"
+                    onClick={() => setViewingRecentBooking(b)}
+                    className="group w-full overflow-hidden rounded-lg border border-[#f0b4a0]/80 bg-white text-left shadow-[0_4px_14px_-8px_rgba(124,21,39,0.28)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#7c1527]/40 hover:shadow-[0_12px_24px_-12px_rgba(124,21,39,0.4)]"
+                  >
+                    <span className="flex">
+                      <span aria-hidden className="w-1 shrink-0 bg-[#7c1527]" />
+                      <span className="min-w-0 flex-1 px-3 py-2.5">
+                        <span className="flex items-start justify-between gap-2">
+                          <span className="min-w-0">
+                            <span className="block text-[9.5px] font-semibold uppercase tracking-wide text-[#7c1527]/70">
+                              Booking no.
+                            </span>
+                            <span className="mt-0.5 block truncate text-[12.5px] font-bold tabular-nums text-ink-100">
+                              {b.bookingNumber}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-right">
+                            <span className="block text-[9.5px] font-semibold uppercase tracking-wide text-[#7c1527]/70">
+                              Amount
+                            </span>
+                            <span className="mt-0.5 inline-block rounded-md bg-[#7c1527] px-2 py-0.5 text-[12.5px] font-bold tabular-nums text-white">
+                              {formatCurrency(b.grandTotal)}
+                            </span>
+                          </span>
+                        </span>
+                        <span className="mt-2 flex flex-wrap gap-1.5">
+                          <span className="rounded-md bg-[#faf6f1] px-1.5 py-0.5 text-[10px] font-medium text-ink-300">
+                            {stamp.date}
+                          </span>
+                          <span className="rounded-md bg-[#faf6f1] px-1.5 py-0.5 text-[10px] font-medium text-ink-300">
+                            {stamp.time}
+                          </span>
+                          <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+                            {b.lines.length} {b.lines.length === 1 ? "item" : "items"}
+                          </span>
+                        </span>
+                      </span>
                     </span>
-                  </span>
-                  <span className="text-[11px] text-ink-500">
-                    {formatTempleDateTime(b.bookedAt)} · {b.lines.length}{" "}
-                    item(s)
-                  </span>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           )}
+          </div>
         </motion.div>
 
         {/* ── CENTER: catalogue ────────────────────────────────────────── */}
@@ -1274,24 +1361,26 @@ export default function PosPortalPage() {
           initial={{ opacity: 0, y: 40, rotateX: 12 }}
           animate={{ opacity: 1, y: 0, rotateX: 0 }}
           transition={{ type: "spring", stiffness: 220, damping: 24, delay: 0.06 }}
-          className="flex min-w-0 flex-col overflow-hidden rounded-md border border-white/70 bg-white/90 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-md lg:h-full"
+          className={`relative order-2 flex min-h-[22rem] w-full min-w-0 flex-col ${POS_PANEL} bg-white md:order-3 md:col-span-2 lg:order-none lg:col-span-1 lg:h-full lg:min-h-0`}
         >
-          <div className="space-y-3 p-4 pb-2">
+          <div className="shrink-0 space-y-2 p-3 pb-2">
             <DivineInput
-              label="Search offerings…"
+              staticLabel
+              iconPosition="start"
+              label="Search offerings"
+              placeholder="Search by name or code"
               icon={<SearchIcon />}
               value={offeringSearch}
               onChange={(e) => setOfferingSearch(e.target.value)}
               loading={searchLoading}
-              containerClassName={FIELD_ACCENT}
             />
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 py-1.5 [scrollbar-width:thin]">
               <button
                 onClick={() => {
                   setSelectedCategoryId("");
                   setActiveFolder(null);
                 }}
-                className={`inline-flex h-12 items-center rounded-md border px-3.5 text-[12.5px] font-medium transition-[transform,box-shadow,background-color,color] duration-200 hover:-translate-y-0.5 ${
+                className={`inline-flex h-11 shrink-0 items-center rounded-xl border px-3.5 text-[12.5px] font-medium shadow-sm transition-[box-shadow,background-color,color,border-color] duration-200 hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.4)] sm:h-12 ${
                   !selectedCategoryId ? POS_BTN_ON : POS_BTN_OFF
                 }`}
               >
@@ -1306,7 +1395,7 @@ export default function PosPortalPage() {
                     setSelectedCategoryId(c._id);
                     setActiveFolder(null);
                   }}
-                  className={`inline-flex h-12 items-center gap-2.5 rounded-md border py-1 pl-1.5 pr-3.5 text-[12.5px] font-medium transition-[transform,box-shadow,background-color,color] duration-200 hover:-translate-y-0.5 ${
+                  className={`inline-flex h-11 shrink-0 items-center gap-2.5 rounded-xl border py-1 pl-1.5 pr-3.5 text-[12.5px] font-medium shadow-sm transition-[box-shadow,background-color,color,border-color] duration-200 hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.4)] sm:h-12 ${
                     selectedCategoryId === c._id ? POS_BTN_ON : POS_BTN_OFF
                   }`}
                 >
@@ -1326,11 +1415,9 @@ export default function PosPortalPage() {
             </div>
           </div>
 
-          <div className="px-4">
-            <SectionScreenDivider />
-          </div>
+          <SectionScreenDivider />
 
-          <div className="p-4 pt-2 lg:flex-1 lg:overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-3">
             {catalogueLoading && (
               <div className="flex justify-center py-10">
                 <EmblemLoader size="md" label="Loading catalogue…" />
@@ -1405,7 +1492,7 @@ export default function PosPortalPage() {
               )}
 
             {!catalogueLoading && !showingSearch && !showingFolder && (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                 {visibleFolders.map((f) => (
                   <CatalogueCard
                     key={f.subCategoryId}
@@ -1458,9 +1545,10 @@ export default function PosPortalPage() {
           initial={{ opacity: 0, x: 48, rotateY: -14 }}
           animate={{ opacity: 1, x: 0, rotateY: 0 }}
           transition={{ type: "spring", stiffness: 220, damping: 24, delay: 0.12 }}
-          className="flex flex-col overflow-hidden rounded-md border border-white/70 bg-white/90 shadow-[0_8px_28px_-14px_rgba(179,39,63,0.25)] backdrop-blur-md lg:h-full"
+          className={`relative order-3 flex min-h-[240px] max-h-[min(50vh,28rem)] w-full flex-col ${POS_PANEL} md:order-2 md:col-start-2 md:row-start-1 md:max-h-[min(50vh,28rem)] lg:order-none lg:col-start-auto lg:row-start-auto lg:h-full lg:max-h-none lg:min-h-0`}
         >
-          <div className="flex shrink-0 items-center justify-between bg-[#7c1527] px-4 py-3">
+          <SectionPhotoBg mirror />
+          <div className="relative z-10 flex shrink-0 items-center justify-between bg-[#7c1527] px-4 py-3">
             <p className="flex items-center gap-2 font-accent text-[16px] font-extrabold tracking-tight text-white">
               <CartIcon /> Cart{" "}
               <span className="rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-semibold text-white">
@@ -1471,15 +1559,15 @@ export default function PosPortalPage() {
               <button
                 onClick={clearCart}
                 aria-label="Clear cart"
-                className="flex items-center gap-1.5 rounded-md border border-white bg-white px-3 py-1.5 text-[11.5px] font-semibold text-crimson-600 shadow-[0_4px_12px_-4px_rgba(0,0,0,0.35)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-crimson-500/10"
+                className="flex items-center gap-1.5 rounded-md border border-white bg-white px-3 py-1.5 text-[11.5px] font-semibold text-[#7c1527] shadow-[0_4px_12px_-4px_rgba(0,0,0,0.35)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-[#fde8ec] hover:text-[#7c1527]"
               >
                 <TrashIcon /> Clear Cart
               </button>
             )}
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col p-4">
-            <div className="lg:flex-1 lg:overflow-y-auto">
+          <div className="relative z-10 flex min-h-0 flex-1 flex-col p-4">
+            <div className="min-h-0 flex-1 overflow-y-auto">
               {cart.length === 0 ? (
                 <div className="relative flex h-full flex-col items-center justify-center gap-2 overflow-hidden py-10 text-center">
                   <PanelGlow />
@@ -1494,7 +1582,7 @@ export default function PosPortalPage() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2.5 px-0.5 py-1">
                   <AnimatePresence initial={false}>
                     {cart.map((line) => (
                       <motion.div
@@ -1521,8 +1609,8 @@ export default function PosPortalPage() {
               )}
             </div>
 
-            <div className="mt-3 border-t-2 border-orange-200/80 pt-3 text-[13px]">
-              <div className="flex items-center justify-between font-bold text-ink-100">
+            <div className="relative z-10 mt-3 shrink-0 border-t-2 border-orange-200/80 pt-3 shadow-[0_-6px_16px_-8px_rgba(0,0,0,0.12)]">
+              <div className="flex items-center justify-between text-[13px] font-bold text-ink-100">
                 <span className="flex items-center gap-1.5">
                   Total Payable (S$)
                   <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-emerald-700">
@@ -1533,88 +1621,55 @@ export default function PosPortalPage() {
                   {formatCurrency(summary?.grandTotal ?? 0)}
                 </span>
               </div>
-            </div>
 
-            <div className="mt-3 space-y-1.5">
-              <PaymentModeBoxes
-                modes={paymentModes}
-                value={selectedPaymentModeId}
-                onChange={setSelectedPaymentModeId}
-              />
-            </div>
-
-            {/* Partial payment: how much is being collected right now.
-                Defaults to the full total — only needs a touch to take less. */}
-            <div className="mt-3 space-y-1.5">
-              <DivineInput
-                label="Payment Amount (S$)"
-                type="number"
-                min={0}
-                max={summary?.grandTotal ?? undefined}
-                step="0.01"
-                inputMode="decimal"
-                value={paymentAmountInput}
-                onChange={(e) => setPaymentAmountInput(e.target.value)}
-                error={
-                  paymentAmountInput !== "" && !paymentAmountValid
-                    ? `Enter an amount between $0.00 and ${formatCurrency(summary?.grandTotal ?? 0)}.`
-                    : undefined
-                }
-              />
-              <div
-                className={`flex items-center justify-between rounded-lg px-3 py-2 text-[11.5px] ${
-                  isPartialPayment ? "bg-crimson-500/10 text-crimson-500" : "bg-emerald-500/10 text-emerald-700"
-                }`}
-              >
-                <span>Balance Amount (after this payment)</span>
-                <span className="font-semibold">{formatCurrency(paymentBalanceAmount)}</span>
-              </div>
-              {isPartialPayment && (
-                <p className="text-[10.5px] text-ink-500">
-                  Booking confirms now for the full order — collect the rest anytime from POS Transactions.
+              {hasStockIssues && (
+                <p className="mt-2 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-[11.5px] text-crimson-500">
+                  One or more lines exceed available stock.
                 </p>
               )}
-            </div>
 
-            {hasStockIssues && (
-              <p className="mt-2 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-[11.5px] text-crimson-500">
-                One or more lines exceed available stock.
-              </p>
-            )}
+              {!canProceed && !hasStockIssues && (
+                <p className="mt-2 rounded-lg bg-crimson-500/10 py-2 text-center text-[11.5px] font-medium text-crimson-500">
+                  {!selectedCustomer
+                    ? "Select a customer above to proceed."
+                    : cart.length === 0
+                      ? "Add an item or service to the cart to proceed."
+                      : "Calculating totals…"}
+                </p>
+              )}
 
-            {/* The button below disables silently otherwise — this spells out
-                exactly what's missing so "why can't I proceed" never needs a
-                guess. Stock issues already get their own message above. */}
-            {!canProceed && !hasStockIssues && (
-              <p className="mt-2 rounded-lg bg-crimson-500/10 py-2 text-center text-[11.5px] font-medium text-crimson-500">
-                {!selectedCustomer
-                  ? "Select a customer above to proceed."
-                  : cart.length === 0
-                    ? "Add an item or service to the cart to proceed."
-                    : "Calculating totals…"}
-              </p>
-            )}
-
-            <div className="mt-3 space-y-2">
-              <FlameActionButton
-                icon={<LockIcon />}
-                chevron={false}
-                onClick={handleConfirmBooking}
-                disabled={
-                  !canProceed || !selectedPaymentModeId || bookingLoading || !paymentAmountValid
-                }
-                className="w-full justify-center"
-              >
-                {bookingLoading
-                  ? "Confirming…"
-                  : isPartialPayment
-                    ? `Confirm ${selectedModeName} Payment (Partial)`
-                    : `Confirm ${selectedModeName} Payment`}
-              </FlameActionButton>
+              <div className="mt-3">
+                <FlameActionButton
+                  icon={<LockIcon />}
+                  chevron={false}
+                  onClick={openPaymentPopup}
+                  disabled={!canProceed || bookingLoading}
+                  className="w-full justify-center"
+                >
+                  Proceed to Payment
+                </FlameActionButton>
+              </div>
             </div>
           </div>
         </motion.div>
       </div>
+
+      <ProceedPaymentModal
+        open={paymentPopupOpen}
+        onClose={() => setPaymentPopupOpen(false)}
+        total={summary?.grandTotal ?? 0}
+        modes={paymentModes}
+        modeId={selectedPaymentModeId}
+        onModeChange={setSelectedPaymentModeId}
+        amountInput={paymentAmountInput}
+        onAmountChange={setPaymentAmountInput}
+        amountValid={paymentAmountValid}
+        isPartial={isPartialPayment}
+        balance={paymentBalanceAmount}
+        modeName={selectedModeName}
+        loading={bookingLoading}
+        onConfirm={handleConfirmBooking}
+      />
 
       <CreateCustomerModal
         open={createCustomerOpen}
@@ -1695,22 +1750,57 @@ function PosShell({
         aria-hidden="true"
         className="h-1.5 shrink-0 bg-dark-orange"
       />
-      <header className="relative z-20 grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-white/70 bg-white/92 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.22)] backdrop-blur-md sm:px-6 sm:py-3 md:grid-cols-[1fr_auto_1fr]">
-        <div className="flex min-w-0 items-center">
+      <header className="relative z-20 flex shrink-0 flex-col gap-2 border-b border-white/70 bg-white/95 px-2 py-2 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.22)] backdrop-blur-md sm:px-4 sm:py-2.5 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-3 lg:px-6 lg:py-3">
+        <div className="flex min-w-0 items-center justify-between gap-2 lg:justify-start">
           <motion.img
             src="/SSD_Full_Logo.webp"
             alt="Sri Siva Durga Temple"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="h-14 w-auto max-w-[240px] shrink-0 object-contain sm:h-16 sm:max-w-[280px] lg:h-[68px] lg:max-w-[320px]"
+            className="h-11 w-auto max-w-[min(100%,220px)] shrink-0 object-contain sm:h-14 sm:max-w-[260px] lg:h-[68px] lg:max-w-[320px]"
           />
+          <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 lg:hidden">
+            <div className="hidden sm:block">
+              <TempleClock variant="flame" />
+            </div>
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-white/60"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-dark-orange text-[12px] font-semibold text-white">
+                  {user ? initials(user.name) : "?"}
+                </span>
+                <ChevronIcon
+                  className={`transition-transform ${menuOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              <AnimatePresence>
+                {menuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute right-0 top-[calc(100%+8px)] z-30 w-44 overflow-hidden rounded-xl border border-gold-500/20 bg-white shadow-[0_20px_50px_-15px_rgba(0,0,0,0.3)]"
+                  >
+                    <button
+                      onClick={() => {
+                        setSigningOut(true);
+                        endSession("signed-out");
+                      }}
+                      className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-[13px] text-ink-300 hover:bg-crimson-500/10 hover:text-crimson-500"
+                    >
+                      <LogoutIcon /> Sign out
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
         </div>
 
-        {/* Grouped and centered as one cluster — grid-cols-[1fr_auto_1fr] on
-            the header keeps this column mathematically centered regardless
-            of how wide the logo or the clock/avatar column end up being. */}
-        <div className="col-start-2 hidden items-center justify-center gap-2 md:flex">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
           <FlameActionButton
             icon={<HistoryIcon />}
             chevron={false}
@@ -1738,7 +1828,7 @@ function PosShell({
           )}
         </div>
 
-        <div className="col-start-3 flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
+        <div className="hidden min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3 lg:flex">
           <div className="hidden sm:block">
             <TempleClock variant="flame" />
           </div>
@@ -1982,88 +2072,75 @@ function PosSparkField() {
   );
 }
 
-/** Popups fly in from below the screen and flip into the center, with sparks.
- *  `open` must stay true until the caller wants them gone — AnimatePresence
- *  can only play the closing flip if this component remains mounted. */
+/** Centered POS popup. Entrance uses the 3D flip; close is a short fade. */
 function PosFlipModal({
   open,
   onBackdrop,
   panelClassName,
   tone = "default",
+  motion: motionStyle = "flip",
   children,
 }: {
   open: boolean;
   onBackdrop?: () => void;
   panelClassName: string;
   tone?: "default" | "gold";
+  motion?: "flip" | "soft";
   children: React.ReactNode;
 }) {
   const reduce = useReducedMotion();
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
   const gold = tone === "gold";
-  const root = {
-    hidden: {},
-    show: { transition: { staggerChildren: 0.06 } },
-    leave: { transition: { when: "afterChildren" as const } },
-  };
-  const dim = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { duration: 0.25 } },
-    leave: { opacity: 0, transition: { duration: 0.28, delay: 0.08 } },
-  };
-  const card = reduce
-    ? {
-        hidden: { opacity: 0 },
-        show: { opacity: 1 },
-        leave: { opacity: 0, transition: { duration: 0.2 } },
-      }
-    : {
-        hidden: { opacity: 1 },
-        show: { opacity: 1 },
-        leave: {
-          opacity: 0,
-          rotateY: -70,
-          scale: 0.78,
-          transition: { duration: 0.38, ease: [0.55, 0, 0.75, 0.15] as const },
-        },
-      };
+  const flipIn = motionStyle !== "soft" && !reduce;
+  const ease = [0.22, 1, 0.36, 1] as const;
 
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          key="pos-flip"
-          className="fixed inset-0 z-50"
-          variants={root}
-          initial="hidden"
-          animate="show"
-          exit="leave"
+          key="pos-modal"
+          className={`fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 ${flipIn ? "[perspective:1600px]" : ""}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
         >
-          <motion.div
-            variants={dim}
+          <button
+            type="button"
+            aria-label="Close"
             onClick={onBackdrop}
-            className={`absolute inset-0 backdrop-blur-[6px] ${gold ? "bg-[#3a2208]/55" : "bg-navy-950/55"}`}
+            className={`absolute inset-0 cursor-default backdrop-blur-[6px] ${gold ? "bg-[#3a2208]/55" : "bg-navy-950/55"}`}
           />
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden p-4 [perspective:1600px]">
-            <PosSparkField />
-            <motion.div
-              variants={card}
-              onClick={(e) => e.stopPropagation()}
-              style={{ transformOrigin: "50% 50%", transformStyle: "preserve-3d" }}
-              className={`pointer-events-auto relative ${reduce ? "" : "ssd-flip-in"} ${panelClassName}`}
-            >
-              {gold && (
-                <>
-                  <span aria-hidden="true" className="pos-gold-ring pointer-events-none absolute left-1/2 top-8 h-24 w-24 -translate-x-1/2 rounded-full border-2 border-gold-400/70" />
-                  <span aria-hidden="true" className="pos-gold-ring pointer-events-none absolute left-1/2 top-8 h-24 w-24 -translate-x-1/2 rounded-full border border-flame-400/50 [animation-delay:0.45s]" />
-                </>
-              )}
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-gold-300 to-transparent"
-              />
-              {children}
-            </motion.div>
-          </div>
+          {flipIn && <PosSparkField />}
+          {gold && (
+            <>
+              <span aria-hidden="true" className="pos-gold-ring pointer-events-none absolute left-1/2 top-[18%] h-24 w-24 -translate-x-1/2 rounded-full border-2 border-gold-400/70" />
+              <span aria-hidden="true" className="pos-gold-ring pointer-events-none absolute left-1/2 top-[18%] h-24 w-24 -translate-x-1/2 rounded-full border border-flame-400/50 [animation-delay:0.45s]" />
+            </>
+          )}
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            initial={flipIn ? { opacity: 1 } : { opacity: 0, y: 14, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            transition={{ duration: reduce ? 0.16 : 0.22, ease }}
+            onClick={(e) => e.stopPropagation()}
+            className={`relative z-10 max-h-[calc(100dvh-1.5rem)] ${flipIn ? "ssd-flip-in" : ""} ${panelClassName}`}
+          >
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-gold-300 to-transparent"
+            />
+            {children}
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -2150,14 +2227,13 @@ function HebInspiredSuccessModal({
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
-          key="ssd-success"
-          className="fixed inset-0 z-[80] flex items-center justify-center p-4 [perspective:1200px]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.28 }}
-        >
+          <motion.div
+            className="fixed inset-0 z-[80] flex items-center justify-center overflow-hidden p-3 sm:p-4 [perspective:1200px]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.22 }}
+          >
           <motion.div
             className="absolute inset-0 bg-[#1a140c]/70 backdrop-blur-[16px]"
             onClick={onClose}
@@ -2225,12 +2301,12 @@ function HebInspiredSuccessModal({
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, rotateY: -70, scale: 0.78 }}
-            transition={{ duration: 0.32 }}
-            className="ssd-flip-stamp relative z-[82] w-full max-w-[26rem] overflow-hidden rounded-[28px] border border-[#ffd54a]/60 bg-[#fffdf8] shadow-[0_28px_70px_rgba(40,24,8,0.45)]"
+            exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="ssd-flip-stamp relative z-[82] max-h-[calc(100dvh-1.5rem)] w-full max-w-[26rem] overflow-hidden rounded-[28px] border border-[#ffd54a]/60 bg-[#fffdf8] shadow-[0_28px_70px_rgba(40,24,8,0.45)]"
           >
             <div
-              className="relative bg-[#f7efd8] bg-cover bg-[center_top] px-5 pb-3 pt-3 text-center"
+              className="relative bg-[#f7efd8] bg-cover bg-[center_top] px-5 pb-2 pt-2 text-center"
               style={{ backgroundImage: "url('/Payment_Success_Popup_Background.webp')" }}
             >
               <button
@@ -2244,28 +2320,28 @@ function HebInspiredSuccessModal({
               <img
                 src="/SSD_Full_Logo-Transparant.webp"
                 alt="Sri Siva Durga Temple"
-                className="relative z-10 mx-auto h-[3.5rem] w-auto max-w-[200px] object-contain"
+                className="relative z-10 mx-auto h-[2.75rem] w-auto max-w-[180px] object-contain"
               />
-              <div className="relative mx-auto mt-2 mb-2 flex h-16 w-16 items-center justify-center">
+              <div className="relative mx-auto mt-1.5 mb-1.5 flex h-14 w-14 items-center justify-center">
                 <span
                   className="absolute inset-[-6px] rounded-full border border-[#d4af37]/50"
                   style={{ animation: "ssd-sc-ring 1.1s ease-out 0.82s both" }}
                 />
-                <span className="ssd-gold-tick relative z-10 flex h-16 w-16 items-center justify-center rounded-full">
+                <span className="ssd-gold-tick relative z-10 flex h-14 w-14 items-center justify-center rounded-full">
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
                     <polyline className="ssd-sc-chk" points="20 6 9 17 4 12" />
                   </svg>
                 </span>
               </div>
-              <h2 className="ssd-success-title relative font-display text-[32px] font-black leading-tight">
+              <h2 className="ssd-success-title relative font-display text-[26px] font-black leading-tight">
                 {heading}
               </h2>
               <p className="relative mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#ef7d1a]">
                 {amountLabel}
               </p>
-              <p className="ssd-success-title relative mt-1 font-sans text-[40px] font-black tracking-tight">{amount}</p>
+              <p className="ssd-success-title relative mt-0.5 font-sans text-[32px] font-black tracking-tight">{amount}</p>
             </div>
-            <div className="bg-white px-4 pb-4 pt-2">
+            <div className="bg-white px-4 pb-3 pt-1.5">
               <div className="mb-3 flex h-4 items-center gap-2">
                 <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[#ffd54a]" />
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="#ffd54a" aria-hidden>
@@ -2302,7 +2378,7 @@ function HebInspiredSuccessModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="ssd-gold-btn mt-3 flex w-full items-center justify-center gap-1 rounded-2xl py-3 font-sans text-[16px] font-bold text-white shadow-[0_10px_24px_rgba(239,125,26,0.45)] transition hover:-translate-y-0.5"
+                className="ssd-gold-btn mt-2 flex w-full items-center justify-center gap-1 rounded-2xl py-2.5 font-sans text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(239,125,26,0.45)] transition hover:-translate-y-0.5"
               >
                 {cta}
                 <span aria-hidden>›</span>
@@ -2375,8 +2451,8 @@ function AddedToCartPopup({
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, rotateY: -70, scale: 0.78 }}
-            transition={{ duration: 0.32 }}
+            exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="ssd-flip-in relative z-10 w-full max-w-[22.5rem] overflow-hidden rounded-[26px] border border-[#ffd54a]/80 bg-[#fffdf8] shadow-[0_24px_60px_rgba(212,160,23,0.38)]"
           >
             <div className="relative px-6 pb-4 pt-7 text-center">
@@ -2586,15 +2662,19 @@ function DotGrid({ className = "" }: { className?: string }) {
 }
 
 /**
- * The section break between the category pill row and the folder/offering
- * grid below it — a solid accent bar.
+ * Category / catalogue split — ornamental separator plate at a medium size.
  */
 function SectionScreenDivider() {
   return (
-    <div aria-hidden="true" className="relative my-2 flex h-5 items-center justify-center">
-      <div
-        className="relative h-1.5 w-full bg-dark-orange"
-        style={{ clipPath: "polygon(6% 0%, 94% 0%, 100% 100%, 0% 100%)" }}
+    <div
+      aria-hidden="true"
+      role="separator"
+      className="flex w-full shrink-0 justify-center px-6 py-1"
+    >
+      <img
+        src="/pos_separationLine.webp"
+        alt=""
+        className="h-[3.25rem] w-full max-w-2xl select-none object-cover object-center sm:h-[3.75rem]"
       />
     </div>
   );
@@ -2664,24 +2744,155 @@ function CashIcon({ className = "" }: { className?: string }) {
   );
 }
 
+function ProceedPaymentModal({
+  open,
+  onClose,
+  total,
+  modes,
+  modeId,
+  onModeChange,
+  amountInput,
+  onAmountChange,
+  amountValid,
+  isPartial,
+  balance,
+  modeName,
+  loading,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  total: number;
+  modes: PaymentMode[];
+  modeId: string;
+  onModeChange: (id: string) => void;
+  amountInput: string;
+  onAmountChange: (v: string) => void;
+  amountValid: boolean;
+  isPartial: boolean;
+  balance: number;
+  modeName: string;
+  loading: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <PosFlipModal
+      open={open}
+      onBackdrop={onClose}
+      panelClassName="flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]"
+    >
+      <div aria-hidden="true" className="h-1.5 shrink-0 bg-dark-orange" />
+      <div className="flex items-center justify-between border-b border-gold-500/10 px-5 py-2.5">
+        <div>
+          <h2 className="font-accent text-[17px] font-extrabold tracking-tight text-ink-100">
+            Collect Payment
+          </h2>
+          <p className="text-[12px] text-ink-500">Choose a method and amount to confirm this booking.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="rounded-lg p-1.5 text-ink-500 hover:bg-ivory-100"
+        >
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+            <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="space-y-3 px-5 py-3">
+        <div className="flex items-center justify-between rounded-lg border border-[#f0b4a0]/60 bg-[#fffdfb] px-3 py-2 text-[13px] font-bold">
+          <span className="flex items-center gap-1.5 text-ink-100">
+            Total Payable
+            <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-emerald-700">
+              GST Inclusive
+            </span>
+          </span>
+          <span className="text-[#7c1527]">{formatCurrency(total)}</span>
+        </div>
+
+        <PaymentModeBoxes dense modes={modes} value={modeId} onChange={onModeChange} />
+
+        <DivineInput
+          staticLabel
+          label="Payment Amount (S$)"
+          type="number"
+          min={0}
+          max={total || undefined}
+          step="0.01"
+          inputMode="decimal"
+          value={amountInput}
+          onChange={(e) => onAmountChange(e.target.value)}
+          error={
+            amountInput !== "" && !amountValid
+              ? `Enter an amount between $0.00 and ${formatCurrency(total)}.`
+              : undefined
+          }
+        />
+        <div
+          className={`flex items-center justify-between rounded-lg px-3 py-2 text-[11.5px] ${
+            isPartial ? "bg-crimson-500/10 text-crimson-500" : "bg-emerald-500/10 text-emerald-700"
+          }`}
+        >
+          <span>Balance Amount (after this payment)</span>
+          <span className="font-semibold">{formatCurrency(balance)}</span>
+        </div>
+        {isPartial && (
+          <p className="text-[10.5px] text-ink-500">
+            Booking confirms now for the full order — collect the rest anytime from POS Transactions.
+          </p>
+        )}
+      </div>
+
+      <div className="relative z-10 flex shrink-0 items-center justify-end gap-3 border-t border-maroon/15 px-5 py-3 shadow-[0_-6px_16px_-4px_rgba(0,0,0,0.18)]">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-md border border-gold-500/30 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-ink-300 transition-[border-color,color] duration-200 hover:border-flame-500/60 hover:text-flame-600"
+        >
+          Cancel
+        </button>
+        <FlameActionButton
+          icon={<LockIcon />}
+          chevron={false}
+          onClick={onConfirm}
+          disabled={!modeId || loading || !amountValid}
+        >
+          {loading
+            ? "Confirming…"
+            : isPartial
+              ? `Confirm ${modeName} Payment (Partial)`
+              : `Confirm ${modeName} Payment`}
+        </FlameActionButton>
+      </div>
+    </PosFlipModal>
+  );
+}
+
 function PaymentModeBoxes({
   modes,
   value,
   onChange,
+  dense = false,
 }: {
   modes: PaymentMode[];
   value: string;
   onChange: (id: string) => void;
+  dense?: boolean;
 }) {
   return (
-    <div className="space-y-1.5 text-left">
-      <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-amber-600">
+    <div className={`${dense ? "space-y-1" : "space-y-1.5"} text-left`}>
+      <p className={`flex items-center gap-1.5 ${FORM_LABEL} ${dense ? "!mb-1" : ""}`}>
         <CashIcon className="h-3.5 w-3.5" /> Payment Method
       </p>
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className={dense ? "flex flex-wrap gap-1.5" : "grid grid-cols-2 gap-1.5"}>
         {modes.map((m) => {
           const isCash = m.name.toLowerCase() === "cash";
           const selected = isCash && value === m._id;
+          const tileShape = dense
+            ? "flex flex-row items-center gap-1.5 rounded-md px-2.5 py-1.5"
+            : "flex flex-col items-center gap-0.5 rounded-lg px-3 py-2 text-center";
           if (!isCash) {
             return (
               <button
@@ -2690,7 +2901,7 @@ function PaymentModeBoxes({
                 disabled
                 aria-disabled="true"
                 title={`${m.name} isn't available yet`}
-                className="flex cursor-not-allowed flex-col items-center gap-0.5 rounded-lg border-2 border-dashed border-gold-500/20 bg-ivory-50/60 px-2 py-1.5 text-center opacity-45"
+                className={`${tileShape} cursor-not-allowed border-2 border-dashed border-gold-500/20 bg-ivory-50/60 opacity-45`}
               >
                 <span className="text-[11.5px] font-semibold text-ink-300">{m.name}</span>
                 <span className="text-[9px] font-medium text-ink-500">Coming soon</span>
@@ -2702,11 +2913,11 @@ function PaymentModeBoxes({
               key={m._id}
               type="button"
               onClick={() => onChange(m._id)}
-              whileHover={{ y: -3, scale: 1.03 }}
+              whileHover={{ y: dense ? -1 : -3, scale: 1.03 }}
               whileTap={{ scale: 0.96 }}
-              className={`group relative flex flex-col items-center gap-1 overflow-hidden rounded-lg border-2 px-2 py-2.5 text-center ${
+              className={`group relative overflow-hidden border-2 ${tileShape} ${
                 selected
-                  ? "pos-pay-tile-on border-transparent bg-gradient-to-br from-emerald-600 via-emerald-500 to-emerald-400"
+                  ? "pos-pay-tile-on border-emerald-600 bg-emerald-600"
                   : "border-gold-500/25 bg-white shadow-[0_2px_8px_-6px_rgba(0,0,0,0.2)] hover:border-flame-400/60"
               }`}
             >
@@ -2715,21 +2926,6 @@ function PaymentModeBoxes({
                   <span className="pos-pay-shine" />
                 </span>
               )}
-              <AnimatePresence initial={false}>
-                {selected && (
-                  <motion.span
-                    initial={{ scale: 0, rotate: -90, opacity: 0 }}
-                    animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                    exit={{ scale: 0, opacity: 0 }}
-                    transition={{ type: "spring", stiffness: 420, damping: 18 }}
-                    className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white/25"
-                  >
-                    <svg className="h-2 w-2 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5">
-                      <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </motion.span>
-                )}
-              </AnimatePresence>
               <motion.span
                 animate={selected ? { rotate: [0, -8, 8, 0], scale: [1, 1.12, 1] } : { rotate: 0, scale: 1 }}
                 transition={{ duration: 0.45 }}
@@ -2739,6 +2935,21 @@ function PaymentModeBoxes({
               <span className={`relative text-[11.5px] font-semibold ${selected ? "text-white" : "text-ink-100"}`}>
                 {m.name}
               </span>
+              <AnimatePresence initial={false}>
+                {selected && (
+                  <motion.span
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 18 }}
+                    className="relative flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/25"
+                  >
+                    <svg className="h-2.5 w-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5">
+                      <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </motion.button>
           );
         })}
@@ -2828,7 +3039,7 @@ function CatalogueCard({
 
   const footer = (
     <div
-      className={`flex w-full min-w-0 items-center justify-between gap-1 rounded-md px-2 py-1 ${theme.rowBg}`}
+      className={`flex w-full min-w-0 items-center justify-between gap-1 rounded-full px-2 py-1 ${theme.rowBg}`}
     >
       <span className="flex min-w-0 items-center gap-1.5">
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_2px_6px_-2px_rgba(0,0,0,0.2)]">
@@ -2849,10 +3060,10 @@ function CatalogueCard({
       disabled={disabled}
       whileHover={disabled ? undefined : { y: -4, scale: 1.02 }}
       whileTap={disabled ? undefined : { scale: 0.98 }}
-      className={`group relative rounded-md border-2 ${theme.border} ${theme.bodyBg} text-left shadow-[0_10px_24px_-10px_rgba(0,0,0,0.45)] transition-shadow duration-200 hover:shadow-[0_16px_32px_-12px_rgba(0,0,0,0.5)] disabled:cursor-not-allowed disabled:opacity-60`}
+      className={`group relative rounded-2xl border-2 ${theme.border} ${theme.bodyBg} text-left shadow-[0_10px_24px_-10px_rgba(0,0,0,0.45)] transition-shadow duration-200 hover:shadow-[0_16px_32px_-12px_rgba(0,0,0,0.5)] disabled:cursor-not-allowed disabled:opacity-60`}
     >
-      <div className={`flex h-full flex-col overflow-hidden rounded-[3px] ${theme.bodyBg}`}>
-        <div className={`relative overflow-hidden ${theme.banner} ${cover ? "h-[9.5rem]" : "h-14"}`}>
+      <div className={`flex h-full flex-col overflow-hidden rounded-[14px] ${theme.bodyBg}`}>
+        <div className={`relative overflow-hidden ${theme.banner} ${cover ? "h-28 sm:h-32 md:h-[9.5rem]" : "h-14"}`}>
           {cover ? (
             <>
               <img
@@ -2926,7 +3137,7 @@ function OfferingGrid({
 }) {
   // Items first, then services — matches the requested list order.
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
       {items.map((i) => (
         <OfferingCard
           key={i._id}
@@ -3014,7 +3225,7 @@ function CartLineRow({
 }) {
   return (
     <div
-      className={`rounded-md border p-3 shadow-[0_2px_10px_-6px_rgba(255,122,46,0.25)] transition-shadow duration-200 ${line.quantityExceedsStock ? "border-crimson-500/30 bg-crimson-500/5" : "border-orange-200/60 bg-white/70 hover:shadow-[0_8px_20px_-14px_rgba(255,122,46,0.5)]"}`}
+      className={`relative z-10 rounded-lg border p-3 shadow-[0_2px_4px_rgba(124,21,39,0.12),0_8px_18px_rgba(0,0,0,0.14)] transition-shadow duration-200 ${line.quantityExceedsStock ? "border-crimson-500/40 bg-crimson-500/5" : "border-[#d4b8a4] bg-white hover:shadow-[0_4px_8px_rgba(124,21,39,0.16),0_12px_24px_rgba(0,0,0,0.16)]"}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -3129,7 +3340,7 @@ function AddToCartModal({
     <PosFlipModal
       open={open}
       onBackdrop={onCancel}
-      panelClassName="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]"
+      panelClassName="flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]"
     >
           {offering && (
           <>
@@ -3137,18 +3348,18 @@ function AddToCartModal({
             aria-hidden="true"
             className="h-1.5 shrink-0 bg-dark-orange"
           />
-          <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
-            <div>
+          <div className="flex items-center justify-between border-b border-gold-500/10 px-5 py-2">
+            <div className="min-w-0">
               {isEditing && (
                 <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-blue-600">
                   Editing cart line
                 </p>
               )}
-              <h2 className="font-accent text-[19px] font-extrabold tracking-tight text-ink-100">
+              <h2 className="truncate font-accent text-[17px] font-extrabold tracking-tight text-ink-100">
                 {offering.name}
               </h2>
               {offering.tamilName && (
-                <p className="text-[13px] text-ink-500">{offering.tamilName}</p>
+                <p className="truncate text-[12px] text-ink-500">{offering.tamilName}</p>
               )}
             </div>
             <button
@@ -3168,10 +3379,10 @@ function AddToCartModal({
             </button>
           </div>
 
-          <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+          <div className="flex-1 space-y-3 overflow-y-auto px-5 py-3">
             {offering.isDeityMappingRequired && deityOptions.length > 0 && (
               <div>
-                <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">
+                <p className={`${FORM_LABEL} mb-2`}>
                   Deities (Multi-Select) *
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -3225,7 +3436,7 @@ function AddToCartModal({
 
             {!(offering.isDeityMappingRequired && deityOptions.length > 0) && (
               <div>
-                <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Quantity</p>
+                <p className={`${FORM_LABEL} mb-2`}>Quantity</p>
                 <div className="inline-flex items-center gap-3 rounded-xl border border-gold-500/30 bg-white px-2 py-1.5">
                   <button
                     type="button"
@@ -3257,7 +3468,7 @@ function AddToCartModal({
 
             {offering.isFamilyMembersRequired && devoteeRows > 0 && (
               <div className="space-y-3">
-                <p className="text-[11px] uppercase tracking-wide text-amber-600">
+                <p className={FORM_LABEL}>
                   Devotee Details (max {offering.maxFamilyMembers}) *
                 </p>
                 {devoteeNameSuggestions &&
@@ -3271,10 +3482,12 @@ function AddToCartModal({
                 {devotees.map((devotee, idx) => (
                   <div
                     key={idx}
-                    className="grid grid-cols-[1fr_140px_auto] items-start gap-2"
+                    className="grid grid-cols-[minmax(0,1fr)_minmax(9.5rem,11rem)_auto] items-start gap-2"
                   >
                     <DivineInput
-                      label={`${idx + 1}.`}
+                      staticLabel
+                      label={`Devotee ${idx + 1}`}
+                      placeholder="Enter name"
                       value={devotee.name}
                       onChange={(e) => {
                         const updated = [...devotees];
@@ -3291,7 +3504,6 @@ function AddToCartModal({
                           : undefined
                       }
                       autoComplete="off"
-                      containerClassName={FIELD_ACCENT}
                     />
                     <DivineListbox
                       label="Nakshatra"
@@ -3302,8 +3514,7 @@ function AddToCartModal({
                         onDevoteesChange(updated);
                       }}
                       options={nakshatraOptions}
-                      placeholder="Nakshatra"
-                      containerClassName={FIELD_ACCENT}
+                      placeholder="Select…"
                       error={
                         showValidation &&
                         devotee.name.trim() &&
@@ -3317,7 +3528,7 @@ function AddToCartModal({
                         type="button"
                         onClick={() => onRemoveDevotee(idx)}
                         aria-label="Remove family member"
-                        className="mt-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-red-700/20 bg-gradient-to-b from-red-400 via-red-500 to-red-600 text-white shadow-[0_2px_5px_-1px_rgba(220,38,38,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_14px_-3px_rgba(220,38,38,0.6)] active:translate-y-0"
+                        className="mt-[22px] flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-700/20 bg-red-600 text-white shadow-[0_2px_5px_-1px_rgba(220,38,38,0.5)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_14px_-3px_rgba(220,38,38,0.6)] active:translate-y-0"
                       >
                         <TrashIcon />
                       </button>
@@ -3337,7 +3548,7 @@ function AddToCartModal({
             )}
           </div>
 
-          <div className="flex items-center justify-between border-t border-gold-500/10 px-6 py-4">
+          <div className="relative z-10 flex shrink-0 items-center justify-between border-t border-maroon/15 px-5 py-3 shadow-[0_-6px_16px_-4px_rgba(0,0,0,0.18)]">
             <p className="text-[14px]">
               <span className="text-ink-500">Total: </span>
               <span className="font-bold text-[#7c1527]">
@@ -3500,9 +3711,9 @@ function CreateCustomerModal({
     <PosFlipModal
       open={open}
       onBackdrop={onClose}
-      panelClassName="w-full max-w-xl overflow-hidden rounded-2xl border border-gold-500/25 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]"
+      panelClassName="flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-gold-500/25 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]"
     >
-          <div className="border-b border-gold-500/10 px-6 py-5">
+          <div className="shrink-0 border-b border-gold-500/10 px-5 py-3">
             <h2 className="font-display text-[18px] font-bold text-ink-100">
               Create Customer
             </h2>
@@ -3510,7 +3721,7 @@ function CreateCustomerModal({
               Quick walk-in profile — no login required.
             </p>
           </div>
-          <div className="px-6 py-5">
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
             {matched && (
               <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-gold-500/25 bg-gold-500/5 px-3.5 py-2.5">
                 <p className="text-[12.5px] text-amber-700">
@@ -3528,35 +3739,35 @@ function CreateCustomerModal({
             )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <DivineInput
+                staticLabel
                 label="Full Name"
                 icon={<UserIcon />}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={!!matched}
-                containerClassName={FIELD_ACCENT}
               />
               <DivineInput
+                staticLabel
                 label="Email"
                 icon={<MailIcon />}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={!!matched}
-                containerClassName={FIELD_ACCENT}
               />
               <DivineInput
+                staticLabel
                 label="Mobile Number"
                 icon={<span className="text-[13.5px] font-semibold text-ink-500">+65</span>}
                 value={mobileNumber}
                 onChange={(e) => setMobileNumber(sanitizeMobileInput(e.target.value))}
                 hint={checkingMobile ? "Checking…" : undefined}
-                containerClassName={FIELD_ACCENT}
               />
               <DivineDatePicker
+                staticLabel
                 label="Date of birth"
                 value={dateOfBirth}
                 onChange={setDateOfBirth}
                 placeholder="Not recorded"
-                containerClassName={FIELD_ACCENT}
               />
               <DivineListbox
                 label="Gender"
@@ -3564,14 +3775,13 @@ function CreateCustomerModal({
                 onChange={setGender}
                 options={CREATE_CUSTOMER_GENDER_OPTIONS}
                 disabled={!!matched}
-                containerClassName={FIELD_ACCENT}
               />
             </div>
             {error && (
               <p className="mt-3 text-[12.5px] text-crimson-500">{error}</p>
             )}
           </div>
-          <div className="flex justify-end gap-3 border-t border-gold-500/10 px-6 py-4">
+          <div className="relative z-10 flex shrink-0 justify-end gap-3 border-t border-maroon/15 px-5 py-3 shadow-[0_-6px_16px_-4px_rgba(0,0,0,0.18)]">
             <DivineButton
               variant="ghost"
               fullWidth={false}
@@ -3581,6 +3791,7 @@ function CreateCustomerModal({
               Cancel
             </DivineButton>
             <DivineButton
+              variant="flame"
               fullWidth={false}
               type="button"
               loading={submitting}
@@ -3619,11 +3830,11 @@ function RecentBookingModal({
     <PosFlipModal
       open={open}
       onBackdrop={onClose}
-      panelClassName="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]"
+      panelClassName="flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]"
     >
           {booking && (
           <>
-          <div className="flex items-start justify-between border-b border-gold-500/10 px-6 py-5">
+          <div className="flex items-start justify-between border-b border-gold-500/10 px-5 py-3">
             <div>
               <p className="text-[11px] uppercase tracking-wide text-ink-500">
                 Order No.
@@ -3652,7 +3863,7 @@ function RecentBookingModal({
             </button>
           </div>
 
-          <div className="flex-1 space-y-2 overflow-y-auto px-6 py-5">
+          <div className="flex-1 space-y-2 overflow-y-auto px-5 py-3">
             {booking.lines.map((line, idx) => (
               <div
                 key={idx}
@@ -3685,7 +3896,7 @@ function RecentBookingModal({
             ))}
           </div>
 
-          <div className="flex items-center justify-between border-t border-gold-500/10 px-6 py-4">
+          <div className="flex shrink-0 items-center justify-between border-t border-gold-500/10 px-5 py-3">
             <p className="text-[14px]">
               <span className="text-ink-500">Total: </span>
               <span className="font-bold text-amber-600">
@@ -3703,6 +3914,7 @@ function RecentBookingModal({
                 Cancel
               </DivineButton>
               <DivineButton
+                variant="flame"
                 fullWidth={false}
                 type="button"
                 loading={loading}
@@ -3744,9 +3956,9 @@ function UnavailableLinesDialog({
     <PosFlipModal
       open={open}
       onBackdrop={onCancel}
-      panelClassName="w-full max-w-md overflow-hidden rounded-2xl border border-gold-500/25 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]"
+      panelClassName="flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-2xl border border-gold-500/25 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]"
     >
-          <div className="border-b border-gold-500/10 px-6 py-5">
+          <div className="shrink-0 border-b border-gold-500/10 px-5 py-3">
             <h2 className="font-display text-[18px] font-bold text-ink-100">
               Some items aren&apos;t available
             </h2>
@@ -3756,7 +3968,7 @@ function UnavailableLinesDialog({
                 : "None of this booking's items can be re-added right now:"}
             </p>
           </div>
-          <div className="max-h-[40vh] space-y-2 overflow-y-auto px-6 py-5">
+          <div className="max-h-[min(28vh,12rem)] space-y-2 overflow-y-auto px-5 py-3">
             {unavailableLines.map((line, idx) => (
               <div
                 key={idx}
@@ -3769,7 +3981,7 @@ function UnavailableLinesDialog({
               </div>
             ))}
           </div>
-          <div className="flex justify-end gap-3 border-t border-gold-500/10 px-6 py-4">
+          <div className="flex shrink-0 justify-end gap-3 border-t border-gold-500/10 px-5 py-3">
             <DivineButton
               variant="ghost"
               fullWidth={false}
@@ -3779,7 +3991,7 @@ function UnavailableLinesDialog({
               Cancel
             </DivineButton>
             {availableCount > 0 && (
-              <DivineButton fullWidth={false} type="button" onClick={onProceed}>
+              <DivineButton variant="flame" fullWidth={false} type="button" onClick={onProceed}>
                 Add {availableCount} Available Item
                 {availableCount > 1 ? "s" : ""}
               </DivineButton>
@@ -3880,107 +4092,129 @@ function BookingSuccessView({
   return (
     <>
     {stillDue && (
-    <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-8">
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 sm:p-3">
       <motion.div
-        initial={{ opacity: 0, y: "80%", rotateX: 55, scale: 0.86 }}
-        animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
-        transition={{ type: "spring", stiffness: 240, damping: 20 }}
-        style={{ transformOrigin: "50% 120%" }}
-        className={`mx-auto w-full max-w-lg rounded-2xl p-6 text-center sm:p-8 ${
-          stillDue
-            ? "border border-gold-500/20 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)]"
-            : "border-2 border-gold-400 bg-gradient-to-b from-[#fff8e0] via-white to-[#ffe8b5] shadow-[0_28px_70px_-18px_rgba(212,175,55,0.55)]"
-        }`}
+        initial={{ opacity: 0, y: 48, scale: 0.94 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 280, damping: 24 }}
+        className="relative mx-auto flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-maroon/15 bg-white text-center shadow-[0_28px_70px_-24px_rgba(124,21,39,0.45)]"
       >
-        <div className={`mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 ${stillDue ? "border-emerald-500/40 bg-emerald-500/10" : "border-gold-400 bg-gold-500/20"}`}>
-          <svg
-            className={`h-8 w-8 ${stillDue ? "text-emerald-500" : "text-amber-600"}`}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
+        <div aria-hidden="true" className="h-1 shrink-0 bg-maroon" />
+        <motion.div
+          initial="hidden"
+          animate="show"
+          variants={{
+            hidden: {},
+            show: { transition: { staggerChildren: 0.05, delayChildren: 0.06 } },
+          }}
+          className="min-h-0 px-3 py-2.5 sm:px-5 sm:py-3"
+        >
+          <motion.div
+            variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
+            className="flex items-center justify-center gap-3"
           >
-            <path
-              d="M5 13l4 4L19 7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <h2 className={`font-display font-bold text-ink-100 ${stillDue ? "text-[24px]" : "pos-gold-title text-[28px]"}`}>
-          {stillDue ? "Partial Payment Success" : "Booking Success"}
-        </h2>
-        <p className="mt-1 text-[13px] text-ink-500">
-          {stillDue ? "Partial payment received · Inventory updated" : "Payment received · Inventory updated"}
-        </p>
-        {stillDue && (
-          <StayOnPageWarning>
-            Do not close or refresh this page until the remaining balance is collected. Leaving now will interrupt payment collection.
-          </StayOnPageWarning>
-        )}
-        <div className="my-6 space-y-2 rounded-xl border border-gold-500/15 bg-ivory-100 px-5 py-4 text-left text-[13px]">
-          <Row
-            label="Booking No."
-            value={confirmation.bookingNumber}
-            highlight
-          />
-          <Row label="Order No." value={confirmation.orderNumber} />
-          <Row label="Receipt No." value={confirmation.receiptNo ?? "—"} />
-          <Row
-            label="Customer"
-            value={`${confirmation.customer.name} (${confirmation.customer.customerCode})`}
-          />
-          <Row label="Payment Mode" value={confirmation.paymentModeName} />
-          <div className="border-t border-gold-500/10 pt-2">
-            <Row
-              label={
-                <span className="flex items-center gap-1.5">
-                  Total Payable Amount
-                  <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-700">
-                    GST Inclusive
-                  </span>
-                </span>
-              }
-              value={formatCurrency(confirmation.grandTotal)}
-            />
-            <Row label="Amount Paid" value={formatCurrency(confirmation.amountPaid)} />
-            <Row label="Balance Due" value={formatCurrency(confirmation.balanceAmount)} highlight={confirmation.balanceAmount > 0} />
-          </div>
-        </div>
+            <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_6px_16px_-6px_rgba(16,185,129,0.7)]">
+              <motion.svg
+                className="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.6"
+              >
+                <motion.path
+                  d="M5 13l4 4L19 7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ delay: 0.2, duration: 0.35, ease: "easeOut" }}
+                />
+              </motion.svg>
+            </span>
+            <div className="text-left">
+              <h2 className="font-display text-[18px] font-bold leading-tight text-ink-100 sm:text-[20px]">
+                Partial Payment Success
+              </h2>
+              <p className="text-[12px] text-ink-500">
+                Partial payment received · Inventory updated
+              </p>
+            </div>
+          </motion.div>
 
-        {stillDue && !payAgainOpen && (
-          <div className="mb-4 space-y-3 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-4 py-3 text-left">
-            <p className="text-[12px] text-crimson-500">
-              Only partially paid — {formatCurrency(confirmation.balanceAmount)} still due. Collect the remaining
-              amount now. The booking is confirmed only after full payment.
-            </p>
-            <DivineButton fullWidth type="button" onClick={openPayAgain}>
-              Pay Again
-            </DivineButton>
-          </div>
-        )}
+          <motion.div variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}>
+            <StayOnPageWarning className="!mt-2">
+              Do not close or refresh this page until the remaining balance is collected.
+            </StayOnPageWarning>
+          </motion.div>
 
-        {payAgainOpen && stillDue && (
-          <div className="mb-4 space-y-3 rounded-lg border border-gold-500/20 bg-ivory-50 px-4 py-3.5 text-left">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">
-              Collect Remaining Payment
-            </p>
-            <DivineInput
-              label={`Amount (max ${formatCurrency(confirmation.balanceAmount)})`}
-              type="number"
-              min={0.01}
-              max={confirmation.balanceAmount}
-              step="0.01"
-              inputMode="decimal"
-              value={amountInput}
-              onChange={(e) => setAmountInput(e.target.value)}
+          <motion.div
+            variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
+            className="my-2 grid grid-cols-2 gap-1.5 text-left sm:grid-cols-4"
+          >
+            <DetailTile label="Booking No." value={confirmation.bookingNumber} highlight />
+            <DetailTile label="Order No." value={confirmation.orderNumber} />
+            <DetailTile label="Receipt No." value={confirmation.receiptNo ?? "—"} />
+            <DetailTile
+              label="Customer"
+              value={`${confirmation.customer.name} (${confirmation.customer.customerCode})`}
             />
-            <PaymentModeBoxes modes={paymentModes} value={modeId} onChange={setModeId} />
-            <DivineButton fullWidth type="button" loading={submitting} onClick={submitPayAgain}>
-              Collect Payment
-            </DivineButton>
-          </div>
-        )}
+            <DetailTile label="Payment Mode" value={confirmation.paymentModeName} />
+            <DetailTile label="Total Payable" value={formatCurrency(confirmation.grandTotal)} />
+            <DetailTile label="Amount Paid" value={formatCurrency(confirmation.amountPaid)} />
+            <DetailTile
+              label="Balance Due"
+              value={formatCurrency(confirmation.balanceAmount)}
+              highlight={confirmation.balanceAmount > 0}
+            />
+          </motion.div>
+
+          {stillDue && !payAgainOpen && (
+            <motion.div
+              variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
+              className="space-y-2 rounded-xl border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-left"
+            >
+              <p className="text-[12px] text-crimson-500">
+                Only partially paid — {formatCurrency(confirmation.balanceAmount)} still due. Collect the remaining
+                amount now.
+              </p>
+              <DivineButton variant="flame" fullWidth type="button" onClick={openPayAgain}>
+                Pay Again
+              </DivineButton>
+            </motion.div>
+          )}
+
+          {payAgainOpen && stillDue && (
+            <motion.div
+              variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
+              className="space-y-2 rounded-xl border border-[#f0b4a0]/70 bg-[#faf6f1] px-3 py-2.5 text-left"
+            >
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                <DivineInput
+                  staticLabel
+                  label={`Amount (max ${formatCurrency(confirmation.balanceAmount)})`}
+                  type="number"
+                  min={0.01}
+                  max={confirmation.balanceAmount}
+                  step="0.01"
+                  inputMode="decimal"
+                  value={amountInput}
+                  onChange={(e) => setAmountInput(e.target.value)}
+                />
+                <DivineButton
+                  variant="flame"
+                  fullWidth={false}
+                  type="button"
+                  loading={submitting}
+                  onClick={submitPayAgain}
+                  className="sm:h-10 sm:px-5"
+                >
+                  Collect Payment
+                </DivineButton>
+              </div>
+              <PaymentModeBoxes dense modes={paymentModes} value={modeId} onChange={setModeId} />
+            </motion.div>
+          )}
+        </motion.div>
       </motion.div>
     </div>
     )}
@@ -4019,7 +4253,7 @@ function PaymentRecordedModal({
     <PosFlipModal
       open={open}
       onBackdrop={onClose}
-      panelClassName="w-full max-w-sm overflow-hidden rounded-2xl border border-gold-500/25 bg-white p-6 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]"
+      panelClassName="flex max-h-full w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-gold-500/25 bg-white p-5 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]"
     >
           {result && (
           <>
@@ -4043,12 +4277,35 @@ function PaymentRecordedModal({
               <Row label="Balance Due" value={formatCurrency(result.balanceAmount)} highlight />
             </div>
           </div>
-          <DivineButton fullWidth onClick={onClose}>
+          <DivineButton variant="flame" fullWidth onClick={onClose}>
             OK
           </DivineButton>
           </>
           )}
     </PosFlipModal>
+  );
+}
+
+function DetailTile({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="rounded-md border border-[#f0b4a0]/60 bg-[#fffdfb] px-2.5 py-1.5 text-left">
+      <p className="text-[9.5px] font-semibold uppercase tracking-wide text-maroon/70">{label}</p>
+      <p
+        className={`mt-px truncate text-[12.5px] ${
+          highlight ? "font-bold text-[#c9a227]" : "font-semibold text-ink-100"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 type FormDrawerProps = {
@@ -25,8 +25,8 @@ type FormDrawerProps = {
    *  Service) passes a wider class still. */
   maxWidthClassName?: string;
   /** Circular badge in the header identifying what this form is for (a
-   *  shopping bag for Item, etc.) — optional so existing call sites that
-   *  haven't picked an icon yet keep the plain title/subtitle layout. */
+   *  shopping bag for Item, etc.). Optional — call sites that still pass
+   *  `subtitle` are ignored; the header shows the title only. */
   icon?: ReactNode;
 };
 
@@ -43,7 +43,6 @@ type FormDrawerProps = {
 export default function FormDrawer({
   open,
   title,
-  subtitle,
   onClose,
   children,
   footer,
@@ -51,6 +50,15 @@ export default function FormDrawer({
   icon,
   printSheet = false,
 }: FormDrawerProps) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -64,7 +72,7 @@ export default function FormDrawer({
             onClick={onClose}
             className={`fixed inset-0 z-40 bg-navy-950/70 backdrop-blur-sm ${printSheet ? "print:hidden" : ""}`}
           />
-          <div className={`pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4 ${printSheet ? "print:relative print:inset-auto print:block print:p-0" : ""}`}>
+          <div className={`pointer-events-none fixed inset-0 z-50 flex items-center justify-center overflow-hidden p-3 sm:p-4 ${printSheet ? "print:relative print:inset-auto print:block print:p-0" : ""}`}>
             <motion.div
               key="panel"
               role="dialog"
@@ -73,17 +81,14 @@ export default function FormDrawer({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.97 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
-              className={`pointer-events-auto flex max-h-[85vh] w-full ${maxWidthClassName} flex-col overflow-hidden rounded-2xl border border-gold-500/25 bg-navy-900 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)] ${printSheet ? "print:max-h-none print:max-w-none print:overflow-visible print:rounded-none print:border-0 print:bg-white print:shadow-none" : ""}`}
+              className={`pointer-events-auto flex max-h-[calc(100dvh-1.5rem)] w-full ${maxWidthClassName} flex-col overflow-hidden rounded-2xl border border-gold-500/25 bg-navy-900 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)] ${printSheet ? "print:max-h-none print:max-w-none print:overflow-visible print:rounded-none print:border-0 print:bg-white print:shadow-none" : ""}`}
             >
-              <div className={`relative flex shrink-0 items-start justify-between overflow-hidden bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFA733] px-4 py-4 sm:px-6 sm:py-5 ${printSheet ? "print:hidden" : ""}`}>
-                <div className="relative flex items-center gap-3">
+              <div className={`relative flex shrink-0 items-center justify-between overflow-hidden bg-maroon px-4 py-2.5 sm:px-5 sm:py-3 ${printSheet ? "print:hidden" : ""}`}>
+                <div className="relative flex min-w-0 items-center gap-2.5">
                   {icon && (
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#7c1527] text-white">{icon}</span>
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#7c1527] text-white">{icon}</span>
                   )}
-                  <div>
-                    <h2 className="text-[19px] font-bold text-white">{title}</h2>
-                    {subtitle && <p className="mt-0.5 text-[12.5px] text-white/85">{subtitle}</p>}
-                  </div>
+                  <h2 className="truncate text-[16px] font-bold text-white sm:text-[17px]">{title}</h2>
                 </div>
                 <button
                   onClick={onClose}
@@ -96,9 +101,9 @@ export default function FormDrawer({
                 </button>
               </div>
 
-              <div className={`flex-1 space-y-4 overflow-y-auto bg-white px-4 py-4 sm:px-6 sm:py-5 ${printSheet ? "print:overflow-visible print:p-0" : ""}`}>{children}</div>
+              <div className={`form-drawer-scroll flex-1 space-y-4 overflow-y-auto bg-white px-4 py-4 sm:px-6 sm:py-5 ${printSheet ? "print:overflow-visible print:p-0" : ""}`}>{children}</div>
 
-              <div className={`border-t border-gold-500/15 bg-navy-900 px-4 py-3 sm:px-6 sm:py-4 ${printSheet ? "print:hidden" : ""}`}>{footer}</div>
+              <div className={`relative z-10 shrink-0 border-t border-maroon/15 bg-white px-4 py-3 shadow-[0_-6px_16px_-4px_rgba(0,0,0,0.18)] sm:px-6 ${printSheet ? "print:hidden" : ""}`}>{footer}</div>
             </motion.div>
           </div>
         </>

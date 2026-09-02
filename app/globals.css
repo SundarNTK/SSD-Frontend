@@ -114,6 +114,29 @@ select option {
   background: var(--color-navy-600);
 }
 
+/* Master-form popup body (FormDrawer) — the gold-on-white thumb above reads
+   as barely-there against this drawer's white background, so its scrollable
+   body gets a higher-contrast maroon thumb instead, clearly visible whenever
+   a form has enough fields to overflow. */
+.form-drawer-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-maroon) var(--color-ivory-100);
+}
+.form-drawer-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.form-drawer-scroll::-webkit-scrollbar-track {
+  background: var(--color-ivory-100);
+}
+.form-drawer-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-maroon);
+  border-radius: 999px;
+  border: 2px solid var(--color-ivory-100);
+}
+.form-drawer-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-maroon-hover);
+}
+
 /* ---------- Shared keyframes ---------- */
 @keyframes ember-rise {
   0% {
@@ -410,18 +433,21 @@ select option {
   }
 }
 .pos-flame-canvas {
-  /* Continuously tinted — no flat white/ivory patches — so the wave reads as
-     moving color the whole time, not color fading in and out of plain cream. */
+  /* Temple courtyard wash — saffron, gold, and a maroon edge so the counter
+     reads warm rather than flat pastel peach. Light enough that the three
+     white panels still pop. */
+  background-color: #f0b27a;
   background-image: linear-gradient(
-    120deg,
-    #fbd3d9 0%,
-    #ffe0c7 20%,
-    #fff3e0 40%,
-    #ffddb0 60%,
-    #ffc98f 80%,
-    #fbd3d9 100%
+    125deg,
+    #ffe2b0 0%,
+    #ffc57a 16%,
+    #f5a45c 34%,
+    #e88868 52%,
+    #d46a62 70%,
+    #c44d58 86%,
+    #ffd089 100%
   );
-  background-size: 320% 320%;
+  background-size: 280% 280%;
 }
 @media (prefers-reduced-motion: no-preference) {
   .pos-flame-canvas {
@@ -519,6 +545,78 @@ select option {
   left: var(--lx);
   top: var(--ly);
   animation: pos-spark-fly var(--dur, 1.15s) ease-out var(--delay, 0s) infinite;
+}
+
+@keyframes pos-lotus-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px rgba(212, 175, 55, 0.35));
+  }
+  50% {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 12px rgba(212, 175, 55, 0.75));
+  }
+}
+
+@keyframes pos-divider-shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+@keyframes pos-diamond-twinkle {
+  0%,
+  100% {
+    opacity: 0.75;
+    box-shadow: 0 0 4px rgba(212, 175, 55, 0.4);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(255, 214, 102, 0.95);
+  }
+}
+
+.pos-divider-flower {
+  animation: pos-lotus-breathe 2.8s ease-in-out infinite;
+}
+
+.pos-divider-rail {
+  position: relative;
+  overflow: hidden;
+}
+
+.pos-divider-rail::after {
+  content: "";
+  position: absolute;
+  inset: -2px 0;
+  width: 28%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 244, 200, 0.95),
+    transparent
+  );
+  animation: pos-divider-shimmer 2.6s ease-in-out infinite;
+}
+
+.pos-divider-rail-flip::after {
+  animation-delay: 1.3s;
+}
+
+.pos-divider-diamond {
+  animation: pos-diamond-twinkle 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pos-divider-flower,
+  .pos-divider-rail::after,
+  .pos-divider-diamond {
+    animation: none;
+  }
 }
 
 @keyframes pos-pay-shine {

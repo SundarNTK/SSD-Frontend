@@ -119,6 +119,22 @@ async function fetchOptions(path: string, labelField = "name"): Promise<ListboxO
   return unwrap(res).items.map((row) => ({ value: String(row._id), label: String(row[labelField]) }));
 }
 
+type SubCategoryOption = ListboxOption & { categoryId: string };
+
+// Sub categories carry their parent category — captured alongside the
+// label/value pair so each categoryDetails row can filter its own
+// sub-category dropdown down to the ones mapped to its selected category.
+async function fetchSubCategoryOptions(): Promise<SubCategoryOption[]> {
+  const res = await api.get<ApiEnvelope<{ items: Record<string, unknown>[] }>>("/masters/sub-categories", {
+    params: { status: 1, pageSize: 100 },
+  });
+  return unwrap(res).items.map((row) => ({
+    value: String(row._id),
+    label: String(row.name),
+    categoryId: String((row.category as { _id?: string } | null)?._id ?? ""),
+  }));
+}
+
 export default function ServicePage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.services, "fullAccess");
@@ -129,7 +145,7 @@ export default function ServicePage() {
   const [deityOptions, setDeityOptions] = useState<ListboxOption[]>([]);
   const [printingGroupOptions, setPrintingGroupOptions] = useState<ListboxOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<ListboxOption[]>([]);
-  const [subCategoryOptions, setSubCategoryOptions] = useState<ListboxOption[]>([]);
+  const [subCategoryOptions, setSubCategoryOptions] = useState<SubCategoryOption[]>([]);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -146,7 +162,7 @@ export default function ServicePage() {
     fetchOptions("/masters/deities").then(setDeityOptions);
     fetchOptions("/masters/printing-groups").then(setPrintingGroupOptions);
     fetchOptions("/masters/categories").then(setCategoryOptions);
-    fetchOptions("/masters/sub-categories").then(setSubCategoryOptions);
+    fetchSubCategoryOptions().then(setSubCategoryOptions);
   }, []);
 
   useEffect(() => {
@@ -320,7 +336,7 @@ export default function ServicePage() {
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton fullWidth={false} type="submit" form="service-form" loading={create.submitting || update.submitting}>
+            <DivineButton variant="flame" fullWidth={false} type="submit" form="service-form" loading={create.submitting || update.submitting}>
               {editing ? "Save changes" : "Save"}
             </DivineButton>
           </div>
@@ -429,7 +445,12 @@ export default function ServicePage() {
 
             <div className="divide-y divide-gray-100">
               {fields.length === 0 && <p className="px-4 py-3 text-[12.5px] text-ink-500">No category pairings yet.</p>}
-              {fields.map((row, index) => (
+              {fields.map((row, index) => {
+                const selectedCategory = watch(`categoryDetails.${index}.category`);
+                const rowSubCategoryOptions = selectedCategory
+                  ? subCategoryOptions.filter((o) => o.categoryId === selectedCategory)
+                  : [];
+                return (
                 <div key={row.id} className="grid grid-cols-1 items-start gap-3 px-4 py-3 sm:grid-cols-[1fr_1fr_90px_40px]">
                   <Controller
                     control={control}
@@ -438,7 +459,12 @@ export default function ServicePage() {
                       <DivineListbox
                         formChrome
                         value={field.value}
-                        onChange={field.onChange}
+                        onChange={(v) => {
+                          field.onChange(v);
+                          // A category swap can orphan the row's current sub
+                          // category (it belongs to the old category), so clear it.
+                          setValue(`categoryDetails.${index}.subCategory`, "", { shouldDirty: true });
+                        }}
                         options={categoryOptions}
                         placeholder="Select category"
                         error={errors.categoryDetails?.[index]?.category?.message}
@@ -453,8 +479,9 @@ export default function ServicePage() {
                         formChrome
                         value={field.value}
                         onChange={field.onChange}
-                        options={subCategoryOptions}
-                        placeholder="Select sub category"
+                        options={rowSubCategoryOptions}
+                        disabled={!selectedCategory}
+                        placeholder={selectedCategory ? "Select sub category" : "Select category first"}
                         error={errors.categoryDetails?.[index]?.subCategory?.message}
                       />
                     )}
@@ -477,7 +504,8 @@ export default function ServicePage() {
                     <span className="sr-only">Remove row</span>
                   </button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
