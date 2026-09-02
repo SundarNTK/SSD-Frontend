@@ -9,7 +9,7 @@ import FormDrawer from "./FormDrawer";
 import DivineInput from "../divine/DivineInput";
 import DivineListbox from "../divine/DivineListbox";
 import DivineDatePicker from "../divine/DivineDatePicker";
-import DivineToggle from "../divine/DivineToggle";
+import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineButton from "../divine/DivineButton";
 import { MailIcon, UserIcon } from "../divine/icons";
 import { authApi } from "../../lib/api";
@@ -217,7 +217,7 @@ export default function CustomersPage() {
             <DivineInput staticLabel label="Email address" type="email" icon={<MailIcon />} error={errors.email?.message} {...register("email")} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <DivineInput staticLabel label="Mobile number" icon={<span className="text-[13.5px] font-semibold text-ink-500">+65</span>} error={errors.mobileNumber?.message} {...register("mobileNumber", { onChange: (e) => { e.target.value = sanitizeMobileInput(e.target.value); } })} />
+            <DivineInput staticLabel iconPosition="start" label="Mobile number" icon={<span className="text-[13.5px] font-semibold text-ink-500">+65</span>} error={errors.mobileNumber?.message} {...register("mobileNumber", { onChange: (e) => { e.target.value = sanitizeMobileInput(e.target.value); } })} />
             <Controller
               control={control}
               name="dateOfBirth"
@@ -243,7 +243,7 @@ export default function CustomersPage() {
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineStatusSelect value={field.value} onChange={field.onChange} />
               )}
             />
           </div>

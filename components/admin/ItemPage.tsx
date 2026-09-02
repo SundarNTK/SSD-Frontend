@@ -13,7 +13,7 @@ import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineMultiSelect from "../divine/DivineMultiSelect";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
-import DivineToggle from "../divine/DivineToggle";
+import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineButton from "../divine/DivineButton";
 import DivineImageUpload from "../divine/DivineImageUpload";
 import { withOptionalImage } from "../../lib/withOptionalImage";
@@ -22,12 +22,6 @@ import {
   CloseIcon,
   ShoppingBagIcon,
   FolderIcon,
-  BoxIcon,
-  PencilIcon,
-  GaugeIcon,
-  ArrowDownIcon,
-  ArrowUpIcon,
-  RefreshIcon,
   SaveIcon,
 } from "../divine/icons";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
@@ -446,7 +440,7 @@ export default function ItemPage() {
             </div>
 
             {fields.length > 0 && (
-              <div className="hidden grid-cols-[1fr_1fr_90px_44px] gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2 text-[11px] uppercase tracking-wide text-gray-500 sm:grid">
+              <div className="hidden grid-cols-[1fr_1fr_90px_40px] gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2 text-[11px] uppercase tracking-wide text-gray-500 sm:grid">
                 <span>Category</span>
                 <span>Sub Category</span>
                 <span>Order</span>
@@ -457,21 +451,17 @@ export default function ItemPage() {
             <div className="divide-y divide-gray-100">
               {fields.length === 0 && <p className="px-4 py-3 text-[12.5px] text-ink-500">No category pairings yet.</p>}
               {fields.map((row, index) => (
-                <div key={row.id} className="grid grid-cols-1 items-start gap-3 px-4 py-3 sm:grid-cols-[1fr_1fr_90px_44px]">
+                <div key={row.id} className="grid grid-cols-1 items-start gap-3 px-4 py-3 sm:grid-cols-[1fr_1fr_90px_40px]">
                   <Controller
                     control={control}
                     name={`categoryDetails.${index}.category`}
                     render={({ field }) => (
                       <DivineListbox
+                        formChrome
                         value={field.value}
                         onChange={field.onChange}
                         options={categoryOptions}
-                        placeholder="Category"
-                        icon={
-                          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-red-50 text-red-500">
-                            <FolderIcon className="h-4 w-4" />
-                          </span>
-                        }
+                        placeholder="Select category"
                         error={errors.categoryDetails?.[index]?.category?.message}
                       />
                     )}
@@ -481,27 +471,28 @@ export default function ItemPage() {
                     name={`categoryDetails.${index}.subCategory`}
                     render={({ field }) => (
                       <DivineListbox
+                        formChrome
                         value={field.value}
                         onChange={field.onChange}
                         options={subCategoryOptions}
-                        placeholder="Sub Category (optional)"
+                        placeholder="Select sub category"
                         error={errors.categoryDetails?.[index]?.subCategory?.message}
                       />
                     )}
                   />
                   <div>
-                    <span className="mb-1 block text-[11px] uppercase tracking-wide text-ink-500 sm:hidden">Display Order</span>
+                    <span className="mb-1.5 block text-[13px] font-semibold text-maroon sm:hidden">Order</span>
                     <input
                       type="number"
                       {...register(`categoryDetails.${index}.displayOrder`, { valueAsNumber: true })}
-                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                      className="h-10 w-full rounded-lg border border-[#f0b4a0] bg-white px-3 font-body text-[14px] text-ink-100 outline-none transition-colors hover:border-[#e8a090] focus:border-[#e8590c]"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => removeRow(index)}
                     aria-label="Remove row"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-crimson-500/10 text-crimson-500 transition-colors hover:bg-crimson-500/20 sm:justify-self-start"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-crimson-500/10 text-crimson-500 transition-colors hover:bg-crimson-500/20"
                   >
                     <CloseIcon className="h-4 w-4" />
                     <span className="sr-only">Remove row</span>
@@ -521,11 +512,6 @@ export default function ItemPage() {
                   label="Inventory Applicable"
                   value={field.value}
                   onChange={field.onChange}
-                  icon={
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 text-orange-500">
-                      <BoxIcon />
-                    </span>
-                  }
                 />
               )}
             />
@@ -541,11 +527,6 @@ export default function ItemPage() {
                       onChange={field.onChange}
                       options={UNIT_OPTIONS}
                       placeholder="Select…"
-                      icon={
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 text-purple-500">
-                          <PencilIcon className="h-4 w-4" />
-                        </span>
-                      }
                     />
                   )}
                 />
@@ -554,11 +535,6 @@ export default function ItemPage() {
                   label="Threshold"
                   type="number"
                   error={errors.threshold?.message}
-                  icon={
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-500">
-                      <GaugeIcon />
-                    </span>
-                  }
                   {...register("threshold", { valueAsNumber: true })}
                 />
               </>
@@ -572,11 +548,6 @@ export default function ItemPage() {
                 label="Min Quantity"
                 type="number"
                 error={errors.minQuantity?.message}
-                icon={
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-500">
-                    <ArrowDownIcon />
-                  </span>
-                }
                 {...register("minQuantity", { valueAsNumber: true })}
               />
               <DivineInput
@@ -584,11 +555,6 @@ export default function ItemPage() {
                 label="Max Quantity"
                 type="number"
                 error={errors.maxQuantity?.message}
-                icon={
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-500">
-                    <ArrowUpIcon />
-                  </span>
-                }
                 {...register("maxQuantity", { valueAsNumber: true })}
               />
               <DivineInput
@@ -596,11 +562,6 @@ export default function ItemPage() {
                 label="Quantity Reduction"
                 type="number"
                 error={errors.quantityReduction?.message}
-                icon={
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-50 text-pink-500">
-                    <RefreshIcon />
-                  </span>
-                }
                 {...register("quantityReduction", { valueAsNumber: true })}
               />
             </div>
@@ -657,7 +618,7 @@ export default function ItemPage() {
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineStatusSelect value={field.value} onChange={field.onChange} />
               )}
             />
           </div>

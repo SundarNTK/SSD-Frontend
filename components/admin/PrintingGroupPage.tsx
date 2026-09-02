@@ -9,7 +9,7 @@ import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
-import DivineToggle from "../divine/DivineToggle";
+import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineButton from "../divine/DivineButton";
 import { api } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
@@ -181,7 +181,7 @@ export default function PrintingGroupPage() {
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineStatusSelect value={field.value} onChange={field.onChange} />
               )}
             />
           </div>

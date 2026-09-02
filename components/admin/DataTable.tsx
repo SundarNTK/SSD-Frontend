@@ -1,21 +1,97 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { PlusIcon, PencilIcon, TrashIcon } from "../divine/icons";
 import DivineListbox from "../divine/DivineListbox";
 import { resolveImageUrl } from "../../lib/imageUrl";
 import { EmblemLoader } from "../divine/EmblemLoader";
 
-export function MasterImageCell({ src, alt = "" }: { src: string | null; alt?: string }) {
+function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return createPortal(
+    <AnimatePresence>
+      <motion.div
+        key="backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 z-[80] bg-navy-950/85 backdrop-blur-sm"
+      />
+      <div className="pointer-events-none fixed inset-0 z-[81] flex items-center justify-center p-6">
+        <motion.div
+          key="panel"
+          role="dialog"
+          aria-modal="true"
+          aria-label={alt || "Image preview"}
+          initial={{ opacity: 0, y: 12, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 12, scale: 0.97 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          className="pointer-events-auto relative max-h-[85vh] max-w-[85vw] overflow-hidden rounded-2xl border border-gold-500/25 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-lg bg-crimson-600 text-white shadow-[0_2px_8px_-2px_rgba(0,0,0,0.45)] transition-colors hover:bg-crimson-500"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+            </svg>
+          </button>
+          <img src={src} alt={alt} className="max-h-[85vh] max-w-[85vw] object-contain" />
+        </motion.div>
+      </div>
+    </AnimatePresence>,
+    document.body
+  );
+}
+
+export function MasterImageCell({
+  src,
+  alt = "",
+  rounded = "lg",
+}: {
+  src: string | null;
+  alt?: string;
+  rounded?: "lg" | "full";
+}) {
   const url = resolveImageUrl(src);
+  const [viewing, setViewing] = useState(false);
+  const shape = rounded === "full" ? "rounded-full" : "rounded-lg";
+
   return (
-    <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-gold-500/20 bg-ivory-100">
-      {url ? (
-        <img src={url} alt={alt} className="h-full w-full object-cover" />
-      ) : (
-        <span className="text-[10px] text-ink-500">—</span>
-      )}
-    </span>
+    <>
+      <span className="inline-flex items-center gap-2">
+        <span className={`flex h-10 w-10 items-center justify-center overflow-hidden border border-gold-500/20 bg-ivory-100 ${shape}`}>
+          {url ? (
+            <img src={url} alt={alt} className="h-full w-full object-cover" />
+          ) : (
+            <span className="text-[10px] text-ink-500">—</span>
+          )}
+        </span>
+        {url && (
+          <button
+            type="button"
+            onClick={() => setViewing(true)}
+            className="text-[12.5px] font-medium text-amber-600 underline-offset-2 hover:underline"
+          >
+            View
+          </button>
+        )}
+      </span>
+      {viewing && url && <ImageLightbox src={url} alt={alt} onClose={() => setViewing(false)} />}
+    </>
   );
 }
 
