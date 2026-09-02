@@ -141,8 +141,8 @@ const INACTIVE_NAV_CLASS = "border-transparent text-ink-300 hover:bg-ivory-100 h
  *
  * `collapsed` is desktop-only — the mobile drawer always opens at full
  * width, so there's nothing to collapse there. The wordmark lockup
- * (SSD_Full_Logo.png) only fits a full-width column; the mobile drawer and
- * the collapsed rail both fall back to the mark alone (SSD_Logo.png).
+ * (SSD_Full_Logo.webp) only fits a full-width column; the mobile drawer and
+ * the collapsed rail both fall back to the mark alone (SSD_Logo.webp).
  */
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { can } = usePermissions();
@@ -195,18 +195,18 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       >
         <div className={`flex items-center px-4 py-6 ${collapsed ? "md:justify-center md:px-2" : "justify-center"}`}>
           {collapsed ? (
-            <img src="/SSD_Logo.png" alt="Sri Siva Durga Temple" className="hidden h-11 w-11 object-contain drop-shadow-[0_0_10px_rgba(212,175,55,0.35)] md:block" />
+            <img src="/SSD_Logo.webp" alt="Sri Siva Durga Temple" className="hidden h-11 w-11 object-contain drop-shadow-[0_0_10px_rgba(212,175,55,0.35)] md:block" />
           ) : null}
           {/* Mobile drawer always shows the mark alone, regardless of the
               desktop `collapsed` state (which mobile never sets). */}
           <img
-            src="/SSD_Logo.png"
+            src="/SSD_Logo.webp"
             alt="Sri Siva Durga Temple"
             className={`h-11 w-11 object-contain drop-shadow-[0_0_10px_rgba(212,175,55,0.35)] md:hidden`}
           />
           {!collapsed && (
             <img
-              src="/SSD_Full_Logo.png"
+              src="/SSD_Full_Logo.webp"
               alt="Sri Siva Durga Temple"
               className="hidden h-auto w-full max-w-[188px] object-contain drop-shadow-[0_0_10px_rgba(212,175,55,0.25)] md:block"
             />

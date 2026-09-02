@@ -564,7 +564,7 @@ function BookingReceiptDocument({ detail }: { detail: BookingDetail }) {
     <article className="mx-auto max-w-2xl bg-white text-[13px] leading-snug text-[#1c1917]">
       <header className="receipt-keep pb-2 text-center">
         <img
-          src="/SSD_Full_Logo.png"
+          src="/SSD_Full_Logo.webp"
           alt="Sri Siva Durga Temple"
           className="mx-auto h-[88px] w-auto max-w-[360px] object-contain sm:h-[104px]"
         />

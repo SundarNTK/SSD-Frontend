@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 
 // Lives in public/assets/ now, not an ES-imported module — Next serves
 // public/ files at the root URL as-is, no asset-pipeline hash/import needed.
-const logoMark = "/assets/logo-mark.png";
+const logoMark = "/SSD_Logo.webp";
 
 /** The shrine emblem — soft breathing gold halo behind it, gentle entrance on mount. */
 export default function LogoMark({

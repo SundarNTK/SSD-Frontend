@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-const RING = "/loader-decors/loder_ring.png";
-const LOGO = "/assets/logo-mark.png";
+const RING = "/loader-decors/loder_ring.webp";
+const LOGO = "/SSD_Logo.webp";
 
 let assetsWarmed = false;
 
