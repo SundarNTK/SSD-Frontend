@@ -13,6 +13,7 @@ import { useApiResource } from "../../lib/useApiResource";
 import { formatTempleDateTime } from "../../lib/datetime";
 import { toast } from "../../lib/toastStore";
 import { MODULES, usePermissions } from "../../lib/permissions";
+import { EmblemLoader } from "../divine/EmblemLoader";
 
 type PaymentStatus = "paid" | "partial" | "pending";
 
@@ -444,7 +445,11 @@ export default function PosTransactionsPage() {
           </div>
         }
       >
-        {detailLoading && <p className="py-8 text-center text-[13px] text-ink-500">Loading…</p>}
+        {detailLoading && (
+          <div className="flex justify-center py-8">
+            <EmblemLoader size="sm" label="Loading…" />
+          </div>
+        )}
 
         {!detailLoading && detail && (
           <div className="space-y-5">

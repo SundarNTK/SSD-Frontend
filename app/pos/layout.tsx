@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "../../lib/authStore";
 import { isAdminPanelType, USER_TYPES } from "../../lib/userTypes";
+import { EmblemLoader, warmLoaderAssets } from "../../components/divine/EmblemLoader";
 
 /**
  * Guards everything under /pos except /pos/login itself (that page has to
@@ -46,6 +47,16 @@ function usePosGuard() {
 
 export default function PosLayout({ children }: { children: React.ReactNode }) {
   const ready = usePosGuard();
-  if (!ready) return null;
+
+  useEffect(() => {
+    warmLoaderAssets();
+  }, []);
+  if (!ready) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-white">
+        <EmblemLoader size="md" label="Loading…" />
+      </div>
+    );
+  }
   return <>{children}</>;
 }
