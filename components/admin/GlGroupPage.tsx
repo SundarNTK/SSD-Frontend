@@ -267,7 +267,7 @@ export default function GlGroupPage() {
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton fullWidth={false} type="submit" form="gl-group-form" loading={create.submitting || update.submitting}>
+            <DivineButton variant="flame" fullWidth={false} type="submit" form="gl-group-form" loading={create.submitting || update.submitting}>
               Save
             </DivineButton>
           </div>

@@ -172,7 +172,7 @@ export default function InventoryAdjustmentPage() {
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton fullWidth={false} type="submit" form="inventory-adjustment-form" loading={create.submitting}>
+            <DivineButton variant="flame" fullWidth={false} type="submit" form="inventory-adjustment-form" loading={create.submitting}>
               Save
             </DivineButton>
           </div>

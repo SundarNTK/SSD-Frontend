@@ -80,15 +80,21 @@ export default function StatusBanner({
 }
 
 /** Urgent stay-on-page notice — crimson with a warm amber wash, not the gold “success” banner. */
-export function StayOnPageWarning({ children }: { children: ReactNode }) {
+export function StayOnPageWarning({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div
       role="alert"
-      className="mt-4 rounded-xl border-2 border-crimson-500/70 bg-gradient-to-r from-crimson-500/18 via-[#fff5f5] to-amber-500/15 text-left shadow-[0_10px_28px_-12px_rgba(179,39,63,0.55)]"
+      className={`mt-2 rounded-lg border border-crimson-500/65 bg-gradient-to-r from-crimson-500/16 via-[#fff5f5] to-amber-500/12 text-left ${className}`}
     >
-      <div className="flex items-start gap-3 border-l-[6px] border-crimson-600 px-3.5 py-3.5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-crimson-500 text-white shadow-[0_4px_10px_-2px_rgba(179,39,63,0.65)]">
-          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <div className="flex items-center gap-2 border-l-[4px] border-crimson-600 px-2.5 py-1">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-crimson-500 text-white">
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
             <path
               fillRule="evenodd"
               d="M10.29 3.86c.77-1.33 2.65-1.33 3.42 0l8.09 14.01c.75 1.3-.19 2.93-1.71 2.93H3.91c-1.52 0-2.46-1.63-1.71-2.93L10.29 3.86zM12 9a1 1 0 00-1 1v3.5a1 1 0 102 0V10a1 1 0 00-1-1zm0 8a1.25 1.25 0 100-2.5A1.25 1.25 0 0012 17z"
@@ -96,10 +102,10 @@ export function StayOnPageWarning({ children }: { children: ReactNode }) {
             />
           </svg>
         </span>
-        <div className="min-w-0 pt-0.5">
-          <p className="font-accent text-[11px] font-bold uppercase tracking-[0.18em] text-crimson-600">Warning</p>
-          <p className="mt-1 text-[13px] leading-relaxed text-crimson-600">{children}</p>
-        </div>
+        <p className="min-w-0 text-[12px] leading-snug text-crimson-600">
+          <span className="font-accent font-bold uppercase tracking-[0.12em]">Warning: </span>
+          {children}
+        </p>
       </div>
     </div>
   );
