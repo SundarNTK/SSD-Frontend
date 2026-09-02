@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import AdminLoginBackground from "./AdminLoginBackground";
 import DivineBackground from "./DivineBackground";
-import DivineBackgroundMarigold from "./DivineBackgroundMarigold";
+import PosLoginBackground from "./PosLoginBackground";
 import DivineCard from "./DivineCard";
 import LogoMark from "./LogoMark";
 
@@ -39,8 +39,8 @@ export default function AuthShell({
   // instead of classic's logo-then-heading-then-card stack above it.
   if (isMarigold) {
     return (
-      <div className="relative flex min-h-screen w-full items-center justify-center px-4 py-10">
-        <DivineBackgroundMarigold />
+      <div className="relative isolate flex min-h-[100dvh] w-full items-center justify-center overflow-hidden bg-[#2a1408] px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))]">
+        <PosLoginBackground />
 
         <div className="relative z-10 w-full max-w-[400px]">
           <DivineCard
