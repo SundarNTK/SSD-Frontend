@@ -1,5 +1,7 @@
 "use client";
 
+import { FORM_CONTROL, FORM_CONTROL_ERROR, FORM_LABEL, FORM_PLACEHOLDER } from "./formFieldStyles";
+
 type DivineColorPickerProps = {
   label: string;
   value: string;
@@ -20,10 +22,10 @@ export default function DivineColorPicker({ label, value, onChange, error }: Div
 
   return (
     <div className="w-full">
-      <p className="mb-2 text-[11px] uppercase tracking-wide text-gray-700">{label}</p>
+      <p className={FORM_LABEL}>{label}</p>
       <div className="flex items-center gap-3">
         <label
-          className="relative h-11 w-11 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-gold-500/20"
+          className="relative h-11 w-11 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-[#f0b4a0]"
           style={{ backgroundColor: swatchValue }}
         >
           <input
@@ -41,9 +43,7 @@ export default function DivineColorPicker({ label, value, onChange, error }: Div
             if (HEX_PATTERN.test(next)) onChange(next);
           }}
           placeholder="#942237"
-          className={`w-full rounded-xl border bg-white px-4 py-2.5 font-body text-[15px] text-ink-100 outline-none placeholder:text-ink-500 transition-colors duration-300 ${
-            error ? "border-crimson-500/70" : "border-gold-500/20 hover:border-gold-400/40 focus:border-gold-400/80"
-          }`}
+          className={`${FORM_CONTROL} ${FORM_PLACEHOLDER} ${error ? FORM_CONTROL_ERROR : ""}`}
         />
       </div>
       {error && <p className="mt-1.5 pl-1 text-[12.5px] text-crimson-500">{error}</p>}

@@ -78,7 +78,7 @@ export default function FormDrawer({
               <div className={`relative flex shrink-0 items-start justify-between overflow-hidden bg-gradient-to-r from-crimson-600 via-flame-500 to-[#FFA733] px-4 py-4 sm:px-6 sm:py-5 ${printSheet ? "print:hidden" : ""}`}>
                 <div className="relative flex items-center gap-3">
                   {icon && (
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/25 text-white">{icon}</span>
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#7c1527] text-white">{icon}</span>
                   )}
                   <div>
                     <h2 className="text-[19px] font-bold text-white">{title}</h2>

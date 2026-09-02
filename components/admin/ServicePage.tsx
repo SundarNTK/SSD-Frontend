@@ -13,10 +13,10 @@ import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineMultiSelect from "../divine/DivineMultiSelect";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
-import DivineToggle from "../divine/DivineToggle";
+import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineButton from "../divine/DivineButton";
 import DivineImageUpload from "../divine/DivineImageUpload";
-import { PlusIcon } from "../divine/icons";
+import { PlusIcon, CloseIcon } from "../divine/icons";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
@@ -338,14 +338,54 @@ export default function ServicePage() {
             />
           </div>
 
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Controller
+              control={control}
+              name="generalLedger"
+              render={({ field }) => (
+                <DivineListbox
+                  label="General Ledger (GL)"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={glOptions}
+                  placeholder="Select GL Account"
+                  error={errors.generalLedger?.message}
+                />
+              )}
+            />
+            <DivineInput
+              staticLabel
+              label="Sale Price"
+              type="number"
+              step="0.01"
+              error={errors.salePrice?.message}
+              {...register("salePrice", { valueAsNumber: true })}
+            />
+            <Controller
+              control={control}
+              name="printingGroup"
+              render={({ field }) => (
+                <DivineListbox
+                  label="Printing Group"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={printingGroupOptions}
+                  placeholder="Select Printing Group"
+                  error={errors.printingGroup?.message}
+                />
+              )}
+            />
+          </div>
+          <p className="-mt-3 pl-1 text-[11.5px] text-ink-500">GST is derived from the selected GL account.</p>
+
           <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Controller
               control={control}
               name="isDeityMappingRequired"
               render={({ field }) => (
-                <DivineRadioGroup label="Deity Mapping Required" value={field.value} onChange={field.onChange} />
+                <DivineRadioGroup boxed label="Deity Mapping Required" value={field.value} onChange={field.onChange} />
               )}
             />
             {isDeityMappingRequired && (
@@ -366,62 +406,41 @@ export default function ServicePage() {
             )}
           </div>
 
-          <Controller
-            control={control}
-            name="printingGroup"
-            render={({ field }) => (
-              <DivineListbox
-                label="Printing Group"
-                value={field.value}
-                onChange={field.onChange}
-                options={printingGroupOptions}
-                placeholder="Select Printing Group"
-                error={errors.printingGroup?.message}
-              />
-            )}
-          />
-
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-[11px] uppercase tracking-wide text-amber-600">Category Details</p>
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <div className="flex items-center justify-between border-b border-orange-100 bg-orange-50 px-4 py-3">
+              <p className="text-[13px] font-bold text-ink-100">CATEGORY DETAILS</p>
               <button
                 type="button"
                 onClick={() => append({ category: "", subCategory: "", displayOrder: fields.length + 1 })}
-                className="flex items-center gap-1.5 rounded-lg border border-gold-500/30 px-2.5 py-1.5 text-[12px] text-amber-600 hover:border-gold-400/60 hover:bg-gold-500/5"
+                className="flex items-center gap-1.5 rounded-lg border border-orange-300 bg-white px-2.5 py-1.5 text-[12px] font-medium text-orange-600 transition-colors hover:bg-orange-50"
               >
                 <PlusIcon /> Add Row
               </button>
             </div>
 
             {fields.length > 0 && (
-              <div className="mb-1 hidden grid-cols-[1fr_1fr_90px_28px] gap-2 px-1 text-[11px] uppercase tracking-wide text-ink-500 sm:grid">
+              <div className="hidden grid-cols-[1fr_1fr_90px_40px] gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2 text-[11px] uppercase tracking-wide text-gray-500 sm:grid">
                 <span>Category</span>
                 <span>Sub Category</span>
-                <span>Display Order</span>
+                <span>Order</span>
                 <span />
               </div>
             )}
 
-            <div className="space-y-2">
-              {fields.length === 0 && (
-                <p className="rounded-xl border border-gold-500/15 bg-ivory-100 px-3 py-2.5 text-[12.5px] text-ink-500">
-                  No category pairings yet.
-                </p>
-              )}
+            <div className="divide-y divide-gray-100">
+              {fields.length === 0 && <p className="px-4 py-3 text-[12.5px] text-ink-500">No category pairings yet.</p>}
               {fields.map((row, index) => (
-                <div
-                  key={row.id}
-                  className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[1fr_1fr_90px_28px]"
-                >
+                <div key={row.id} className="grid grid-cols-1 items-start gap-3 px-4 py-3 sm:grid-cols-[1fr_1fr_90px_40px]">
                   <Controller
                     control={control}
                     name={`categoryDetails.${index}.category`}
                     render={({ field }) => (
                       <DivineListbox
+                        formChrome
                         value={field.value}
                         onChange={field.onChange}
                         options={categoryOptions}
-                        placeholder="Category"
+                        placeholder="Select category"
                         error={errors.categoryDetails?.[index]?.category?.message}
                       />
                     )}
@@ -431,101 +450,78 @@ export default function ServicePage() {
                     name={`categoryDetails.${index}.subCategory`}
                     render={({ field }) => (
                       <DivineListbox
+                        formChrome
                         value={field.value}
                         onChange={field.onChange}
                         options={subCategoryOptions}
-                        placeholder="Sub Category (optional)"
+                        placeholder="Select sub category"
                         error={errors.categoryDetails?.[index]?.subCategory?.message}
                       />
                     )}
                   />
                   <div>
-                    <span className="mb-1 block text-[11px] uppercase tracking-wide text-ink-500 sm:hidden">Display Order</span>
+                    <span className="mb-1.5 block text-[13px] font-semibold text-maroon sm:hidden">Order</span>
                     <input
                       type="number"
                       {...register(`categoryDetails.${index}.displayOrder`, { valueAsNumber: true })}
-                      className="w-full rounded-xl border border-gold-500/20 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                      className="h-10 w-full rounded-lg border border-[#f0b4a0] bg-white px-3 font-body text-[14px] text-ink-100 outline-none transition-colors hover:border-[#e8a090] focus:border-[#e8590c]"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => removeRow(index)}
                     aria-label="Remove row"
-                    className="text-crimson-500 hover:text-crimson-600 sm:mt-1"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-crimson-500/10 text-crimson-500 transition-colors hover:bg-crimson-500/20"
                   >
-                    <span className="sm:hidden">Remove row</span>
-                    <span className="hidden sm:inline">×</span>
+                    <CloseIcon className="h-4 w-4" />
+                    <span className="sr-only">Remove row</span>
                   </button>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Controller
-              control={control}
-              name="generalLedger"
-              render={({ field }) => (
-                <DivineListbox
-                  label="General Ledger (GL)"
-                  value={field.value}
-                  onChange={field.onChange}
-                  options={glOptions}
-                  placeholder="Select GL Account"
-                  error={errors.generalLedger?.message}
-                />
-              )}
-            />
-            <DivineInput staticLabel
-              label="Sale Price"
-              type="number"
-              step="0.01"
-              error={errors.salePrice?.message}
-              {...register("salePrice", { valueAsNumber: true })}
-            />
-          </div>
-          <p className="-mt-3 pl-1 text-[11.5px] text-ink-500">GST is derived from the selected GL account.</p>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Controller
               control={control}
               name="isFamilyMembersRequired"
               render={({ field }) => (
                 <DivineRadioGroup
+                  boxed
                   label="Family Members Required"
                   value={field.value}
                   onChange={(v) => {
                     field.onChange(v);
-                    // Switching this on gives a sensible starting point —
-                    // the count itself stays fully editable afterward.
                     if (v) setValue("maxFamilyMembers", 2);
                   }}
                 />
               )}
             />
             {isFamilyMembersRequired && (
-              <DivineInput staticLabel
+              <DivineInput
+                staticLabel
                 label="Max Members"
                 type="number"
                 error={errors.maxFamilyMembers?.message}
                 {...register("maxFamilyMembers", { valueAsNumber: true })}
               />
             )}
+            <Controller
+              control={control}
+              name="sessionRequired"
+              render={({ field }) => <DivineRadioGroup boxed label="Session Required" value={field.value} onChange={field.onChange} />}
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Controller
               control={control}
-              name="sessionRequired"
-              render={({ field }) => <DivineRadioGroup label="Session Required" value={field.value} onChange={field.onChange} />}
-            />
-            <Controller
-              control={control}
               name="isInventoryRequired"
-              render={({ field }) => <DivineRadioGroup label="Inventory Applicable" value={field.value} onChange={field.onChange} />}
+              render={({ field }) => <DivineRadioGroup boxed label="Inventory Applicable" value={field.value} onChange={field.onChange} />}
             />
             {isInventoryRequired && (
-              <DivineInput staticLabel
+              <DivineInput
+                staticLabel
                 label="Threshold"
                 type="number"
                 hint="Minimum stock level before low stock warning"
@@ -533,9 +529,6 @@ export default function ServicePage() {
                 {...register("thresholdCount", { valueAsNumber: true })}
               />
             )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Controller
               control={control}
               name="bookingCutoffDate"
@@ -543,26 +536,26 @@ export default function ServicePage() {
                 <DivineDatePicker staticLabel label="Future Booking Cut-off Date" value={field.value} onChange={field.onChange} placeholder="No cut-off" />
               )}
             />
-            <Controller
-              control={control}
-              name="isPosAvailable"
-              render={({ field }) => <DivineRadioGroup label="POS Availability" value={field.value} onChange={field.onChange} />}
-            />
-            <Controller
-              control={control}
-              name="publicAvailability"
-              render={({ field }) => (
-                <DivineRadioGroup label="Customer Portal Availability" value={field.value} onChange={field.onChange} />
-              )}
-            />
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Controller
               control={control}
+              name="isPosAvailable"
+              render={({ field }) => <DivineRadioGroup boxed label="POS Availability" value={field.value} onChange={field.onChange} />}
+            />
+            <Controller
+              control={control}
+              name="publicAvailability"
+              render={({ field }) => (
+                <DivineRadioGroup boxed label="Customer Portal Availability" value={field.value} onChange={field.onChange} />
+              )}
+            />
+            <Controller
+              control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineStatusSelect value={field.value} onChange={field.onChange} />
               )}
             />
           </div>

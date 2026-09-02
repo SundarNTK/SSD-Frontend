@@ -56,7 +56,7 @@ export default function PosLoginBackground() {
       canvas!.style.width = `${width}px`;
       canvas!.style.height = `${height}px`;
       ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-      particles = Array.from({ length: Math.round(width / 28) }, () => spawn(true));
+      particles = Array.from({ length: Math.round(width / 18) }, () => spawn(true));
     }
 
     function tick() {

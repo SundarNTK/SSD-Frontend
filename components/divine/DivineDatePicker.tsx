@@ -4,6 +4,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { CalendarIcon } from "./icons";
+import { FORM_CONTROL_ERROR, FORM_CONTROL_FOCUS, FORM_CONTROL_SHELL, FORM_LABEL, FORM_MUTED } from "./formFieldStyles";
 import {
   formatTempleDate,
   isSameDay,
@@ -149,16 +150,10 @@ export default function DivineDatePicker({
   // marks an admin master-form field, which gets the two-layer gradient
   // border; POS (staticLabel off) keeps the original plain border.
   const outerWrapClass = staticLabel
-    ? `rounded-xl p-[1.5px] transition-[box-shadow] duration-300 ${
-        error
-          ? "bg-crimson-500"
-          : open
-            ? "bg-gradient-to-r from-crimson-500 to-flame-500 shadow-[0_0_0_3px_rgba(212,175,55,0.2)]"
-            : "bg-gradient-to-r from-crimson-500 to-flame-500"
-      }`
+    ? `${FORM_CONTROL_SHELL} ${error ? FORM_CONTROL_ERROR : open ? FORM_CONTROL_FOCUS : ""}`
     : "";
   const triggerClass = staticLabel
-    ? "group relative w-full rounded-[10px] bg-white text-left"
+    ? "group relative w-full rounded-lg bg-white text-left leading-none"
     : `group relative w-full rounded-xl border bg-white text-left transition-colors duration-300 ${
         error
           ? "border-crimson-500/70"
@@ -169,6 +164,11 @@ export default function DivineDatePicker({
 
   return (
     <div className="w-full">
+      {staticLabel && (
+        <label id={labelId} className={FORM_LABEL}>
+          {label}
+        </label>
+      )}
       <div className={outerWrapClass}>
       <button
         ref={triggerRef}
@@ -179,18 +179,22 @@ export default function DivineDatePicker({
         aria-labelledby={labelId}
         className={`${triggerClass} ${containerClassName}`}
       >
-        <div className="flex items-center gap-2 px-4 pt-5 pb-2">
-          <span className={`shrink-0 transition-colors ${open ? "text-amber-600" : "text-ink-500"}`}>
-            <CalendarIcon />
-          </span>
-          <div className="relative w-full">
-            <span
-              id={labelId}
-              className="pointer-events-none absolute -top-[18px] left-0 right-0 truncate text-[11px] tracking-wide text-gray-700"
-            >
-              {label}
+        <div className={`flex items-center gap-2 ${staticLabel ? "h-10 px-3" : "px-4 pt-5 pb-2"}`}>
+          {!staticLabel && (
+            <span className={`shrink-0 transition-colors ${open ? "text-amber-600" : "text-ink-500"}`}>
+              <CalendarIcon />
             </span>
-            <span className={`block truncate font-body text-[15px] ${selected ? "text-ink-100" : "text-ink-500"}`}>
+          )}
+          <div className="relative min-w-0 w-full">
+            {!staticLabel && (
+              <span
+                id={labelId}
+                className="pointer-events-none absolute -top-[18px] left-0 right-0 truncate text-[11px] tracking-wide text-gray-700"
+              >
+                {label}
+              </span>
+            )}
+            <span className={`block truncate font-body ${staticLabel ? "text-[14px] leading-5" : "text-[15px]"} ${selected ? "text-ink-100" : staticLabel ? FORM_MUTED : "text-ink-500"}`}>
               {selected ? formatTempleDate(selected) : placeholder}
             </span>
           </div>
@@ -203,11 +207,16 @@ export default function DivineDatePicker({
                 e.stopPropagation();
                 onChange("");
               }}
-              className="shrink-0 rounded p-0.5 text-ink-500 transition-colors hover:text-crimson-500"
+              className="shrink-0 rounded p-0.5 text-gray-400 transition-colors hover:text-crimson-500"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
               </svg>
+            </span>
+          )}
+          {staticLabel && (
+            <span className={`shrink-0 ${open ? "text-[#e8590c]" : "text-gray-400"}`}>
+              <CalendarIcon />
             </span>
           )}
         </div>
