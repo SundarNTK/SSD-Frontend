@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Sri Siva Durga Temple",
   description: "Sri Siva Durga Temple — Admin Panel",
-  icons: { icon: "/favicon.png" },
+  icons: { icon: "/favicon.webp" },
 };
 
 // Plain <link> tags rather than next/font/google — globals.css's @theme

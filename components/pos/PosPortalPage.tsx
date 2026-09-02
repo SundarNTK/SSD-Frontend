@@ -1698,7 +1698,7 @@ function PosShell({
       <header className="relative z-20 grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-white/70 bg-white/92 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.22)] backdrop-blur-md sm:px-6 sm:py-3 md:grid-cols-[1fr_auto_1fr]">
         <div className="flex min-w-0 items-center">
           <motion.img
-            src="/SSD_Full_Logo.png"
+            src="/SSD_Full_Logo.webp"
             alt="Sri Siva Durga Temple"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -2231,7 +2231,7 @@ function HebInspiredSuccessModal({
           >
             <div
               className="relative bg-[#f7efd8] bg-cover bg-[center_top] px-5 pb-3 pt-3 text-center"
-              style={{ backgroundImage: "url('/Payment_Success_Popup_Background.png')" }}
+              style={{ backgroundImage: "url('/Payment_Success_Popup_Background.webp')" }}
             >
               <button
                 type="button"
@@ -2242,7 +2242,7 @@ function HebInspiredSuccessModal({
                 ✕
               </button>
               <img
-                src="/SSD_Full_Logo-Transparant.png"
+                src="/SSD_Full_Logo-Transparant.webp"
                 alt="Sri Siva Durga Temple"
                 className="relative z-10 mx-auto h-[3.5rem] w-auto max-w-[200px] object-contain"
               />
