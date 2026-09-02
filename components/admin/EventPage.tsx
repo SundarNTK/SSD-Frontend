@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -14,9 +14,11 @@ import DivineMultiSelect from "../divine/DivineMultiSelect";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineOptionGroup from "../divine/DivineOptionGroup";
-import DivineToggle from "../divine/DivineToggle";
+import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineButton from "../divine/DivineButton";
+import DivineImageUpload from "../divine/DivineImageUpload";
 import TamilNameField from "./TamilNameField";
+import { withOptionalImage } from "../../lib/withOptionalImage";
 import { PlusIcon, CalendarIcon, CloseIcon } from "../divine/icons";
 import { formatTempleDate, parseISODateString } from "../../lib/datetime";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
@@ -52,6 +54,7 @@ export type Event = {
   posVisibility: boolean;
   publicVisibility: boolean;
   status: number;
+  image: string | null;
 };
 
 const GST_CLASSIFICATION_OPTIONS = [
@@ -157,6 +160,8 @@ export default function EventPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Event | null>(null);
   const [deleting, setDeleting] = useState<Event | null>(null);
+  const [createImage, setCreateImage] = useState<File | null>(null);
+  const [editImage, setEditImage] = useState<File | null>(null);
 
   useEffect(() => {
     fetchOptions("/masters/categories").then(setCategoryOptions);
@@ -189,6 +194,7 @@ export default function EventPage() {
   function openCreate() {
     setEditing(null);
     reset(DEFAULT_VALUES);
+    setCreateImage(null);
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -221,16 +227,20 @@ export default function EventPage() {
       publicVisibility: event.publicVisibility,
       status: event.status,
     });
+    setEditImage(null);
     update.setError(null);
     setDrawerOpen(true);
   }
 
   const submit = handleSubmit(async (values) => {
-    const payload = {
-      ...values,
-      subCategory: values.subCategory || null,
-      slotDetails: values.isSlotRequired ? values.slotDetails : [],
-    };
+    const payload = withOptionalImage(
+      {
+        ...values,
+        subCategory: values.subCategory || null,
+        slotDetails: values.isSlotRequired ? values.slotDetails : [],
+      },
+      editing ? editImage : createImage,
+    );
     const ok = editing ? await update.run(editing._id, payload) : await create.run(payload);
     if (ok !== undefined) {
       setDrawerOpen(false);
@@ -240,6 +250,7 @@ export default function EventPage() {
   });
 
   const columns: DataTableColumn<Event>[] = [
+    { key: "image", label: "Image", render: (e) => <MasterImageCell src={e.image} alt={e.name} /> },
     { key: "code", label: "Code", render: (e) => <span className="font-medium tabular-nums text-amber-700">{e.code}</span> },
     { key: "name", label: "Name", render: (e) => e.name },
     {
@@ -326,7 +337,7 @@ export default function EventPage() {
         title={editing ? "Edit Event" : "Add Event"}
         subtitle={editing ? `${editing.name} · ${editing.code}` : "Define a new temple event."}
         error={create.error || update.error}
-        maxWidthClassName="max-w-3xl"
+        maxWidthClassName="max-w-6xl"
         footer={
           <div className="flex justify-end gap-3">
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
@@ -339,7 +350,7 @@ export default function EventPage() {
         }
       >
         <form id="event-form" onSubmit={submit} noValidate className="space-y-5">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DivineInput staticLabel label="Event Code" error={errors.code?.message} {...register("code")} />
             <DivineInput staticLabel label="Event Name" error={errors.name?.message} {...register("name")} />
             <TamilNameField staticLabel
@@ -352,7 +363,7 @@ export default function EventPage() {
 
           <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Controller
               control={control}
               name="category"
@@ -395,7 +406,7 @@ export default function EventPage() {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Controller
               control={control}
               name="startDate"
@@ -429,7 +440,7 @@ export default function EventPage() {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DivineInput staticLabel
               label="Sale Price (GST Inclusive)"
               type="number"
@@ -458,7 +469,7 @@ export default function EventPage() {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Controller
               control={control}
               name="posVisibility"
@@ -473,14 +484,20 @@ export default function EventPage() {
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineStatusSelect value={field.value} onChange={field.onChange} />
               )}
             />
           </div>
 
+          <DivineImageUpload
+            label="Event Image"
+            value={editing?.image}
+            onChange={editing ? setEditImage : setCreateImage}
+          />
+
           {isSlotRequired && (
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-              <div className="flex items-center justify-between gap-4 border-b border-orange-100 bg-orange-50 px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-orange-100 bg-orange-50 px-4 py-3">
                 <div>
                   <p className="flex items-center gap-2 text-[13px] font-bold text-ink-100">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-100 text-orange-600">
@@ -501,8 +518,9 @@ export default function EventPage() {
                 </button>
               </div>
 
+              <div className="overflow-x-auto">
               {slotFields.length > 0 && (
-                <div className="hidden grid-cols-[1fr_128px_100px_100px_86px_96px_44px] gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2 text-[11px] uppercase tracking-wide text-gray-500 sm:grid">
+                <div className="hidden min-w-[56rem] grid-cols-[minmax(10rem,1.4fr)_10.5rem_8rem_8rem_7rem_11rem_2.75rem] gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2 text-[11px] uppercase tracking-wide text-gray-500 lg:grid">
                   <span>Slot Name</span>
                   <span>Slot Date</span>
                   <span>Start Time</span>
@@ -516,11 +534,14 @@ export default function EventPage() {
               <div className="divide-y divide-gray-100">
                 {slotFields.length === 0 && <p className="px-4 py-3 text-[12.5px] text-ink-500">No slots yet.</p>}
                 {slotFields.map((row, index) => (
-                  <div key={row.id} className="grid grid-cols-1 items-start gap-2 px-4 py-3 sm:grid-cols-[1fr_128px_100px_100px_86px_96px_44px]">
+                  <div
+                    key={row.id}
+                    className="grid min-w-0 grid-cols-1 items-start gap-2 px-4 py-3 sm:grid-cols-2 lg:min-w-[56rem] lg:grid-cols-[minmax(10rem,1.4fr)_10.5rem_8rem_8rem_7rem_11rem_2.75rem]"
+                  >
                     <input
                       placeholder="Slot Name"
                       {...register(`slotDetails.${index}.slotName`)}
-                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60 sm:col-span-2 lg:col-span-1"
                     />
                     <input
                       type="date"
@@ -552,6 +573,7 @@ export default function EventPage() {
                           value={String(field.value)}
                           onChange={(v) => field.onChange(Number(v))}
                           options={SLOT_STATUS_OPTIONS}
+                          clearable={false}
                         />
                       )}
                     />
@@ -559,13 +581,14 @@ export default function EventPage() {
                       type="button"
                       onClick={() => removeSlot(index)}
                       aria-label="Remove slot"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-crimson-500/10 text-crimson-500 transition-colors hover:bg-crimson-500/20 sm:justify-self-start"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-crimson-500/10 text-crimson-500 transition-colors hover:bg-crimson-500/20 lg:justify-self-start"
                     >
                       <CloseIcon className="h-4 w-4" />
                       <span className="sr-only">Remove slot</span>
                     </button>
                   </div>
                 ))}
+              </div>
               </div>
               {errors.slotDetails?.message && (
                 <p className="px-4 pb-3 text-[12.5px] text-crimson-500">{errors.slotDetails.message}</p>

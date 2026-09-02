@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, EditIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineInput from "../divine/DivineInput";
 import DivineListbox from "../divine/DivineListbox";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineImageUpload from "../divine/DivineImageUpload";
 import DivineToggle from "../divine/DivineToggle";
-import { resolveImageUrl } from "../../lib/imageUrl";
+import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineButton from "../divine/DivineButton";
 import { MailIcon, UserIcon } from "../divine/icons";
 import { startOfToday, formatTempleDateTime } from "../../lib/datetime";
@@ -190,13 +190,7 @@ export default function UsersPage() {
       label: "Name",
       render: (u) => (
         <span className="flex items-center gap-2.5">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold-500/20 bg-navy-900 text-[10px] text-amber-600">
-            {u.profileImage ? (
-              <img src={resolveImageUrl(u.profileImage) ?? ""} alt="" className="h-full w-full object-cover" />
-            ) : (
-              u.name.slice(0, 1).toUpperCase()
-            )}
-          </span>
+          <MasterImageCell src={u.profileImage} alt={u.name} rounded="full" />
           <span className="font-medium">{u.name}</span>
         </span>
       ),
@@ -283,7 +277,7 @@ export default function UsersPage() {
         <form id="user-create-form" onSubmit={submitCreate} noValidate className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <DivineInput staticLabel label="Full name" icon={<UserIcon />} error={createForm.formState.errors.name?.message} {...createForm.register("name")} />
-            <DivineInput staticLabel label="Mobile number" icon={<span className="text-[13.5px] font-semibold text-ink-500">+65</span>} error={createForm.formState.errors.mobileNumber?.message} {...createForm.register("mobileNumber", { onChange: (e) => { e.target.value = sanitizeMobileInput(e.target.value); } })} />
+            <DivineInput staticLabel iconPosition="start" label="Mobile number" icon={<span className="text-[13.5px] font-semibold text-ink-500">+65</span>} error={createForm.formState.errors.mobileNumber?.message} {...createForm.register("mobileNumber", { onChange: (e) => { e.target.value = sanitizeMobileInput(e.target.value); } })} />
           </div>
           <DivineInput staticLabel label="Email address" type="email" icon={<MailIcon />} error={createForm.formState.errors.email?.message} {...createForm.register("email")} />
           <DivineImageUpload label="Profile photo" onChange={setCreateImage} />
@@ -321,14 +315,14 @@ export default function UsersPage() {
               control={createForm.control}
               name="status"
               render={({ field }) => (
-                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineStatusSelect value={field.value} onChange={field.onChange} />
               )}
             />
             <Controller
               control={createForm.control}
               name="posAccess"
               render={({ field }) => (
-                <DivineToggle boxed label="POS Access" checked={field.value} onChange={field.onChange} />
+                <DivineToggle boxed label="POS Access" checked={field.value} onChange={field.onChange} onLabel="Yes" offLabel="No" />
               )}
             />
           </div>
@@ -355,7 +349,7 @@ export default function UsersPage() {
         <form id="user-edit-form" onSubmit={submitEdit} noValidate className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <DivineInput staticLabel label="Full name" icon={<UserIcon />} error={editForm.formState.errors.name?.message} {...editForm.register("name")} />
-            <DivineInput staticLabel label="Mobile number" icon={<span className="text-[13.5px] font-semibold text-ink-500">+65</span>} error={editForm.formState.errors.mobileNumber?.message} {...editForm.register("mobileNumber", { onChange: (e) => { e.target.value = sanitizeMobileInput(e.target.value); } })} />
+            <DivineInput staticLabel iconPosition="start" label="Mobile number" icon={<span className="text-[13.5px] font-semibold text-ink-500">+65</span>} error={editForm.formState.errors.mobileNumber?.message} {...editForm.register("mobileNumber", { onChange: (e) => { e.target.value = sanitizeMobileInput(e.target.value); } })} />
           </div>
           <DivineInput staticLabel label="Email address" type="email" icon={<MailIcon />} error={editForm.formState.errors.email?.message} {...editForm.register("email")} />
           <DivineImageUpload label="Profile photo" value={editing?.profileImage} onChange={setEditImage} />
@@ -392,14 +386,14 @@ export default function UsersPage() {
               control={editForm.control}
               name="status"
               render={({ field }) => (
-                <DivineToggle boxed label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineStatusSelect value={field.value} onChange={field.onChange} />
               )}
             />
             <Controller
               control={editForm.control}
               name="posAccess"
               render={({ field }) => (
-                <DivineToggle boxed label="POS Access" checked={field.value} onChange={field.onChange} />
+                <DivineToggle boxed label="POS Access" checked={field.value} onChange={field.onChange} onLabel="Yes" offLabel="No" />
               )}
             />
           </div>

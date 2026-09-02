@@ -10,7 +10,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
 import DivineListbox from "../divine/DivineListbox";
 import DivineDatePicker from "../divine/DivineDatePicker";
-import DivineToggle from "../divine/DivineToggle";
+import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineButton from "../divine/DivineButton";
 import { formatTempleDate, parseISODateString } from "../../lib/datetime";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
@@ -448,13 +448,11 @@ export default function GstPage() {
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle
-                  boxed
-                  label="Status"
-                  checked={field.value === 1}
-                  onChange={async (checked) => {
+                <DivineStatusSelect
+                  value={field.value}
+                  onChange={async (next) => {
                     if (
-                      !checked &&
+                      next === 0 &&
                       editing?.status === 1 &&
                       isOfficialType(editing.type) &&
                       canonicalGstType(selectedType) === canonicalGstType(editing.type)
@@ -465,7 +463,7 @@ export default function GstPage() {
                         return;
                       }
                     }
-                    field.onChange(checked ? 1 : 0);
+                    field.onChange(next);
                   }}
                 />
               )}

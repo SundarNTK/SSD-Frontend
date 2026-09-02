@@ -1285,13 +1285,13 @@ export default function PosPortalPage() {
               loading={searchLoading}
               containerClassName={FIELD_ACCENT}
             />
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => {
                   setSelectedCategoryId("");
                   setActiveFolder(null);
                 }}
-                className={`rounded-md border px-3.5 py-1.5 text-[12.5px] font-medium transition-[transform,box-shadow,background-color,color] duration-200 hover:-translate-y-0.5 ${
+                className={`inline-flex h-12 items-center rounded-md border px-3.5 text-[12.5px] font-medium transition-[transform,box-shadow,background-color,color] duration-200 hover:-translate-y-0.5 ${
                   !selectedCategoryId ? POS_BTN_ON : POS_BTN_OFF
                 }`}
               >
@@ -1306,12 +1306,18 @@ export default function PosPortalPage() {
                     setSelectedCategoryId(c._id);
                     setActiveFolder(null);
                   }}
-                  className={`inline-flex items-center gap-2 rounded-md border px-3.5 py-1.5 text-[12.5px] font-medium transition-[transform,box-shadow,background-color,color] duration-200 hover:-translate-y-0.5 ${
+                  className={`inline-flex h-12 items-center gap-2.5 rounded-md border py-1 pl-1.5 pr-3.5 text-[12.5px] font-medium transition-[transform,box-shadow,background-color,color] duration-200 hover:-translate-y-0.5 ${
                     selectedCategoryId === c._id ? POS_BTN_ON : POS_BTN_OFF
                   }`}
                 >
                   {catImg ? (
-                    <img src={catImg} alt="" className="h-5 w-5 rounded-full object-cover ring-1 ring-white/40" />
+                    <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md ring-1 ring-black/10">
+                      <img
+                        src={catImg}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    </span>
                   ) : null}
                   {c.name} ({c.count})
                 </button>

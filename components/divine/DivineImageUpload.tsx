@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { resolveImageUrl } from "../../lib/imageUrl";
+import { FORM_LABEL } from "./formFieldStyles";
 
 type DivineImageUploadProps = {
   label: string;
@@ -72,7 +73,7 @@ export default function DivineImageUpload({ label, value, onChange, hint, error 
 
   return (
     <div className="w-full">
-      <p className="mb-2 text-[11px] uppercase tracking-wide text-gray-700">{label}</p>
+      <p className={FORM_LABEL}>{label}</p>
 
       <div className="flex items-center gap-4 rounded-xl border border-gold-500/20 bg-white p-3">
         <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gold-500/25 bg-navy-900">

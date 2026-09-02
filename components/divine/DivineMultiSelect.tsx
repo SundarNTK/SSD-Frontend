@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckIcon, ChevronIcon, SearchIcon } from "./icons";
 import type { ListboxOption } from "./DivineListbox";
+import { FORM_CONTROL_ERROR, FORM_CONTROL_FOCUS, FORM_CONTROL_SHELL, FORM_LABEL, FORM_MUTED } from "./formFieldStyles";
 
 type DivineMultiSelectProps = {
   label: string;
@@ -135,6 +136,9 @@ export default function DivineMultiSelect({
 
   return (
     <div className="relative w-full">
+      <label id={labelId} className={FORM_LABEL}>
+        {label}
+      </label>
       <button
         ref={triggerRef}
         type="button"
@@ -142,25 +146,14 @@ export default function DivineMultiSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-labelledby={labelId}
-        className={`group relative w-full rounded-xl border bg-white text-left transition-colors duration-300 ${
-          error
-            ? "border-crimson-500/70"
-            : open
-              ? "border-gold-400/80 shadow-[0_0_0_3px_rgba(212,175,55,0.15)]"
-              : "border-gray-200 hover:border-gray-300"
+        className={`flex min-h-10 w-full items-center text-left ${FORM_CONTROL_SHELL} px-3 py-1.5 ${
+          error ? FORM_CONTROL_ERROR : open ? FORM_CONTROL_FOCUS : ""
         }`}
       >
-        <div className="flex items-center gap-2 px-4 pt-5 pb-2">
-          <div className="relative w-full">
-            <span
-              id={labelId}
-              className="pointer-events-none absolute -top-[18px] left-0 right-0 truncate text-[11px] tracking-wide text-gray-700"
-            >
-              {label}
-            </span>
-
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="relative min-w-0 w-full">
             {selectedOptions.length === 0 ? (
-              <span className="block truncate font-body text-[15px] text-ink-500">{placeholder}</span>
+              <span className={`block text-left truncate font-body text-[14px] leading-5 ${FORM_MUTED}`}>{placeholder}</span>
             ) : (
               // Chips rather than a comma-joined string: with several roles
               // assigned, a run-on line truncates and hides which ones.
@@ -191,7 +184,7 @@ export default function DivineMultiSelect({
             )}
           </div>
           <ChevronIcon
-            className={`shrink-0 self-start text-ink-500 transition-transform duration-200 ${open ? "rotate-180 text-amber-600" : ""}`}
+            className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform duration-200 ${open ? "rotate-180 text-[#e8590c]" : ""}`}
           />
         </div>
       </button>

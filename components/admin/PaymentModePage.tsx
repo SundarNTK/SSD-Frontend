@@ -8,7 +8,7 @@ import DataTable, { StatusPill, EditIconButton, type DataTableColumn } from "./D
 import FormDrawer from "./FormDrawer";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
-import DivineToggle from "../divine/DivineToggle";
+import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineButton from "../divine/DivineButton";
 import { EyeIcon } from "../divine/icons";
 import { api } from "../../lib/api";
@@ -212,7 +212,7 @@ export default function PaymentModePage() {
               control={control}
               name="status"
               render={({ field }) => (
-                <DivineToggle label="Status" checked={field.value === 1} onChange={(checked) => field.onChange(checked ? 1 : 0)} />
+                <DivineStatusSelect value={field.value} onChange={field.onChange} />
               )}
             />
           </div>
