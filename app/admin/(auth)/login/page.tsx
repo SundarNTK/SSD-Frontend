@@ -60,6 +60,7 @@ export default function LoginPage() {
 
   return (
     <AuthShell
+      backdrop="admin-photo"
       eyebrow="Sri Siva Durga Temple"
       title="Admin Panel"
       subtitle="Enter with devotion — sign in to continue your seva."

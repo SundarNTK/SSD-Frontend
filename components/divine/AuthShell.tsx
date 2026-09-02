@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
+import AdminLoginBackground from "./AdminLoginBackground";
 import DivineBackground from "./DivineBackground";
 import DivineBackgroundMarigold from "./DivineBackgroundMarigold";
 import DivineCard from "./DivineCard";
@@ -15,6 +16,7 @@ export default function AuthShell({
   footer,
   cardMaxWidthClassName,
   variant = "classic",
+  backdrop = "divine",
 }: {
   eyebrow: string;
   title: string;
@@ -26,6 +28,9 @@ export default function AuthShell({
    *  "classic" so Admin login, Forgot Password, and Set Password are
    *  unaffected. */
   variant?: "classic" | "marigold";
+  /** Admin sign-in uses the temple photo; other classic auth screens keep
+   *  the illustrated DivineBackground. */
+  backdrop?: "divine" | "admin-photo";
 }) {
   const isMarigold = variant === "marigold";
 
@@ -82,8 +87,12 @@ export default function AuthShell({
   }
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full items-center justify-center px-4 py-8">
-      <DivineBackground />
+    <div
+      className={`relative flex min-h-[100dvh] w-full items-center justify-center px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] ${
+        backdrop === "admin-photo" ? "isolate overflow-hidden bg-[#2a1408]" : ""
+      }`}
+    >
+      {backdrop === "admin-photo" ? <AdminLoginBackground /> : <DivineBackground />}
 
       <div className="relative z-10 mt-6 flex w-full flex-col items-center sm:mt-11">
         <div
