@@ -12,7 +12,7 @@ export default function AdminLoginBackground() {
   return (
     <div className="absolute inset-0 z-0 overflow-hidden bg-[#2a1408]" aria-hidden="true">
       <img
-        src="/admin_login_bg.png"
+        src="/admin_login_bg.webp"
         alt=""
         className="absolute inset-0 h-full w-full object-cover object-center max-md:object-[center_45%]"
       />

@@ -168,7 +168,7 @@ function LogoBadge3D() {
       initial={{ opacity: 0, scale: 0.7, y: -10 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      src="/assets/logo-mark.png"
+      src="/SSD_Logo.webp"
       alt="Sri Siva Durga Temple"
       className="h-[112px] w-[112px] object-contain drop-shadow-[0_10px_18px_rgba(180,70,10,0.35)]"
     />

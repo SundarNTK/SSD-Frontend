@@ -1,6 +1,6 @@
 "use client";
 
-const LOGO = "/assets/logo-mark.png";
+const LOGO = "/SSD_Logo.webp";
 
 const STYLES = [
   { id: "emblem-ring", kind: "common" as const, title: "Emblem ring", note: "Ornate gold-red ring spins; temple mark stays in the centre with gold stars." },
@@ -40,7 +40,7 @@ function EmblemRing({ size = "md" }: { size?: "md" | "lg" }) {
       <span className="ldr-ring absolute inset-[8%] rounded-full border-2 border-[#ef7d1a]/40" style={{ animationDelay: "0.55s" }} />
 
       <img
-        src="/loader-decors/loder_ring.png"
+        src="/loader-decors/loder_ring.webp"
         alt=""
         className={`ldr-orbit-fast pointer-events-none absolute inset-0 ${ring} object-contain drop-shadow-[0_0_28px_rgba(255,80,40,0.45)]`}
       />
@@ -236,7 +236,7 @@ export default function LoaderPreviewPage() {
         <h1 className="mt-1 font-display text-[32px] font-bold text-[#ffe082]">Loaders</h1>
         <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-[#e8d5a8]/85">
           The featured common loader is the spinning ceremonial ring with{" "}
-          <code className="rounded bg-white/10 px-1">logo-mark.png</code> in the centre. Payment loaders stay
+          <code className="rounded bg-white/10 px-1">SSD_Logo.webp</code> in the centre. Payment loaders stay
           card / cash / terminal. Open{" "}
           <code className="rounded bg-white/10 px-1.5 py-0.5 text-[12px]">/loader-preview</code>.
         </p>
