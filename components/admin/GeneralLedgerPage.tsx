@@ -244,7 +244,7 @@ export default function GeneralLedgerPage() {
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton fullWidth={false} type="submit" form="gl-form" loading={create.submitting || update.submitting}>
+            <DivineButton variant="flame" fullWidth={false} type="submit" form="gl-form" loading={create.submitting || update.submitting}>
               {editing ? "Save changes" : "Save"}
             </DivineButton>
           </div>

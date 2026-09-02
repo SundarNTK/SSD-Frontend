@@ -365,7 +365,7 @@ export default function GstPage() {
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton fullWidth={false} type="submit" form="gst-form" loading={checkingActive || create.submitting || update.submitting}>
+            <DivineButton variant="flame" fullWidth={false} type="submit" form="gst-form" loading={checkingActive || create.submitting || update.submitting}>
               {editing ? "Save changes" : "Save"}
             </DivineButton>
           </div>

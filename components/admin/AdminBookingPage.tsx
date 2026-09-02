@@ -396,9 +396,9 @@ export default function AdminBookingPage() {
 
         // Merge availability info back into cart lines
         setCart((prev) =>
-          prev.map((line) => {
-            const sl = data.lines.find((d) => d.refId === line.refId && d.refType === line.refType);
-            if (!sl) return line;
+          prev.map((line, idx) => {
+            const sl = data.lines[idx];
+            if (!sl || sl.refId !== line.refId || sl.refType !== line.refType) return line;
             return {
               ...line,
               lineTotal: sl.lineTotal,
@@ -1282,55 +1282,52 @@ function BookingSuccessView({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-4">
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        className="w-full max-w-lg rounded-2xl border border-gold-500/20 bg-navy-900 p-8 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)]"
+        className="w-full max-w-2xl rounded-2xl border border-gold-500/20 bg-navy-900 px-5 py-4 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)]"
       >
-        {/* Checkmark */}
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-emerald-500/40 bg-emerald-500/10">
-          <svg className="h-8 w-8 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-full border-2 border-emerald-500/40 bg-emerald-500/10">
+          <svg className="h-5 w-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
 
-        <h2 className="font-display text-[24px] font-bold text-ink-100">
+        <h2 className="font-display text-[20px] font-bold leading-tight text-ink-100 sm:text-[22px]">
           {stillDue ? "Partial Payment Success" : "Booking Confirmed!"}
         </h2>
-        <p className="mt-1 text-[13px] text-ink-500">
+        <p className="mt-0.5 text-[12px] text-ink-500">
           {stillDue ? "Partial payment received · Inventory updated" : "Payment received · Inventory updated"}
         </p>
         {stillDue && (
           <StayOnPageWarning>
-            Do not close or refresh this page until the remaining balance is collected. Leaving now will interrupt payment collection.
+            Do not close or refresh this page until the remaining balance is collected.
           </StayOnPageWarning>
         )}
 
-        <div className="my-6 space-y-2 rounded-xl border border-gold-500/15 bg-navy-800/60 px-5 py-4 text-left text-[13px]">
+        <div className="my-2.5 grid grid-cols-1 gap-x-6 gap-y-1 rounded-xl border border-gold-500/15 bg-navy-800/60 px-4 py-2.5 text-left text-[12.5px] sm:grid-cols-2">
           <Row label="Booking No." value={confirmation.bookingNumber} highlight />
           <Row label="Order No." value={confirmation.orderNumber} />
           <Row label="Receipt No." value={confirmation.receiptNo ?? "—"} />
           <Row label="Customer" value={`${confirmation.customer.name} (${confirmation.customer.customerCode})`} />
           <Row label="Payment Mode" value={confirmation.paymentModeName} />
           <Row label="Items / Services" value={`${confirmation.lines.length} line(s)`} />
-          <div className="border-t border-gold-500/10 pt-2">
-            <Row label="Total Payable Amount" value={formatCurrency(confirmation.grandTotal)} />
-            <Row label="Amount Paid" value={formatCurrency(confirmation.amountPaid)} />
-            <Row
-              label="Balance Due"
-              value={formatCurrency(confirmation.balanceAmount)}
-              highlight={confirmation.balanceAmount > 0}
-            />
-          </div>
+          <Row label="Total Payable Amount" value={formatCurrency(confirmation.grandTotal)} />
+          <Row label="Amount Paid" value={formatCurrency(confirmation.amountPaid)} />
+          <Row
+            label="Balance Due"
+            value={formatCurrency(confirmation.balanceAmount)}
+            highlight={confirmation.balanceAmount > 0}
+          />
         </div>
 
         {stillDue && !payAgainOpen && (
-          <div className="mb-4 space-y-3 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-4 py-3 text-left">
-            <p className="text-[12.5px] text-crimson-400">
+          <div className="space-y-2 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-left">
+            <p className="text-[12px] text-crimson-400">
               Only partially paid — {formatCurrency(confirmation.balanceAmount)} still due. Collect the remaining
-              amount now. The booking is confirmed only after full payment.
+              amount now.
             </p>
             <DivineButton fullWidth type="button" onClick={openPayAgain}>
               Pay Again
@@ -1339,18 +1336,23 @@ function BookingSuccessView({
         )}
 
         {payAgainOpen && stillDue && (
-          <div className="mb-4 space-y-3 rounded-lg border border-gold-500/20 bg-navy-800/60 px-4 py-3.5 text-left">
+          <div className="space-y-2 rounded-lg border border-gold-500/20 bg-navy-800/60 px-3 py-2.5 text-left">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">Collect Remaining Payment</p>
-            <DivineInput
-              label={`Amount (max ${formatCurrency(confirmation.balanceAmount)})`}
-              type="number"
-              min={0.01}
-              max={confirmation.balanceAmount}
-              step="0.01"
-              inputMode="decimal"
-              value={amountInput}
-              onChange={(e) => setAmountInput(e.target.value)}
-            />
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+              <DivineInput
+                label={`Amount (max ${formatCurrency(confirmation.balanceAmount)})`}
+                type="number"
+                min={0.01}
+                max={confirmation.balanceAmount}
+                step="0.01"
+                inputMode="decimal"
+                value={amountInput}
+                onChange={(e) => setAmountInput(e.target.value)}
+              />
+              <DivineButton fullWidth type="button" loading={submitting} onClick={submitPayAgain}>
+                Collect Payment
+              </DivineButton>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               {paymentModes.map((m) => {
                 const isCash = m.name.toLowerCase() === "cash";
@@ -1363,7 +1365,7 @@ function BookingSuccessView({
                       disabled
                       aria-disabled="true"
                       title={`${m.name} isn't available yet`}
-                      className="cursor-not-allowed rounded-xl border border-gold-500/15 bg-navy-800/40 px-3 py-3 text-center opacity-50"
+                      className="cursor-not-allowed rounded-xl border border-gold-500/15 bg-navy-800/40 px-3 py-2 text-center opacity-50"
                     >
                       <span className="block text-[13px] font-semibold text-ink-400">{m.name}</span>
                       <span className="mt-0.5 block text-[10px] text-ink-500">Coming soon</span>
@@ -1375,7 +1377,7 @@ function BookingSuccessView({
                     key={m._id}
                     type="button"
                     onClick={() => setModeId(m._id)}
-                    className={`rounded-xl border px-3 py-3 text-[13px] font-semibold transition-colors ${
+                    className={`rounded-xl border px-3 py-2 text-[13px] font-semibold transition-colors ${
                       selected
                         ? "border-maroon bg-maroon text-white"
                         : "border-gold-500/20 bg-navy-800/60 text-ink-100 hover:border-maroon/40"
@@ -1386,9 +1388,6 @@ function BookingSuccessView({
                 );
               })}
             </div>
-            <DivineButton fullWidth type="button" loading={submitting} onClick={submitPayAgain}>
-              Collect Payment
-            </DivineButton>
           </div>
         )}
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect } from "react";
 import DivineButton from "../divine/DivineButton";
 
 type ConfirmDialogProps = {
@@ -43,6 +44,15 @@ export default function ConfirmDialog({
   altConfirmLabel,
   onAltConfirm,
 }: ConfirmDialogProps) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -54,7 +64,7 @@ export default function ConfirmDialog({
             onClick={loading ? undefined : onCancel}
             className="fixed inset-0 z-[70] bg-navy-950/75 backdrop-blur-sm"
           />
-          <div className="pointer-events-none fixed inset-0 z-[71] flex items-center justify-center p-4">
+          <div className="pointer-events-none fixed inset-0 z-[71] flex items-center justify-center overflow-hidden p-3 sm:p-4">
             <motion.div
               role="dialog"
               aria-modal="true"
@@ -62,7 +72,7 @@ export default function ConfirmDialog({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.97 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
-              className="pointer-events-auto w-full max-w-md rounded-2xl border border-gold-500/20 bg-navy-900 p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
+              className="pointer-events-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-hidden rounded-2xl border border-gold-500/20 bg-navy-900 p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
             >
               <h2 className="font-display text-[19px] font-bold text-ink-100">{title}</h2>
               <p className="mt-2 text-[13.5px] leading-relaxed text-ink-500">{message}</p>

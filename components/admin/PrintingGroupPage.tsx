@@ -168,7 +168,7 @@ export default function PrintingGroupPage() {
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton fullWidth={false} type="submit" form="printing-group-form" loading={create.submitting || update.submitting}>
+            <DivineButton variant="flame" fullWidth={false} type="submit" form="printing-group-form" loading={create.submitting || update.submitting}>
               {editing ? "Save changes" : "Save"}
             </DivineButton>
           </div>

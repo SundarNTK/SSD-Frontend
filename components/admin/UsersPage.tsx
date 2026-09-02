@@ -268,7 +268,7 @@ export default function UsersPage() {
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton fullWidth={false} type="submit" form="user-create-form" loading={create.submitting}>
+            <DivineButton variant="flame" fullWidth={false} type="submit" form="user-create-form" loading={create.submitting}>
               Create &amp; Send Activation
             </DivineButton>
           </div>
@@ -340,7 +340,7 @@ export default function UsersPage() {
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton fullWidth={false} type="submit" form="user-edit-form" loading={update.submitting}>
+            <DivineButton variant="flame" fullWidth={false} type="submit" form="user-edit-form" loading={update.submitting}>
               Save changes
             </DivineButton>
           </div>
