@@ -173,7 +173,7 @@ export default function DivineListbox({
       <div
         className={
           useFormChrome
-            ? `${FORM_CONTROL_SHELL} ${
+            ? `h-10 shrink-0 overflow-visible ${FORM_CONTROL_SHELL} ${
                 disabled
                   ? "cursor-not-allowed opacity-60"
                   : error
@@ -202,10 +202,10 @@ export default function DivineListbox({
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-disabled={disabled}
-          className={`group relative w-full bg-white text-left leading-none ${useFormChrome ? "rounded-lg" : "rounded-[4px]"} ${disabled ? "cursor-not-allowed" : ""} ${containerClassName}`}
+          className={`group relative w-full bg-white text-left leading-none ${useFormChrome ? "h-full rounded-lg" : "rounded-[4px]"} ${disabled ? "cursor-not-allowed" : ""} ${containerClassName}`}
         >
         {useFormChrome ? (
-          <div className="flex h-10 items-center gap-2 px-3">
+          <div className="flex h-full items-center gap-2 px-3">
             {renderValue ? (
               <span className="flex min-w-0 flex-1 items-center gap-2">{renderValue(selected)}</span>
             ) : (
