@@ -123,12 +123,15 @@ function GradientChevron({ id, className = "" }: { id: string; className?: strin
   );
 }
 
-// The selected-item treatment, shared by the top-level leaf, the group
-// header, and its nested children — solid maroon fill, white text.
-// Every nav row carries a transparent border-l-[3px] (see the base classes
-// below) so toggling active/inactive never shifts text by the border's width.
-const ACTIVE_NAV_CLASS = "border-maroon bg-maroon text-white font-semibold";
-const INACTIVE_NAV_CLASS = "border-transparent text-ink-300 hover:bg-ivory-100 hover:text-ink-100";
+// Selected rows sit on the gold temple photo, so they need a solid maroon
+// fill, a gold edge, and white type — ivory hover chips would vanish into
+// the same peach wash as the background.
+// Every nav row carries a transparent border-l-[3px] so toggling
+// active/inactive never shifts text by the border's width.
+const ACTIVE_NAV_CLASS =
+  "border-gold-400 bg-maroon text-white font-semibold shadow-[0_8px_18px_-8px_rgba(124,21,39,0.7)] ring-1 ring-inset ring-gold-400/45";
+const INACTIVE_NAV_CLASS =
+  "border-transparent text-ink-100 hover:bg-maroon/15 hover:text-maroon hover:shadow-[inset_0_0_0_1px_rgba(124,21,39,0.12)]";
 
 /**
  * Static column on desktop; a slide-in drawer with a backdrop below `md`.
@@ -189,26 +192,38 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           out-rank the topbar's `relative z-20` for that overlapping half to
           render on top instead of hiding underneath it. */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex h-full w-64 shrink-0 flex-col border-r border-gold-500/15 bg-navy-900 shadow-[8px_0_28px_-6px_rgba(0,0,0,0.16)] transition-[width,transform] duration-300 ease-out print:hidden md:relative md:z-30 md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-full w-64 shrink-0 flex-col border-r border-maroon/20 shadow-[8px_0_28px_-6px_rgba(124,21,39,0.18)] transition-[width,transform] duration-300 ease-out print:hidden md:relative md:z-30 md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "md:w-20" : ""}`}
       >
-        <div className={`flex items-center px-4 py-6 ${collapsed ? "md:justify-center md:px-2" : "justify-center"}`}>
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <img
+            src="/admin_sideMenu_bg.webp"
+            alt=""
+            className="h-full w-full object-cover object-[78%_center]"
+          />
+          {/* Left-weighted cream so labels stay dark and readable; the
+              gopuram and lamp still show through on the right edge. */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#fff7e6]/90 via-[#ffe9c4]/58 to-[#f0c070]/22" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#fffaf0]/50 via-transparent to-[#7c1527]/22" />
+        </div>
+
+        <div className={`relative z-10 flex items-center px-4 py-6 ${collapsed ? "md:justify-center md:px-2" : "justify-center"}`}>
           {collapsed ? (
-            <img src="/SSD_Logo.webp" alt="Sri Siva Durga Temple" className="hidden h-11 w-11 object-contain drop-shadow-[0_0_10px_rgba(212,175,55,0.35)] md:block" />
+            <img src="/SSD_Logo.webp" alt="Sri Siva Durga Temple" className="hidden h-11 w-11 object-contain drop-shadow-[0_0_12px_rgba(255,248,232,0.95)] md:block" />
           ) : null}
           {/* Mobile drawer always shows the mark alone, regardless of the
               desktop `collapsed` state (which mobile never sets). */}
           <img
             src="/SSD_Logo.webp"
             alt="Sri Siva Durga Temple"
-            className={`h-11 w-11 object-contain drop-shadow-[0_0_10px_rgba(212,175,55,0.35)] md:hidden`}
+            className={`h-11 w-11 object-contain drop-shadow-[0_0_12px_rgba(255,248,232,0.95)] md:hidden`}
           />
           {!collapsed && (
             <img
               src="/SSD_Full_Logo.webp"
               alt="Sri Siva Durga Temple"
-              className="hidden h-auto w-full max-w-[188px] object-contain drop-shadow-[0_0_10px_rgba(212,175,55,0.25)] md:block"
+              className="hidden h-auto w-full max-w-[188px] object-contain drop-shadow-[0_1px_10px_rgba(255,248,232,0.95)] md:block"
             />
           )}
         </div>
@@ -242,7 +257,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <ChevronIcon className={`h-3.5 w-3.5 transition-transform duration-300 ${collapsed ? "-rotate-90" : "rotate-90"}`} />
         </button>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4">
+        <nav className="relative z-10 flex-1 space-y-1 overflow-y-auto px-3 pb-4">
           {navItems.map((item) => {
             if (item.children) {
               return (
@@ -270,13 +285,13 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             return (
               <div
                 key={item.label}
-                className={`flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] text-ink-500/60 ${collapsed ? "md:justify-center" : ""}`}
+                className={`flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] text-ink-500 ${collapsed ? "md:justify-center" : ""}`}
                 title={item.soon ? `Arrives ${item.soon} of the Build Sequence` : "Not built yet"}
               >
                 <span className="shrink-0">{item.icon}</span>
                 <span className={`flex-1 ${collapsed ? "md:hidden" : ""}`}>{item.label}</span>
                 {item.soon && (
-                  <span className={`rounded-full border border-gold-500/20 px-2 py-0.5 text-[10px] tracking-wide text-ink-500 ${collapsed ? "md:hidden" : ""}`}>
+                  <span className={`rounded-full border border-maroon/20 bg-white/50 px-2 py-0.5 text-[10px] tracking-wide text-maroon ${collapsed ? "md:hidden" : ""}`}>
                     {item.soon}
                   </span>
                 )}
@@ -285,7 +300,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           })}
         </nav>
 
-        <div className={`border-t border-gold-500/10 px-5 py-4 text-[11px] text-ink-500 ${collapsed ? "md:hidden" : ""}`}>
+        <div className={`relative z-10 border-t border-maroon/15 bg-[#fff6e3]/55 px-5 py-4 text-[11px] font-medium text-maroon ${collapsed ? "md:hidden" : ""}`}>
           Sri Siva Durga Temple &copy; {new Date().getFullYear()}
         </div>
       </aside>
@@ -314,7 +329,7 @@ function NavLeafLink({
       href={to}
       onClick={onNavigate}
       title={collapsed ? label : undefined}
-      className={`flex items-center gap-3 rounded-xl border-l-[3px] py-2.5 pl-[9px] pr-3 text-[13.5px] transition-colors ${collapsed ? "md:justify-center" : ""} ${
+      className={`flex items-center gap-3 rounded-xl border-l-[3px] py-2.5 pl-[9px] pr-3 text-[13.5px] transition-[background-color,color,box-shadow] duration-200 ${collapsed ? "md:justify-center" : ""} ${
         isActive ? ACTIVE_NAV_CLASS : INACTIVE_NAV_CLASS
       }`}
     >
@@ -365,7 +380,7 @@ function NavGroup({
         onClick={handleClick}
         aria-expanded={expanded}
         title={collapsed ? item.label : undefined}
-        className={`flex w-full items-center gap-3 rounded-xl border-l-[3px] py-2.5 pl-[9px] pr-3 text-[13.5px] transition-colors ${collapsed ? "md:justify-center" : ""} ${
+        className={`flex w-full items-center gap-3 rounded-xl border-l-[3px] py-2.5 pl-[9px] pr-3 text-[13.5px] font-semibold transition-[background-color,color,box-shadow] duration-200 ${collapsed ? "md:justify-center" : ""} ${
           holdsCurrentRoute && !expanded ? ACTIVE_NAV_CLASS : INACTIVE_NAV_CLASS
         }`}
       >
@@ -412,7 +427,7 @@ function ChildLink({ to, label, onNavigate }: { to: string; label: string; onNav
       <Link
         href={to}
         onClick={onNavigate}
-        className={`relative block rounded-lg border-l-[3px] py-2 pl-[9px] pr-3 text-[13px] transition-colors ${
+        className={`relative block rounded-lg border-l-[3px] py-2 pl-[9px] pr-3 text-[13px] font-medium transition-[background-color,color,box-shadow] duration-200 ${
           isActive ? ACTIVE_NAV_CLASS : INACTIVE_NAV_CLASS
         }`}
       >

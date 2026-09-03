@@ -67,7 +67,7 @@ const schema = z
     description: z.string().trim().max(1000),
     isDeityMappingRequired: z.boolean(),
     deityMapping: z.array(z.string()),
-    printingGroup: z.string().min(1, "Printing group is required"),
+    printingGroup: z.string(),
     categoryDetails: z.array(categoryDetailSchema),
     generalLedger: z.string().min(1, "GL account is required"),
     salePrice: z.number().min(0, "Must be 0 or more"),
@@ -81,9 +81,14 @@ const schema = z
     publicAvailability: z.boolean(),
     status: z.number(),
   })
-  .refine((data) => !data.isDeityMappingRequired || data.deityMapping.length > 0, {
-    message: "Select at least one deity",
-    path: ["deityMapping"],
+  .superRefine((data, ctx) => {
+    if (data.isDeityMappingRequired) {
+      if (data.deityMapping.length === 0) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Select at least one deity", path: ["deityMapping"] });
+      }
+    } else if (!data.printingGroup) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Printing group is required", path: ["printingGroup"] });
+    }
   });
 
 type FormValues = z.infer<typeof schema>;
@@ -232,6 +237,7 @@ export default function ServicePage() {
       {
         ...values,
         deityMapping: values.isDeityMappingRequired ? values.deityMapping : [],
+        printingGroup: values.isDeityMappingRequired ? null : values.printingGroup,
         bookingCutoffDate: values.bookingCutoffDate || null,
         categoryDetails: values.categoryDetails.map((c) => ({ ...c, subCategory: c.subCategory || null })),
       },
@@ -377,48 +383,67 @@ export default function ServicePage() {
               error={errors.salePrice?.message}
               {...register("salePrice", { valueAsNumber: true })}
             />
-            <Controller
-              control={control}
-              name="printingGroup"
-              render={({ field }) => (
-                <DivineListbox
-                  label="Printing Group"
-                  value={field.value}
-                  onChange={field.onChange}
-                  options={printingGroupOptions}
-                  placeholder="Select Printing Group"
-                  error={errors.printingGroup?.message}
-                />
-              )}
-            />
           </div>
           <p className="-mt-3 pl-1 text-[11.5px] text-ink-500">GST is derived from the selected GL account.</p>
 
           <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Controller
-              control={control}
-              name="isDeityMappingRequired"
-              render={({ field }) => (
-                <DivineRadioGroup boxed label="Deity Mapping Required" value={field.value} onChange={field.onChange} />
-              )}
-            />
-            {isDeityMappingRequired && (
+          <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-3">
+            <div className="self-start">
               <Controller
                 control={control}
-                name="deityMapping"
+                name="isDeityMappingRequired"
                 render={({ field }) => (
-                  <DivineMultiSelect
-                    label="Deity Mapping"
-                    values={field.value}
-                    onChange={field.onChange}
-                    options={deityOptions}
-                    placeholder="Select deities"
-                    error={errors.deityMapping?.message as string | undefined}
+                  <DivineRadioGroup
+                    boxed
+                    label="Deity Mapping Required"
+                    value={field.value}
+                    onChange={(v) => {
+                      field.onChange(v);
+                      if (v) setValue("printingGroup", "", { shouldDirty: true, shouldValidate: true });
+                      else setValue("deityMapping", [], { shouldDirty: true, shouldValidate: true });
+                    }}
                   />
                 )}
               />
+            </div>
+            {isDeityMappingRequired ? (
+              <div className="min-w-0 sm:col-span-2">
+                <Controller
+                  control={control}
+                  name="deityMapping"
+                  render={({ field }) => (
+                    <DivineMultiSelect
+                      label="Deity Mapping"
+                      values={field.value}
+                      onChange={field.onChange}
+                      options={deityOptions}
+                      placeholder="Select deities"
+                      error={errors.deityMapping?.message as string | undefined}
+                    />
+                  )}
+                />
+                <p className="mt-1 pl-1 text-[11.5px] text-ink-500">
+                  Printing group is taken from the selected deity in Deity Master.
+                </p>
+              </div>
+            ) : (
+              <div className="self-start">
+                <Controller
+                  control={control}
+                  name="printingGroup"
+                  render={({ field }) => (
+                    <DivineListbox
+                      label="Printing Group"
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={printingGroupOptions}
+                      placeholder="Select Printing Group"
+                      error={errors.printingGroup?.message}
+                    />
+                  )}
+                />
+              </div>
             )}
           </div>
 
