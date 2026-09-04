@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -25,6 +25,7 @@ import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { patchMasterStatus } from "../../lib/patchMasterStatus";
 
 type Ref = { _id: string; name: string };
 
@@ -267,7 +268,9 @@ export default function EventPage() {
         </span>
       ),
     },
-    { key: "status", label: "Status", render: (e) => <StatusPill status={e.status} /> },
+    { key: "status", label: "Status", render: (e) => (
+      <StatusToggleCell status={e.status} canEdit={canEdit} onChange={(status) => patchMasterStatus(update, e._id, status, "Event")} />
+    ) },
   ];
 
   return (

@@ -11,6 +11,9 @@ type DivineStatusSelectProps = {
   onLabel?: string;
   offLabel?: string;
   className?: string;
+  disabled?: boolean;
+  /** Peach-border field without a floating label — for table list rows. */
+  compact?: boolean;
 };
 
 function StatusDot({ active, size = "md" }: { active: boolean; size?: "sm" | "md" }) {
@@ -39,10 +42,15 @@ export default function DivineStatusSelect({
   onLabel = "Active",
   offLabel = "Inactive",
   className,
+  disabled,
+  compact = false,
 }: DivineStatusSelectProps) {
   return (
     <DivineListbox
-      label={label}
+      label={compact ? undefined : label}
+      formChrome={compact}
+      clearable={false}
+      disabled={disabled}
       value={String(value)}
       onChange={(v) => onChange(Number(v))}
       options={STATUS_OPTIONS(onLabel, offLabel)}

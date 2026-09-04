@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, EditIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineInput from "../divine/DivineInput";
 import DivineListbox from "../divine/DivineListbox";
@@ -19,6 +19,7 @@ import { emailField } from "../../lib/validation";
 import { sanitizeMobileInput, isValidSgMobile, SG_MOBILE_ERROR } from "../../lib/mobileNumber";
 import { formatTempleDateTime } from "../../lib/datetime";
 import { toast } from "../../lib/toastStore";
+import { patchMasterStatus } from "../../lib/patchMasterStatus";
 
 type Customer = {
   _id: string;
@@ -153,7 +154,9 @@ export default function CustomersPage() {
         );
       },
     },
-    { key: "status", label: "Status", render: (c) => <StatusPill status={c.status} /> },
+    { key: "status", label: "Status", render: (c) => (
+      <StatusToggleCell status={c.status} canEdit={canEdit} onChange={(status) => patchMasterStatus(update, c._id, status, "Customer")} />
+    ) },
   ];
 
   return (

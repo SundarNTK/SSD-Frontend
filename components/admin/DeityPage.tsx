@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -16,6 +16,7 @@ import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { patchMasterStatus } from "../../lib/patchMasterStatus";
 
 type Ref = { _id: string; name: string };
 
@@ -114,7 +115,9 @@ export default function DeityPage() {
       label: "Printing Group",
       render: (d) => <span className="text-ink-500">{d.printingGroup?.name ?? "—"}</span>,
     },
-    { key: "status", label: "Status", render: (d) => <StatusPill status={d.status} /> },
+    { key: "status", label: "Status", render: (d) => (
+      <StatusToggleCell status={d.status} canEdit={canEdit} onChange={(status) => patchMasterStatus(update, d._id, status, "Deity")} />
+    ) },
   ];
 
   return (

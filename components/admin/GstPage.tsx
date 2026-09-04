@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -17,6 +17,7 @@ import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { patchMasterStatus } from "../../lib/patchMasterStatus";
 
 export type Gst = {
   _id: string;
@@ -93,6 +94,7 @@ type PendingConflict = {
   values: FormValues;
   existing: Gst;
   kind: "create" | "activate";
+  targetId?: string;
 };
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -178,7 +180,7 @@ export default function GstPage() {
     setDrawerOpen(true);
   }
 
-  async function persist(values: FormValues, replaceActive = false) {
+  async function persist(values: FormValues, replaceActive = false, recordId?: string) {
     const payload = {
       ...values,
       type: canonicalGstType(values.type),
@@ -186,13 +188,45 @@ export default function GstPage() {
       effectiveEndDate: values.effectiveEndDate || null,
       replaceActive,
     };
-    const ok = editing ? await update.run(editing._id, payload) : await create.run(payload);
+    const id = recordId ?? editing?._id;
+    const ok = id ? await update.run(id, payload) : await create.run(payload);
     if (ok !== undefined) {
       setDrawerOpen(false);
       setPendingConflict(null);
-      if (editing) toast.updated("GST rate updated successfully.");
+      if (id) toast.updated("GST rate updated successfully.");
       else toast.created("GST rate created successfully.");
     }
+  }
+
+  function gstToFormValues(g: Gst, status: number): FormValues {
+    const knownType = isOfficialType(g.type) ? canonicalGstType(g.type) : g.type;
+    return {
+      type: knownType,
+      percentage: isZeroRateType(g.type) ? 0 : g.percentage,
+      code: g.code,
+      effectiveStartDate: g.effectiveStartDate.slice(0, 10),
+      effectiveEndDate: g.effectiveEndDate ? g.effectiveEndDate.slice(0, 10) : "",
+      status,
+    };
+  }
+
+  async function changeListStatus(g: Gst, status: number) {
+    if (status === g.status) return;
+    if (g.status === 1 && status === 0 && isOfficialType(g.type)) {
+      const other = await findActiveOfType(g.type, g._id);
+      if (!other) {
+        toast.error(lastActiveError(g.type));
+        return;
+      }
+    }
+    if (status === 1) {
+      const existing = await findActiveOfType(g.type, g._id);
+      if (existing) {
+        setPendingConflict({ values: gstToFormValues(g, 1), existing, kind: "activate", targetId: g._id });
+        return;
+      }
+    }
+    await patchMasterStatus(update, g._id, status, "GST");
   }
 
   const submit = handleSubmit(async (values) => {
@@ -246,7 +280,9 @@ export default function GstPage() {
         </span>
       ),
     },
-    { key: "status", label: "Status", render: (g) => <StatusPill status={g.status} /> },
+    { key: "status", label: "Status", render: (g) => (
+      <StatusToggleCell status={g.status} canEdit={canEdit} onChange={(status) => changeListStatus(g, status)} />
+    ) },
   ];
 
   return (
@@ -328,7 +364,7 @@ export default function GstPage() {
           if (!pendingConflict || conflictBusy) return;
           setConflictBusy(true);
           try {
-            await persist({ ...pendingConflict.values, status: 0 });
+            await persist({ ...pendingConflict.values, status: 0 }, false, pendingConflict.targetId);
           } finally {
             setConflictBusy(false);
           }
@@ -347,7 +383,7 @@ export default function GstPage() {
           if (!pendingConflict || conflictBusy) return;
           setConflictBusy(true);
           try {
-            await persist(pendingConflict.values, true);
+            await persist(pendingConflict.values, true, pendingConflict.targetId);
           } finally {
             setConflictBusy(false);
           }

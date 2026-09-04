@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -15,6 +15,7 @@ import { api } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { patchMasterStatus } from "../../lib/patchMasterStatus";
 
 export type Unit = {
   _id: string;
@@ -94,7 +95,9 @@ export default function UnitPage() {
       label: "Description",
       render: (u) => <span className="text-ink-500">{u.description || "—"}</span>,
     },
-    { key: "status", label: "Status", render: (u) => <StatusPill status={u.status} /> },
+    { key: "status", label: "Status", render: (u) => (
+      <StatusToggleCell status={u.status} canEdit={canEdit} onChange={(status) => patchMasterStatus(update, u._id, status, "Unit")} />
+    ) },
   ];
 
   return (

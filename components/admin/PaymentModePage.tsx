@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusPill, StatusToggleCell, EditIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
@@ -15,6 +15,7 @@ import { api } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { patchMasterStatus } from "../../lib/patchMasterStatus";
 
 export type PaymentMode = {
   _id: string;
@@ -94,7 +95,9 @@ export default function PaymentModePage() {
       label: "Public Availability",
       render: (m) => <AvailabilityPill available={m.publicAvailability} />,
     },
-    { key: "status", label: "Status", render: (m) => <StatusPill status={m.status} /> },
+    { key: "status", label: "Status", render: (m) => (
+      <StatusToggleCell status={m.status} canEdit={canEdit} onChange={(status) => patchMasterStatus(update, m._id, status, "Payment mode")} />
+    ) },
   ];
 
   return (
