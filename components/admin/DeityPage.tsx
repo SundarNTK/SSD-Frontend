@@ -22,6 +22,7 @@ type Ref = { _id: string; name: string };
 
 export type Deity = {
   _id: string;
+  code: string;
   name: string;
   tamilName: string;
   printingGroup: Ref | null;
@@ -29,6 +30,7 @@ export type Deity = {
 };
 
 const schema = z.object({
+  code: z.string().trim().min(1, "Code is required").max(20),
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
   tamilName: z.string().trim(),
   printingGroup: z.string().min(1, "Printing group is required"),
@@ -81,7 +83,7 @@ export default function DeityPage() {
 
   function openCreate() {
     setEditing(null);
-    reset({ name: "", tamilName: "", printingGroup: "", status: 1 });
+    reset({ code: "", name: "", tamilName: "", printingGroup: "", status: 1 });
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -89,6 +91,7 @@ export default function DeityPage() {
   function openEdit(deity: Deity) {
     setEditing(deity);
     reset({
+      code: deity.code,
       name: deity.name,
       tamilName: deity.tamilName,
       printingGroup: deity.printingGroup?._id ?? "",
@@ -108,6 +111,7 @@ export default function DeityPage() {
   });
 
   const columns: DataTableColumn<Deity>[] = [
+    { key: "code", label: "Code", render: (d) => <span className="font-medium tabular-nums text-amber-700">{d.code}</span> },
     { key: "name", label: "Name", render: (d) => <span className="font-medium">{d.name}</span> },
     { key: "tamilName", label: "Tamil Name", render: (d) => <span className="text-ink-500">{d.tamilName || "—"}</span> },
     {
@@ -162,7 +166,7 @@ export default function DeityPage() {
       <ConfirmDialog
         open={Boolean(deleting)}
         title="Delete this deity?"
-        message={deleting ? `"${deleting.name}" will be removed.` : ""}
+        message={deleting ? `"${deleting.name} (${deleting.code})" will be removed.` : ""}
         confirmLabel="Delete deity"
         tone="danger"
         error={remove.error}
@@ -185,7 +189,7 @@ export default function DeityPage() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title={editing ? "Edit Deity" : "Add Deity"}
-        subtitle={editing ? editing.name : "Define a new deity."}
+        subtitle={editing ? `${editing.name} · ${editing.code}` : "Define a new deity."}
         error={create.error || update.error}
         footer={
           <div className="flex justify-end gap-3">
@@ -200,7 +204,10 @@ export default function DeityPage() {
       >
         <form id="deity-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DivineInput staticLabel label="Code" error={errors.code?.message} {...register("code")} />
             <DivineInput staticLabel label="Name" error={errors.name?.message} {...register("name")} />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TamilNameField staticLabel
               englishName={nameValue}
               value={tamilNameValue}

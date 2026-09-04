@@ -19,6 +19,7 @@ import { patchMasterStatus } from "../../lib/patchMasterStatus";
 
 export type PrintingGroup = {
   _id: string;
+  code: string;
   name: string;
   description: string;
   status: number;
@@ -26,6 +27,7 @@ export type PrintingGroup = {
 };
 
 const schema = z.object({
+  code: z.string().trim().min(1, "Code is required").max(20),
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
   description: z.string().trim().max(300),
   status: z.number(),
@@ -64,14 +66,14 @@ export default function PrintingGroupPage() {
 
   function openCreate() {
     setEditing(null);
-    reset({ name: "", description: "", status: 1 });
+    reset({ code: "", name: "", description: "", status: 1 });
     create.setError(null);
     setDrawerOpen(true);
   }
 
   function openEdit(group: PrintingGroup) {
     setEditing(group);
-    reset({ name: group.name, description: group.description, status: group.status });
+    reset({ code: group.code, name: group.name, description: group.description, status: group.status });
     update.setError(null);
     setDrawerOpen(true);
   }
@@ -79,7 +81,7 @@ export default function PrintingGroupPage() {
   const submit = handleSubmit(async (values) => {
     const ok = editing
       ? await update.run(editing._id, values)
-      : await create.run({ name: values.name, description: values.description, status: values.status });
+      : await create.run(values);
     if (ok !== undefined) {
       setDrawerOpen(false);
       if (editing) toast.updated("Printing group updated successfully.");
@@ -88,6 +90,7 @@ export default function PrintingGroupPage() {
   });
 
   const columns: DataTableColumn<PrintingGroup>[] = [
+    { key: "code", label: "Code", render: (g) => <span className="font-medium tabular-nums text-amber-700">{g.code}</span> },
     { key: "name", label: "Name", render: (g) => <span className="font-medium">{g.name}</span> },
     {
       key: "description",
@@ -141,7 +144,7 @@ export default function PrintingGroupPage() {
       <ConfirmDialog
         open={Boolean(deleting)}
         title="Delete this printing group?"
-        message={deleting ? `"${deleting.name}" will be removed.` : ""}
+        message={deleting ? `"${deleting.name} (${deleting.code})" will be removed.` : ""}
         confirmLabel="Delete group"
         tone="danger"
         error={remove.error}
@@ -164,7 +167,7 @@ export default function PrintingGroupPage() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title={editing ? "Edit Printing Group" : "Add Printing Group"}
-        subtitle={editing ? editing.name : "Define a new print-run grouping."}
+        subtitle={editing ? `${editing.name} · ${editing.code}` : "Define a new print-run grouping."}
         error={create.error || update.error}
         footer={
           <div className="flex justify-end gap-3">
@@ -179,7 +182,10 @@ export default function PrintingGroupPage() {
       >
         <form id="printing-group-form" onSubmit={submit} noValidate className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DivineInput staticLabel label="Code" error={errors.code?.message} {...register("code")} />
             <DivineInput staticLabel label="Name" error={errors.name?.message} {...register("name")} />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Controller
               control={control}
               name="status"
