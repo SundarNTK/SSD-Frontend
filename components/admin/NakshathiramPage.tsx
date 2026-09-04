@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -16,6 +16,7 @@ import { api } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { patchMasterStatus } from "../../lib/patchMasterStatus";
 
 export type Nakshathiram = {
   _id: string;
@@ -125,7 +126,9 @@ export default function NakshathiramPage() {
     { key: "tamilName", label: "Tamil", render: (n) => <span className="text-ink-500">{n.tamilName}</span> },
     { key: "rasi", label: "Rasi", render: (n) => n.rasi },
     { key: "mainFlag", label: "Main Flag", render: (n) => <span className="text-ink-500">{n.mainFlag ? "Yes" : "No"}</span> },
-    { key: "status", label: "Status", render: (n) => <StatusPill status={n.status} /> },
+    { key: "status", label: "Status", render: (n) => (
+      <StatusToggleCell status={n.status} canEdit={canEdit} onChange={(status) => patchMasterStatus(update, n._id, status, "Nakshathiram")} />
+    ) },
   ];
 
   return (

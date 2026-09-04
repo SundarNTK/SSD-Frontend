@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, EditIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
@@ -15,6 +15,7 @@ import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { patchMasterStatus } from "../../lib/patchMasterStatus";
 
 type Ref = { _id: string; name: string };
 
@@ -186,7 +187,9 @@ export default function GlGroupPage() {
       : []),
     { key: "name", label: "Name", render: (g) => <span className="font-medium">{g.name}</span> },
     { key: "description", label: "Description", render: (g) => <span className="text-ink-500">{g.description || "—"}</span> },
-    { key: "status", label: "Status", render: (g) => <StatusPill status={g.status} /> },
+    { key: "status", label: "Status", render: (g) => (
+      <StatusToggleCell status={g.status} canEdit={canEdit} onChange={(status) => patchMasterStatus(update, g._id, status, "GL group")} />
+    ) },
   ];
 
   return (

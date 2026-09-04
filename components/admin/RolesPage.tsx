@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import DataTable, { StatusPill, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -17,6 +17,7 @@ import { authApi } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { patchMasterStatus } from "../../lib/patchMasterStatus";
 
 export type Role = {
   _id: string;
@@ -110,7 +111,13 @@ export default function RolesPage() {
       label: "Modules granted",
       render: (r) => <span className="text-ink-500">{r.permissions.length || 0}</span>,
     },
-    { key: "status", label: "Status", render: (r) => <StatusPill status={r.status} /> },
+    { key: "status", label: "Status", render: (r) => (
+      <StatusToggleCell
+        status={r.status}
+        canEdit={canEdit && !r.isLocked}
+        onChange={(status) => patchMasterStatus(update, r._id, status, "Role")}
+      />
+    ) },
   ];
 
   return (

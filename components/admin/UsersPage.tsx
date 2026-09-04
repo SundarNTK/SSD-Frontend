@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, EditIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineInput from "../divine/DivineInput";
 import DivineListbox from "../divine/DivineListbox";
@@ -22,6 +22,7 @@ import { MODULES, usePermissions } from "../../lib/permissions";
 import { emailField } from "../../lib/validation";
 import { USER_TYPES, USER_TYPE_LABEL } from "../../lib/userTypes";
 import { toast } from "../../lib/toastStore";
+import { patchMasterStatus } from "../../lib/patchMasterStatus";
 
 /** Names only — the assignable-roles endpoint deliberately omits permissions. */
 type AssignableRole = { _id: string; name: string };
@@ -209,7 +210,25 @@ export default function UsersPage() {
       label: "Password",
       render: (u) => <PasswordStatePill setAt={u.passwordSetAt} />,
     },
-    { key: "status", label: "Status", render: (u) => <StatusPill status={u.status} /> },
+    { key: "status", label: "Status", render: (u) => {
+      const canToggle =
+        canEdit &&
+        u.userType !== USER_TYPES.CUSTOMER &&
+        (u.userType !== USER_TYPES.SUPER_ADMIN || isSuperAdmin);
+      return (
+        <StatusToggleCell
+          status={u.status}
+          canEdit={canToggle}
+          onChange={async (status) => {
+            if (u._id === currentUser?.id && status === 0) {
+              toast.error("You can't inactivate your own account.");
+              return;
+            }
+            await patchMasterStatus(update, u._id, status, "User");
+          }}
+        />
+      );
+    } },
   ];
 
   return (

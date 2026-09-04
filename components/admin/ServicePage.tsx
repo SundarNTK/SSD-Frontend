@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -14,6 +14,7 @@ import DivineMultiSelect from "../divine/DivineMultiSelect";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
+import DivineVisibilitySelect from "../divine/DivineVisibilitySelect";
 import DivineButton from "../divine/DivineButton";
 import DivineImageUpload from "../divine/DivineImageUpload";
 import { PlusIcon, CloseIcon } from "../divine/icons";
@@ -23,6 +24,9 @@ import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
 import TamilNameField from "./TamilNameField";
 import { withOptionalImage } from "../../lib/withOptionalImage";
+import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { DEFAULT_VISIBILITY, flagsToVisibility, visibilityToFlags } from "../../lib/visibility";
+import VisibilityPills from "./VisibilityPills";
 
 type Ref = { _id: string; name: string };
 type GlRef = { _id: string; name: string; code: string };
@@ -77,8 +81,7 @@ const schema = z
     isInventoryRequired: z.boolean(),
     thresholdCount: z.number().int().min(0),
     bookingCutoffDate: z.string(),
-    isPosAvailable: z.boolean(),
-    publicAvailability: z.boolean(),
+    visibility: z.array(z.string()),
     status: z.number(),
   })
   .superRefine((data, ctx) => {
@@ -112,8 +115,7 @@ const DEFAULT_VALUES: FormValues = {
   isInventoryRequired: false,
   thresholdCount: 0,
   bookingCutoffDate: "",
-  isPosAvailable: true,
-  publicAvailability: true,
+  visibility: DEFAULT_VISIBILITY,
   status: 1,
 };
 
@@ -223,8 +225,7 @@ export default function ServicePage() {
       isInventoryRequired: service.isInventoryRequired,
       thresholdCount: service.thresholdCount,
       bookingCutoffDate: service.bookingCutoffDate ? service.bookingCutoffDate.slice(0, 10) : "",
-      isPosAvailable: service.isPosAvailable,
-      publicAvailability: service.publicAvailability,
+      visibility: flagsToVisibility(service.isPosAvailable, service.publicAvailability),
       status: service.status,
     });
     setEditImage(null);
@@ -233,6 +234,7 @@ export default function ServicePage() {
   }
 
   const submit = handleSubmit(async (values) => {
+    const { pos, portal } = visibilityToFlags(values.visibility);
     const payload = withOptionalImage(
       {
         ...values,
@@ -240,6 +242,9 @@ export default function ServicePage() {
         printingGroup: values.isDeityMappingRequired ? null : values.printingGroup,
         bookingCutoffDate: values.bookingCutoffDate || null,
         categoryDetails: values.categoryDetails.map((c) => ({ ...c, subCategory: c.subCategory || null })),
+        isPosAvailable: pos,
+        publicAvailability: portal,
+        visibility: undefined,
       },
       editing ? editImage : createImage,
     );
@@ -266,7 +271,22 @@ export default function ServicePage() {
       label: "Categories",
       render: (s) => <span className="tabular-nums">{s.categoryDetails.length}</span>,
     },
-    { key: "status", label: "Status", render: (s) => <StatusPill status={s.status} /> },
+    {
+      key: "visibility",
+      label: "Visibility",
+      render: (s) => <VisibilityPills pos={s.isPosAvailable} portal={s.publicAvailability} />,
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (s) => (
+        <StatusToggleCell
+          status={s.status}
+          canEdit={canEdit}
+          onChange={(status) => patchMasterStatus(update, s._id, status, "Service")}
+        />
+      ),
+    },
   ];
 
   return (
@@ -591,17 +611,12 @@ export default function ServicePage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Controller
               control={control}
-              name="isPosAvailable"
-              render={({ field }) => <DivineRadioGroup boxed label="POS Availability" value={field.value} onChange={field.onChange} />}
-            />
-            <Controller
-              control={control}
-              name="publicAvailability"
+              name="visibility"
               render={({ field }) => (
-                <DivineRadioGroup boxed label="Customer Portal Availability" value={field.value} onChange={field.onChange} />
+                <DivineVisibilitySelect values={field.value} onChange={field.onChange} error={errors.visibility?.message} />
               )}
             />
             <Controller

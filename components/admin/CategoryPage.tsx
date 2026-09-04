@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusPill, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
@@ -12,12 +12,16 @@ import DivineTextarea from "../divine/DivineTextarea";
 import DivineColorPicker from "../divine/DivineColorPicker";
 import DivineImageUpload from "../divine/DivineImageUpload";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
+import DivineVisibilitySelect from "../divine/DivineVisibilitySelect";
 import DivineButton from "../divine/DivineButton";
 import TamilNameField from "./TamilNameField";
 import { api } from "../../lib/api";
 import { useApiResource, type WriteBody } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { DEFAULT_VISIBILITY, flagsToVisibility, visibilityToFlags } from "../../lib/visibility";
+import VisibilityPills from "./VisibilityPills";
 
 export type Category = {
   _id: string;
@@ -28,6 +32,8 @@ export type Category = {
   color: string;
   description: string;
   image: string | null;
+  posVisibility: boolean;
+  customerPortalVisibility: boolean;
   status: number;
 };
 
@@ -38,6 +44,7 @@ const schema = z.object({
   displayOrder: z.number().int().min(0),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Enter a valid hex colour"),
   description: z.string().trim().max(300),
+  visibility: z.array(z.string()),
   status: z.number(),
 });
 
@@ -74,21 +81,27 @@ export default function CategoryPage() {
     setValue,
     control,
     formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: "", tamilName: "", code: "", displayOrder: 0, color: "#942237", description: "", visibility: DEFAULT_VISIBILITY, status: 1 },
+  });
   const nameValue = watch("name") ?? "";
   const tamilNameValue = watch("tamilName") ?? "";
 
   function toPayload(values: FormValues, image: File | null): WriteBody {
-    if (!image) return values;
+    const { pos, portal } = visibilityToFlags(values.visibility);
+    const body = { ...values, posVisibility: pos, customerPortalVisibility: portal };
+    delete (body as { visibility?: string[] }).visibility;
+    if (!image) return body;
     const form = new FormData();
-    Object.entries(values).forEach(([key, val]) => form.append(key, String(val)));
+    Object.entries(body).forEach(([key, val]) => form.append(key, String(val)));
     form.append("image", image);
     return form;
   }
 
   function openCreate() {
     setEditing(null);
-    reset({ name: "", tamilName: "", code: "", displayOrder: 0, color: "#942237", description: "", status: 1 });
+    reset({ name: "", tamilName: "", code: "", displayOrder: 0, color: "#942237", description: "", visibility: DEFAULT_VISIBILITY, status: 1 });
     setCreateImage(null);
     create.setError(null);
     setDrawerOpen(true);
@@ -103,6 +116,7 @@ export default function CategoryPage() {
       displayOrder: category.displayOrder,
       color: category.color,
       description: category.description,
+      visibility: flagsToVisibility(category.posVisibility, category.customerPortalVisibility),
       status: category.status,
     });
     setEditImage(null);
@@ -144,7 +158,22 @@ export default function CategoryPage() {
     { key: "tamilName", label: "Tamil Name", render: (c) => <span className="text-ink-500">{c.tamilName || "—"}</span> },
     { key: "code", label: "Code", render: (c) => <span className="tabular-nums text-amber-700">{c.code}</span> },
     { key: "displayOrder", label: "Order", render: (c) => <span className="tabular-nums text-ink-500">{c.displayOrder}</span> },
-    { key: "status", label: "Status", render: (c) => <StatusPill status={c.status} /> },
+    {
+      key: "visibility",
+      label: "Visibility",
+      render: (c) => <VisibilityPills pos={c.posVisibility} portal={c.customerPortalVisibility} />,
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (c) => (
+        <StatusToggleCell
+          status={c.status}
+          canEdit={canEdit}
+          onChange={(status) => patchMasterStatus(update, c._id, status, "Category")}
+        />
+      ),
+    },
   ];
 
   return (
@@ -244,6 +273,13 @@ export default function CategoryPage() {
               {...register("displayOrder", { valueAsNumber: true })}
             />
           </div>
+          <Controller
+            control={control}
+            name="visibility"
+            render={({ field }) => (
+              <DivineVisibilitySelect values={field.value} onChange={field.onChange} error={errors.visibility?.message} />
+            )}
+          />
           <div className="grid grid-cols-2 gap-4">
             <Controller
               control={control}
