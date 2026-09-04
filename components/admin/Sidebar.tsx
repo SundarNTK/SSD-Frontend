@@ -10,6 +10,7 @@ import {
   BoxIcon,
   CartIcon,
   ChartIcon,
+  CheckIcon,
   ChevronIcon,
   GridIcon,
   HomeIcon,
@@ -55,6 +56,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: <GridIcon />,
     children: [
       { label: "Printing Group", to: "/admin/masters/printing-groups", module: MODULES.printingGroups },
+      { label: "Unit", to: "/admin/masters/units", module: MODULES.units },
       { label: "Deity", to: "/admin/masters/deities", module: MODULES.deities },
       { label: "GST", to: "/admin/masters/gst", module: MODULES.gst },
       { label: "GL Group", to: "/admin/masters/gl-groups", module: MODULES.glGroups },
@@ -74,6 +76,13 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { label: "Admin Booking", to: "/admin/transactions/admin-booking", module: MODULES.adminBooking },
       { label: "POS Transactions", to: "/admin/transactions/pos-transactions", module: MODULES.posTransactions },
+    ],
+  },
+  {
+    label: "Order Confirmation",
+    icon: <CheckIcon className="h-[18px] w-[18px]" />,
+    children: [
+      { label: "POS Order Confirmation", to: "/admin/order-confirmation/pos", module: MODULES.posOrderConfirmation },
     ],
   },
   {
