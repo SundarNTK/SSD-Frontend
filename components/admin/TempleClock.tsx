@@ -23,36 +23,36 @@ export default function TempleClock({ variant = "default" }: { variant?: "defaul
 
   if (variant === "flame") {
     return (
-      <div className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-crimson-500/70 via-flame-500/70 to-[#FFC145]/70 p-[1.5px] shadow-[0_4px_16px_-8px_rgba(255,122,46,0.4)] transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgba(255,122,46,0.6)]">
-        <div className="relative flex items-center gap-3 overflow-hidden rounded-[10px] bg-white/95 px-3 py-1.5 backdrop-blur-md sm:px-3.5">
+      <div className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-maroon via-crimson-500 to-[#FF8A3D] p-[2px] shadow-[0_6px_20px_-8px_rgba(179,39,63,0.55)] transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_10px_28px_-8px_rgba(179,39,63,0.7)]">
+        <div className="relative flex items-center gap-3 overflow-hidden rounded-[10px] bg-gradient-to-br from-white via-[#FFF7EA] to-[#FFEAD1] px-3 py-1.5 backdrop-blur-md sm:px-3.5">
           {/* Ambient shimmer, gold at rest — crossfades to a silver sweep on
               hover (two overlapping layers whose opacity swaps, since a
               gradient's own colors can't be transitioned directly). */}
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 z-0 -translate-x-[160%] animate-[shimmer-sweep_6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-[#FFD700]/25 to-transparent opacity-100 transition-opacity duration-500 group-hover:opacity-0"
+            className="pointer-events-none absolute inset-0 z-0 -translate-x-[160%] animate-[shimmer-sweep_6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-[#FFD700]/30 to-transparent opacity-100 transition-opacity duration-500 group-hover:opacity-0"
           />
           <span
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 z-0 -translate-x-[160%] animate-[shimmer-sweep_6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-slate-300/45 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"
           />
-          <span className="relative z-10 flex h-1.5 w-1.5 shrink-0" aria-hidden="true">
+          <span className="relative z-10 flex h-2 w-2 shrink-0" aria-hidden="true">
             <span className="absolute inline-flex h-full w-full animate-soft-pulse rounded-full bg-flame-400" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-crimson-500" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-crimson-500 ring-2 ring-white" />
           </span>
 
           <div className="relative z-10 leading-tight">
-            <p className="hidden text-[10px] uppercase tracking-[0.14em] text-ink-500 md:block">
+            <p className="hidden text-[10px] font-semibold uppercase tracking-[0.16em] text-crimson-600 md:block">
               {date} &middot; {TEMPLE_TIME_ZONE_LABEL}
             </p>
 
-            <p className="flex items-baseline font-accent text-[14.5px] font-bold tabular-nums text-flame-600 sm:text-[15px]">
+            <p className="flex items-baseline font-accent text-[15.5px] font-bold tabular-nums text-flame-600 sm:text-[16.5px]">
               <TimeUnit value={hour} />
               <Separator className="text-flame-500/80" />
               <TimeUnit value={minute} />
               <Separator className="text-flame-500/80" />
               <TimeUnit value={second} className="text-crimson-500" />
-              <span className="ml-1.5 text-[10.5px] font-medium tracking-wide text-ink-500">{dayPeriod}</span>
+              <span className="ml-1.5 text-[10.5px] font-bold tracking-wide text-crimson-600">{dayPeriod}</span>
               <span className="ml-1.5 text-[10px] font-medium tracking-wide text-ink-500 md:hidden">
                 {TEMPLE_TIME_ZONE_LABEL}
               </span>

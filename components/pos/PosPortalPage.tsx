@@ -1855,8 +1855,16 @@ function PosShell({
         aria-hidden="true"
         className="h-1.5 shrink-0 bg-dark-orange"
       />
-      <header className="relative z-20 flex shrink-0 flex-col gap-2 border-b border-white/70 bg-white/95 px-2 py-2 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.22)] backdrop-blur-md sm:px-4 sm:py-2.5 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-3 lg:px-6 lg:py-3">
-        <div className="flex min-w-0 items-center justify-between gap-2 lg:justify-start">
+      <header className="relative z-20 flex shrink-0 flex-col gap-2 overflow-hidden border-b border-gold-400/40 bg-gradient-to-r from-[#FFFCF7] via-[#FFF3DE] to-[#FFE9C7] px-2 py-2 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.28)] backdrop-blur-md sm:px-4 sm:py-2.5 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-3 lg:px-6 lg:py-3">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-gold-400 to-transparent"
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-flame-400/15 blur-3xl"
+        />
+        <div className="relative flex min-w-0 items-center justify-between gap-2 lg:justify-start">
           <motion.img
             src="/SSD_Full_Logo.webp"
             alt="Sri Siva Durga Temple"
