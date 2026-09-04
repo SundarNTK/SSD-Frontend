@@ -298,9 +298,25 @@ type RecordPaymentResult = {
 // server-side (today: nothing does yet; eventually a payment gateway's own
 // webhook). Both endpoints share this shape so the frontend never has to
 // special-case which one handed it a confirmed booking.
+// PayNow's QR now comes back embedded directly in the order-create response
+// instead of requiring a second call to POST /payments/paynow/generate-qr —
+// present (non-null) exactly when the order was created under PayNow and
+// the server managed to build a QR for it in the same request.
+// paymentDetailsError is set instead on the rare case that succeeded but
+// this didn't (config incomplete, a render failure) — the order itself is
+// still valid and has a referenceId, so the frontend falls back to the
+// standalone route with it rather than losing the order.
+type PaynowPaymentDetails = { amount: number; qr: string; engine: string };
 type CreateOrderResult =
   | ({ status: "confirmed" } & BookingConfirmation)
-  | { status: "pending"; _id: string; referenceId: string; grandTotal: number };
+  | {
+      status: "pending";
+      _id: string;
+      referenceId: string;
+      grandTotal: number;
+      paymentDetails: PaynowPaymentDetails | null;
+      paymentDetailsError: string | null;
+    };
 type OrderStatusResult = ({ status: "confirmed" } & BookingConfirmation) | { status: "pending" | "cancelled" | "expired" };
 
 // PayNow's own settlement is asynchronous and has no fixed timeline (the
@@ -896,21 +912,24 @@ export default function PosPortalPage() {
   // instead of a deity picker when this is empty (see AddToCartModal).
   const modalDeityChoices = modalOffering?.deityMapping ?? [];
 
-  // Devotee names the selected customer has already used, across their last
-  // 3 confirmed bookings (recentBookings is already limited to that) — so
-  // typing a devotee name here can suggest "who usually gets booked for",
-  // deduplicated since the same devotee often appears across bookings.
+  // Devotees the selected customer has already booked for, across their
+  // last 3 confirmed bookings (recentBookings is already limited to that) —
+  // shown as one-tap suggestion chips in the devotee details form, name AND
+  // nakshatra together, deduplicated by name (first-seen nakshatra wins;
+  // a devotee's nakshatra doesn't change booking to booking).
   const devoteeNameSuggestions = useMemo(() => {
-    const names = new Set<string>();
+    const seen = new Map<string, Devotee>();
     for (const booking of recentBookings) {
       for (const line of booking.lines) {
         for (const devotee of line.devotees) {
           const trimmed = devotee.name.trim();
-          if (trimmed) names.add(trimmed);
+          if (trimmed && !seen.has(trimmed)) {
+            seen.set(trimmed, { name: trimmed, nakshatra: devotee.nakshatra });
+          }
         }
       }
     }
-    return Array.from(names);
+    return Array.from(seen.values());
   }, [recentBookings]);
 
   function addDevoteeRow() {
@@ -1106,18 +1125,32 @@ export default function PosPortalPage() {
       }
 
       if (selectedModeName.toLowerCase() === "paynow") {
-        // Don't poll yet — generate the QR first and let PaynowQrModal own
-        // the poll for as long as it's open (see its own comment for why
-        // this can't use the fixed-attempt pollOrderStatus() below: PayNow
-        // settlement has no fixed timeline, the customer has to go find
-        // their phone and scan).
-        const qrRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; qrImage: string }>>(
-          "/payments/paynow/generate-qr",
-          { referenceId: created.referenceId, amount: paymentAmount },
-        );
-        const qr = unwrap(qrRes);
+        // The order-create response above already carries the QR — built
+        // server-side in the same request (controllers/pos-orders'
+        // buildPaynowQrForOrder) — so there's normally no second network
+        // round trip needed at all here. Don't poll yet either way: let
+        // PaynowQrModal own the poll for as long as it's open (see its own
+        // comment for why this can't use the fixed-attempt pollOrderStatus()
+        // below — PayNow settlement has no fixed timeline, the customer has
+        // to go find their phone and scan).
+        let details = created.paymentDetails;
+        if (!details) {
+          // Rare fallback: the order itself was created fine but the server
+          // couldn't build a QR for it in that same request (config
+          // incomplete, a render error) — created.paymentDetailsError names
+          // why. The order still has a valid referenceId, so retry QR
+          // generation on its own via the standalone route rather than
+          // losing the order the customer already has reserved inventory
+          // against.
+          const qrRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; qrImage: string }>>(
+            "/payments/paynow/generate-qr",
+            { referenceId: created.referenceId, amount: paymentAmount },
+          );
+          const qr = unwrap(qrRes);
+          details = { amount: qr.amount, qr: qr.qrImage, engine: "" };
+        }
         setPaymentPopupOpen(false);
-        setPaynowQr({ orderId: created._id, referenceId: qr.referenceId, amount: qr.amount, qrImage: qr.qrImage });
+        setPaynowQr({ orderId: created._id, referenceId: created.referenceId, amount: details.amount, qrImage: details.qr });
         return;
       }
 
@@ -3544,7 +3577,7 @@ function AddToCartModal({
   devoteeRows: number;
   onAddDevotee: () => void;
   onRemoveDevotee: (idx: number) => void;
-  devoteeNameSuggestions?: string[];
+  devoteeNameSuggestions?: Devotee[];
   quantity: number;
   onQuantityChange: (v: number) => void;
   total: number;
@@ -3565,6 +3598,26 @@ function AddToCartModal({
     onDeitiesChange(
       deities.includes(id) ? deities.filter((d) => d !== id) : [...deities, id],
     );
+  }
+
+  // Fills ONE specific devotee row (the one its suggestion chips are
+  // rendered under) with a suggested devotee — name AND nakshatra together,
+  // so a repeat visitor doesn't have to re-pick the nakshatra either.
+  function fillDevoteeRow(idx: number, suggestion: Devotee) {
+    const updated = [...devotees];
+    updated[idx] = { name: suggestion.name, nakshatra: suggestion.nakshatra };
+    onDevoteesChange(updated);
+  }
+
+  const usedDevoteeNames = new Set(
+    devotees.map((d) => d.name.trim().toLowerCase()).filter(Boolean),
+  );
+  // Suggestions for one row: hidden once that row already has a name typed
+  // in (nothing left to suggest into it), and never offering a devotee
+  // already added to a DIFFERENT row in this same form.
+  function suggestionsForRow(rowDevotee: Devotee) {
+    if (rowDevotee.name.trim()) return [];
+    return (devoteeNameSuggestions ?? []).filter((s) => !usedDevoteeNames.has(s.name.toLowerCase()));
   }
 
   function handleConfirm() {
@@ -3715,40 +3768,42 @@ function AddToCartModal({
                 <p className={FORM_LABEL}>
                   Devotee Details (max {offering.maxFamilyMembers}) *
                 </p>
-                {devoteeNameSuggestions &&
-                  devoteeNameSuggestions.length > 0 && (
-                    <datalist id="devotee-name-suggestions">
-                      {devoteeNameSuggestions.map((n) => (
-                        <option key={n} value={n} />
-                      ))}
-                    </datalist>
-                  )}
                 {devotees.map((devotee, idx) => (
                   <div
                     key={idx}
                     className="grid grid-cols-[minmax(0,1fr)_minmax(9.5rem,11rem)_auto] items-start gap-2"
                   >
-                    <DivineInput
-                      staticLabel
-                      label={`Devotee ${idx + 1}`}
-                      placeholder="Enter name"
-                      value={devotee.name}
-                      onChange={(e) => {
-                        const updated = [...devotees];
-                        updated[idx] = {
-                          ...updated[idx],
-                          name: e.target.value,
-                        };
-                        onDevoteesChange(updated);
-                      }}
-                      list={
-                        devoteeNameSuggestions &&
-                        devoteeNameSuggestions.length > 0
-                          ? "devotee-name-suggestions"
-                          : undefined
-                      }
-                      autoComplete="off"
-                    />
+                    <div>
+                      <DivineInput
+                        staticLabel
+                        label={`Devotee ${idx + 1}`}
+                        placeholder="Enter name"
+                        value={devotee.name}
+                        onChange={(e) => {
+                          const updated = [...devotees];
+                          updated[idx] = {
+                            ...updated[idx],
+                            name: e.target.value,
+                          };
+                          onDevoteesChange(updated);
+                        }}
+                        autoComplete="off"
+                      />
+                      {suggestionsForRow(devotee).length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {suggestionsForRow(devotee).map((s) => (
+                            <button
+                              key={s.name}
+                              type="button"
+                              onClick={() => fillDevoteeRow(idx, s)}
+                              className="rounded-full border border-gold-500/30 bg-white px-2.5 py-0.5 text-[11.5px] font-medium text-amber-700 transition-colors hover:border-gold-400/60 hover:bg-gold-500/5"
+                            >
+                              + {s.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <DivineListbox
                       label="Nakshatra"
                       value={devotee.nakshatra}
