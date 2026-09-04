@@ -185,7 +185,7 @@ export default function PosOrderConfirmationPage() {
         }}
         emptyMessage="Nothing awaiting confirmation."
         rowActions={(r) => (
-          <DivineButton fullWidth={false} type="button" onClick={() => openDetail(r.referenceId)}>
+          <DivineButton variant="flame" fullWidth={false} type="button" onClick={() => openDetail(r.referenceId)}>
             <span className="inline-flex items-center gap-1.5">
               <CheckIcon className="h-3.5 w-3.5" />
               Confirm
@@ -216,7 +216,7 @@ export default function PosOrderConfirmationPage() {
               Close
             </DivineButton>
             {canConfirm && (
-              <DivineButton fullWidth={false} type="button" loading={confirming} disabled={detailLoading || !detail} onClick={handleConfirm}>
+              <DivineButton variant="flame" fullWidth={false} type="button" loading={confirming} disabled={detailLoading || !detail} onClick={handleConfirm}>
                 Confirm Payment
               </DivineButton>
             )}

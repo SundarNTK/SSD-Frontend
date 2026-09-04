@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { PlusIcon, PencilIcon, TrashIcon } from "../divine/icons";
 import DivineListbox from "../divine/DivineListbox";
-import DivineStatusSelect from "../divine/DivineStatusSelect";
+import DivineSwitch from "../divine/DivineSwitch";
 import { resolveImageUrl } from "../../lib/imageUrl";
 import { EmblemLoader } from "../divine/EmblemLoader";
 
@@ -376,7 +376,7 @@ export function StatusPill({ status }: { status: number }) {
   );
 }
 
-/** Same Active/Inactive control as the edit drawer, for toggling status from the list. */
+/** One-tap Active/Inactive switch for toggling status straight from the list. */
 export function StatusToggleCell({
   status,
   canEdit,
@@ -390,15 +390,11 @@ export function StatusToggleCell({
 }) {
   if (!canEdit || !onChange) return <StatusPill status={status} />;
   return (
-    <div className="w-[148px]" onClick={(e) => e.stopPropagation()}>
-      <DivineStatusSelect
-        compact
+    <div onClick={(e) => e.stopPropagation()}>
+      <DivineSwitch
+        checked={status === 1}
         disabled={disabled}
-        value={status}
-        onChange={(next) => {
-          if (next === status) return;
-          void onChange(next);
-        }}
+        onChange={(checked) => void onChange(checked ? 1 : 0)}
       />
     </div>
   );
