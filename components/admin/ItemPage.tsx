@@ -60,7 +60,18 @@ export type Item = {
   image: string | null;
 };
 
-const UNIT_OPTIONS = ["PCS", "KG", "GRAM", "LTR", "ML", "BOX", "SET", "PACK"].map((u) => ({ value: u, label: u }));
+// Unit of Measure now comes from the Unit master (status: 1 only) rather
+// than this hardcoded list — see fetchUnitOptions below. unitOfMeasure
+// itself stays a plain string on Item (the unit's code, e.g. "PCS"), not an
+// ObjectId ref, so existing item data and every place that already reads
+// unitOfMeasure as a string (inventory, low-stock report, exports) keeps
+// working unchanged.
+async function fetchUnitOptions(): Promise<ListboxOption[]> {
+  const res = await api.get<ApiEnvelope<{ items: { unitCode: string; unitName: string }[] }>>("/masters/units", {
+    params: { status: 1, pageSize: 100 },
+  });
+  return unwrap(res).items.map((u) => ({ value: u.unitCode, label: `${u.unitCode} — ${u.unitName}` }));
+}
 
 const categoryDetailSchema = z.object({
   category: z.string().min(1, "Required"),
@@ -166,6 +177,7 @@ export default function ItemPage() {
   const [glOptions, setGlOptions] = useState<ListboxOption[]>([]);
   const [deityOptions, setDeityOptions] = useState<ListboxOption[]>([]);
   const [printingGroupOptions, setPrintingGroupOptions] = useState<ListboxOption[]>([]);
+  const [unitOptions, setUnitOptions] = useState<ListboxOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<ListboxOption[]>([]);
   const [subCategoryOptions, setSubCategoryOptions] = useState<SubCategoryOption[]>([]);
 
@@ -183,6 +195,7 @@ export default function ItemPage() {
     fetchOptions("/masters/general-ledgers").then(setGlOptions);
     fetchOptions("/masters/deities").then(setDeityOptions);
     fetchOptions("/masters/printing-groups").then(setPrintingGroupOptions);
+    fetchUnitOptions().then(setUnitOptions);
     fetchOptions("/masters/categories").then(setCategoryOptions);
     fetchSubCategoryOptions().then(setSubCategoryOptions);
   }, []);
@@ -580,7 +593,7 @@ export default function ItemPage() {
                       label="Unit of Measure"
                       value={field.value}
                       onChange={field.onChange}
-                      options={UNIT_OPTIONS}
+                      options={unitOptions}
                       placeholder="Select…"
                     />
                   )}

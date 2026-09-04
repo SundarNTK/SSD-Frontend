@@ -268,6 +268,7 @@ type BookingConfirmation = {
   _id: string;
   bookingNumber: string;
   orderNumber: string;
+  referenceId: string;
   receiptNo: string | null;
   customer: Customer;
   lines: CartLine[];
@@ -297,8 +298,19 @@ type RecordPaymentResult = {
 // server-side (today: nothing does yet; eventually a payment gateway's own
 // webhook). Both endpoints share this shape so the frontend never has to
 // special-case which one handed it a confirmed booking.
-type CreateOrderResult = ({ status: "confirmed" } & BookingConfirmation) | { status: "pending"; _id: string };
+type CreateOrderResult =
+  | ({ status: "confirmed" } & BookingConfirmation)
+  | { status: "pending"; _id: string; referenceId: string; grandTotal: number };
 type OrderStatusResult = ({ status: "confirmed" } & BookingConfirmation) | { status: "pending" | "cancelled" | "expired" };
+
+// PayNow's own settlement is asynchronous and has no fixed timeline (the
+// customer has to open their banking app and scan) — this stays open until
+// the customer cancels or it actually confirms, so there's no attempt-cap
+// the way the generic ORDER_POLL_MAX_ATTEMPTS below has for Cash's
+// near-instant confirm. Matches the "check every 3 seconds" cadence a real
+// payment-status poll should use — fast enough to feel live, not so fast
+// it hammers the server while someone's still fumbling for their phone.
+const PAYNOW_POLL_INTERVAL_MS = 3000;
 
 const ORDER_POLL_INTERVAL_MS = 1500;
 const ORDER_POLL_MAX_ATTEMPTS = 40; // ~60s — comfortably under the order's own 30-minute hold
@@ -994,6 +1006,22 @@ export default function PosPortalPage() {
   const [confirmation, setConfirmation] = useState<BookingConfirmation | null>(
     null,
   );
+  // Set once a PayNow order is created and its QR generated — presence of
+  // this (rather than a separate boolean) is what drives PaynowQrModal's
+  // `open` prop, so there's never a modal shown with nothing to render.
+  const [paynowQr, setPaynowQr] = useState<{ orderId: string; referenceId: string; amount: number; qrImage: string } | null>(
+    null,
+  );
+
+  function finalizeBooking(booking: BookingConfirmation) {
+    setConfirmation(booking);
+    setStep("done");
+    toast.created(
+      booking.paymentStatus === "paid"
+        ? `Booking ${booking.bookingNumber} confirmed!`
+        : `Booking ${booking.bookingNumber} confirmed with a partial payment — ${formatCurrency(booking.balanceAmount)} still due.`,
+    );
+  }
 
   const hasStockIssues = cart.some((l) => l.quantityExceedsStock);
   const canProceed =
@@ -1070,23 +1098,52 @@ export default function PosPortalPage() {
         },
       );
       const created = unwrap(orderRes);
-      const booking =
-        created.status === "confirmed"
-          ? created
-          : await pollOrderStatus("/pos/booking/orders", created._id);
+
+      if (created.status === "confirmed") {
+        setPaymentPopupOpen(false);
+        finalizeBooking(created);
+        return;
+      }
+
+      if (selectedModeName.toLowerCase() === "paynow") {
+        // Don't poll yet — generate the QR first and let PaynowQrModal own
+        // the poll for as long as it's open (see its own comment for why
+        // this can't use the fixed-attempt pollOrderStatus() below: PayNow
+        // settlement has no fixed timeline, the customer has to go find
+        // their phone and scan).
+        const qrRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; qrImage: string }>>(
+          "/payments/paynow/generate-qr",
+          { referenceId: created.referenceId, amount: paymentAmount },
+        );
+        const qr = unwrap(qrRes);
+        setPaymentPopupOpen(false);
+        setPaynowQr({ orderId: created._id, referenceId: qr.referenceId, amount: qr.amount, qrImage: qr.qrImage });
+        return;
+      }
+
+      const booking = await pollOrderStatus("/pos/booking/orders", created._id);
       setPaymentPopupOpen(false);
-      setConfirmation(booking);
-      setStep("done");
-      toast.created(
-        booking.paymentStatus === "paid"
-          ? `Booking ${booking.bookingNumber} confirmed!`
-          : `Booking ${booking.bookingNumber} confirmed with a partial payment — ${formatCurrency(booking.balanceAmount)} still due.`,
-      );
+      finalizeBooking(booking);
     } catch (err) {
       toast.error(extractErrorMessage(err));
     } finally {
       setBookingLoading(false);
     }
+  }
+
+  function handlePaynowConfirmed(booking: BookingConfirmation) {
+    setPaynowQr(null);
+    finalizeBooking(booking);
+  }
+
+  function cancelPaynowQr() {
+    // The order itself is left exactly as it was — still "pending", still
+    // holding inventory for the rest of its 30-minute window. Closing this
+    // modal only stops watching it; nothing here cancels the order, so
+    // re-opening Collect Payment for the same cart and picking PayNow again
+    // is still safe (a fresh order, a fresh QR — the abandoned one simply
+    // expires on its own if never paid).
+    setPaynowQr(null);
   }
 
   function startNewTransaction() {
@@ -1100,6 +1157,7 @@ export default function PosPortalPage() {
     setConfirmation(null);
     setPaymentAmountInput("");
     setPaymentPopupOpen(false);
+    setPaynowQr(null);
     lineCounter = 0;
     const cash = paymentModes.find((m) => m.name.toLowerCase() === "cash");
     setSelectedPaymentModeId(cash?._id ?? "");
@@ -1669,6 +1727,20 @@ export default function PosPortalPage() {
         modeName={selectedModeName}
         loading={bookingLoading}
         onConfirm={handleConfirmBooking}
+      />
+
+      <PaynowQrModal
+        open={!!paynowQr}
+        referenceId={paynowQr?.referenceId ?? ""}
+        amount={paynowQr?.amount ?? 0}
+        qrImage={paynowQr?.qrImage ?? ""}
+        onPoll={async () => {
+          const res = await api.get<ApiEnvelope<OrderStatusResult>>(`/pos/booking/orders/${paynowQr?.orderId}/status`);
+          const data = unwrap(res);
+          return { status: data.status, data };
+        }}
+        onConfirmed={(data) => handlePaynowConfirmed(data as BookingConfirmation)}
+        onCancel={cancelPaynowQr}
       />
 
       <CreateCustomerModal
@@ -2744,6 +2816,25 @@ function CashIcon({ className = "" }: { className?: string }) {
   );
 }
 
+/** QR-glyph stand-in for PayNow, matching CashIcon's stroke weight/shape language. */
+function PaynowIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={`h-5 w-5 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+    >
+      <rect x="3" y="3" width="6.5" height="6.5" rx="1.2" />
+      <rect x="14.5" y="3" width="6.5" height="6.5" rx="1.2" />
+      <rect x="3" y="14.5" width="6.5" height="6.5" rx="1.2" />
+      <path d="M14.5 14.5h3v3h-3zM20 14.5v3M17.5 20v1M14.5 20h1" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function ProceedPaymentModal({
   open,
   onClose,
@@ -2870,6 +2961,157 @@ function ProceedPaymentModal({
   );
 }
 
+/**
+ * Shown once a PayNow order has been created and its QR generated (see
+ * handleConfirmBooking's PayNow branch) — owns the "is it paid yet?" poll
+ * for as long as it stays open. Unlike pollOrderStatus() (a fixed-attempt
+ * blocking loop used for Cash/anything already resolved by the time the
+ * request returns), PayNow settlement genuinely has no fixed timeline —
+ * the customer has to find their phone and scan — so this polls
+ * indefinitely on a 3-second cadence until the order is confirmed,
+ * cancelled, expired, or the admin/cashier cancels out of this modal.
+ *
+ * Cancelling this modal does NOT cancel anything server-side — it just
+ * stops watching. A still-pending order stays "pending", still holding its
+ * inventory reservation, until it's either paid later or its own
+ * 30-minute hold lapses on its own; a top-up's balance is simply left as
+ * it was.
+ *
+ * `onPoll` is deliberately generic rather than this modal hardcoding one
+ * endpoint — it's reused for two different questions that both reduce to
+ * "has this PayNow payment landed yet": did a still-pending order get its
+ * FIRST payment (checked via GET .../orders/:id/status), and did an
+ * already-confirmed booking's balance actually drop after a top-up QR
+ * (checked via GET .../bookings/:id, since that order is already
+ * "confirmed" and its own /status endpoint has nothing new to say). Each
+ * caller decides what "confirmed" means for its own case and what payload
+ * to hand back through `onConfirmed`.
+ */
+function PaynowQrModal({
+  open,
+  referenceId,
+  amount,
+  qrImage,
+  onPoll,
+  onConfirmed,
+  onCancel,
+}: {
+  open: boolean;
+  referenceId: string;
+  amount: number;
+  qrImage: string;
+  onPoll: () => Promise<{ status: "pending" | "confirmed" | "cancelled" | "expired"; data?: unknown }>;
+  onConfirmed: (data: unknown) => void;
+  onCancel: () => void;
+}) {
+  const [pollError, setPollError] = useState<string | null>(null);
+  // React's own sanctioned way to reset state when a prop changes — done
+  // here, during render, rather than in a useEffect, so a previous
+  // session's error never has a chance to flash before this one's first
+  // poll response arrives (see "You Might Not Need an Effect" in the React
+  // docs for why this runs during render instead).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setPollError(null);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    let timeoutId: number;
+
+    async function tick() {
+      // Only the poll call itself is wrapped — a transient network hiccup
+      // there shouldn't abort a wait that could still resolve, so that
+      // case alone is swallowed and retried. Everything after a successful
+      // poll (in particular onConfirmed, which runs caller-supplied logic)
+      // deliberately runs OUTSIDE this try/catch: an earlier version wrapped
+      // the whole block, which meant a real bug in onConfirmed was silently
+      // caught here and treated exactly like a network blip — retried
+      // forever, with the modal stuck on "Waiting for payment" and nothing
+      // in the console to explain why. Letting it throw for real means a
+      // bug shows up as a bug, not as an infinite silent retry.
+      let result;
+      try {
+        result = await onPoll();
+      } catch {
+        if (!cancelled) timeoutId = window.setTimeout(tick, PAYNOW_POLL_INTERVAL_MS);
+        return;
+      }
+      if (cancelled) return;
+      if (result.status === "confirmed") {
+        onConfirmed(result.data);
+        return;
+      }
+      if (result.status === "cancelled") {
+        setPollError("This order was cancelled.");
+        return;
+      }
+      if (result.status === "expired") {
+        setPollError("The payment window expired — close this and start again.");
+        return;
+      }
+      if (!cancelled) timeoutId = window.setTimeout(tick, PAYNOW_POLL_INTERVAL_MS);
+    }
+
+    timeoutId = window.setTimeout(tick, PAYNOW_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+    // onPoll/onConfirmed intentionally excluded — this effect should only
+    // restart when the modal opens/closes, not on every parent re-render
+    // (which would otherwise interrupt an in-flight wait for no reason).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  return (
+    <PosFlipModal
+      open={open}
+      onBackdrop={onCancel}
+      tone="gold"
+      panelClassName="flex w-full max-w-sm flex-col items-center overflow-hidden rounded-2xl border border-white/70 bg-white px-6 py-6 text-center shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]"
+    >
+      <h2 className="font-accent text-[17px] font-extrabold tracking-tight text-ink-100">Scan to Pay with PayNow</h2>
+      <p className="mt-1 text-[12px] text-ink-500">Reference {referenceId}</p>
+
+      {qrImage ? (
+        <img
+          src={qrImage}
+          alt="PayNow QR code"
+          className="mt-4 h-56 w-56 rounded-xl border border-gold-500/30 bg-white p-2"
+        />
+      ) : (
+        <div className="mt-4 flex h-56 w-56 items-center justify-center rounded-xl border border-gold-500/30 bg-ivory-50">
+          <EmblemLoader size="sm" label="" />
+        </div>
+      )}
+
+      <p className="mt-4 text-[22px] font-extrabold text-[#7c1527]">{formatCurrency(amount)}</p>
+
+      {pollError ? (
+        <p className="mt-3 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-[12px] text-crimson-500">
+          {pollError}
+        </p>
+      ) : (
+        <p className="mt-3 flex items-center gap-2 text-[12px] text-ink-500">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+          Waiting for payment — checks every 3 seconds…
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={onCancel}
+        className="mt-5 rounded-md border border-gold-500/30 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-ink-300 transition-[border-color,color] duration-200 hover:border-flame-500/60 hover:text-flame-600"
+      >
+        Cancel
+      </button>
+    </PosFlipModal>
+  );
+}
+
 function PaymentModeBoxes({
   modes,
   value,
@@ -2888,12 +3130,14 @@ function PaymentModeBoxes({
       </p>
       <div className={dense ? "flex flex-wrap gap-1.5" : "grid grid-cols-2 gap-1.5"}>
         {modes.map((m) => {
-          const isCash = m.name.toLowerCase() === "cash";
-          const selected = isCash && value === m._id;
+          const modeKey = m.name.toLowerCase();
+          const isEnabled = modeKey === "cash" || modeKey === "paynow";
+          const ModeIcon = modeKey === "paynow" ? PaynowIcon : CashIcon;
+          const selected = isEnabled && value === m._id;
           const tileShape = dense
             ? "flex flex-row items-center gap-1.5 rounded-md px-2.5 py-1.5"
             : "flex flex-col items-center gap-0.5 rounded-lg px-3 py-2 text-center";
-          if (!isCash) {
+          if (!isEnabled) {
             return (
               <button
                 key={m._id}
@@ -2930,7 +3174,7 @@ function PaymentModeBoxes({
                 animate={selected ? { rotate: [0, -8, 8, 0], scale: [1, 1.12, 1] } : { rotate: 0, scale: 1 }}
                 transition={{ duration: 0.45 }}
               >
-                <CashIcon className={`h-4 w-4 ${selected ? "text-white" : "text-emerald-600"}`} />
+                <ModeIcon className={`h-4 w-4 ${selected ? "text-white" : "text-emerald-600"}`} />
               </motion.span>
               <span className={`relative text-[11.5px] font-semibold ${selected ? "text-white" : "text-ink-100"}`}>
                 {m.name}
@@ -4029,6 +4273,14 @@ function BookingSuccessView({
   const [paymentPopup, setPaymentPopup] = useState<RecordPaymentResult | null>(null);
   const [grandOpen, setGrandOpen] = useState(() => confirmation.balanceAmount <= 0.005);
   const wasDue = useRef(confirmation.balanceAmount > 0.005);
+  // Set while a PayNow top-up QR is open — see submitPayAgain's PayNow
+  // branch. Kept separate from the main checkout's `paynowQr` state (a
+  // different component entirely); this one has no order to poll (the
+  // booking's already confirmed), so its onPoll below watches the
+  // booking's own balance instead — see PaynowQrModal's own comment on why
+  // `onPoll` is generic.
+  const [payAgainQr, setPayAgainQr] = useState<{ referenceId: string; amount: number; qrImage: string } | null>(null);
+  const balanceBeforeTopUp = useRef(confirmation.balanceAmount);
 
   useEffect(() => {
     if (!stillDue) return;
@@ -4051,6 +4303,18 @@ function BookingSuccessView({
     setPayAgainOpen(true);
   }
 
+  function applyPayAgainResult(result: RecordPaymentResult) {
+    onPaymentRecorded(result);
+    if (result.balanceAmount > 0.005) {
+      setPaymentPopup(result);
+      setAmountInput(result.balanceAmount.toFixed(2));
+    } else {
+      setPaymentPopup(null);
+      setPayAgainOpen(false);
+      setGrandOpen(true);
+    }
+  }
+
   async function submitPayAgain() {
     const amount = Number(amountInput);
     if (amountInput === "" || Number.isNaN(amount) || amount <= 0) {
@@ -4066,22 +4330,37 @@ function BookingSuccessView({
       return;
     }
 
+    const modeName = paymentModes.find((m) => m._id === modeId)?.name?.toLowerCase();
+
+    if (modeName === "paynow") {
+      // No instant confirm here — a QR has to actually be scanned and paid.
+      // See PaynowQrModal's render below for how "did it land yet" is
+      // detected (this booking is already confirmed, so there's no order
+      // status to poll — its balance dropping is the only signal).
+      setSubmitting(true);
+      try {
+        const qrRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; qrImage: string }>>(
+          "/payments/paynow/generate-qr",
+          { referenceId: confirmation.referenceId, amount },
+        );
+        const qr = unwrap(qrRes);
+        balanceBeforeTopUp.current = confirmation.balanceAmount;
+        setPayAgainQr(qr);
+      } catch (err) {
+        toast.error(extractErrorMessage(err));
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     setSubmitting(true);
     try {
       const r = await api.post<ApiEnvelope<RecordPaymentResult>>(
         `/pos/booking/bookings/${confirmation._id}/payments`,
         { amount, paymentModeId: modeId },
       );
-      const result = unwrap(r);
-      onPaymentRecorded(result);
-      if (result.balanceAmount > 0.005) {
-        setPaymentPopup(result);
-        setAmountInput(result.balanceAmount.toFixed(2));
-      } else {
-        setPaymentPopup(null);
-        setPayAgainOpen(false);
-        setGrandOpen(true);
-      }
+      applyPayAgainResult(unwrap(r));
     } catch (err) {
       toast.error(extractErrorMessage(err));
     } finally {
@@ -4230,6 +4509,43 @@ function BookingSuccessView({
       cta="Continue"
     />
     <PaymentRecordedModal open={!!paymentPopup} result={paymentPopup} onClose={() => setPaymentPopup(null)} />
+    <PaynowQrModal
+      open={!!payAgainQr}
+      referenceId={payAgainQr?.referenceId ?? ""}
+      amount={payAgainQr?.amount ?? 0}
+      qrImage={payAgainQr?.qrImage ?? ""}
+      onPoll={async () => {
+        const res = await api.get<
+          ApiEnvelope<{
+            transactions: { receiptNo: string; amount: number; paymentModeName: string }[];
+            amountPaid: number;
+            balanceAmount: number;
+          }>
+        >(`/pos/booking/bookings/${confirmation._id}`);
+        const data = unwrap(res);
+        // This booking is already confirmed — there's no order status left
+        // to transition, so a genuine drop in balance since the QR was
+        // generated is the only signal the top-up actually landed.
+        if (data.balanceAmount < balanceBeforeTopUp.current - 0.005) {
+          return { status: "confirmed" as const, data };
+        }
+        return { status: "pending" as const };
+      }}
+      onConfirmed={(raw) => {
+        const data = raw as { transactions: { receiptNo: string; amount: number; paymentModeName: string }[]; amountPaid: number; balanceAmount: number };
+        const latestTxn = data.transactions[data.transactions.length - 1];
+        setPayAgainQr(null);
+        applyPayAgainResult({
+          receiptNo: latestTxn?.receiptNo ?? "",
+          amount: +(balanceBeforeTopUp.current - data.balanceAmount).toFixed(2),
+          paymentModeName: latestTxn?.paymentModeName ?? "PayNow",
+          paymentStatus: data.balanceAmount <= 0.005 ? "paid" : "partial",
+          amountPaid: data.amountPaid,
+          balanceAmount: data.balanceAmount,
+        });
+      }}
+      onCancel={() => setPayAgainQr(null)}
+    />
     </>
   );
 }
