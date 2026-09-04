@@ -24,7 +24,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="h-full">{children}</body>
+      {/* suppressHydrationWarning: Bitdefender's browser extension (and
+          several similar security/anti-tracker extensions) injects a
+          `bis_skin_checked` attribute onto elements in the live DOM before
+          React hydrates — that's an extension modifying the page, not a
+          real server/client markup mismatch in this app (see
+          https://nextjs.org/docs/messages/react-hydration-error, which
+          names browser extensions as a known cause). This only silences
+          the warning for attributes on <body> itself; it's the standard,
+          narrowly-scoped mitigation rather than suppressing hydration
+          warnings tree-wide. */}
+      <body className="h-full" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

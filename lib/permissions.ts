@@ -11,6 +11,7 @@ export const MODULES = {
   roles: "roles",
   emailTemplates: "email-templates",
   printingGroups: "printing-groups",
+  units: "units",
   deities: "deities",
   gst: "gst",
   glGroups: "gl-groups",
@@ -25,6 +26,7 @@ export const MODULES = {
   inventory: "inventory",
   adminBooking: "admin-booking",
   posTransactions: "pos-transactions",
+  posOrderConfirmation: "pos-order-confirmation",
 } as const;
 
 /**

@@ -15,7 +15,7 @@ type DivineImageUploadProps = {
   error?: string;
 };
 
-const MAX_BYTES = 2 * 1024 * 1024;
+const MAX_BYTES = 100 * 1024;
 const ACCEPTED = "image/jpeg,image/png,image/webp";
 
 /**
@@ -61,7 +61,7 @@ export default function DivineImageUpload({ label, value, onChange, hint, error 
       return;
     }
     if (file.size > MAX_BYTES) {
-      setLocalError("Image must be 2 MB or smaller.");
+      setLocalError("Image must be 100 KB or smaller.");
       setPreview(null);
       onChange(null);
       return;
@@ -118,7 +118,7 @@ export default function DivineImageUpload({ label, value, onChange, hint, error 
               </button>
             )}
           </div>
-          <p className="mt-1.5 text-[11.5px] text-ink-500">{hint ?? "JPG, PNG or WebP · up to 2 MB"}</p>
+          <p className="mt-1.5 text-[11.5px] text-ink-500">{hint ?? "JPG, PNG or WebP · up to 100 KB"}</p>
         </div>
 
         <input
