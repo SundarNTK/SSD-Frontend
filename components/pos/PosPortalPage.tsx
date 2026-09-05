@@ -35,6 +35,8 @@ import { toast } from "../../lib/toastStore";
 import { useAuthStore, endSession } from "../../lib/authStore";
 import { USER_TYPE_LABEL } from "../../lib/userTypes";
 import TempleClock from "../admin/TempleClock";
+import NetsStatusWidget from "./NetsStatusWidget";
+import netsSocketService, { normalizeRealtimeStatus } from "../../lib/netsSocketService";
 import { formatTempleDateTime, getTempleTimeParts } from "../../lib/datetime";
 import { sanitizeMobileInput, isValidSgMobile, SG_MOBILE_ERROR } from "../../lib/mobileNumber";
 import DivineInput from "../divine/DivineInput";
@@ -1031,6 +1033,12 @@ export default function PosPortalPage() {
   const [paynowQr, setPaynowQr] = useState<{ orderId: string; referenceId: string; amount: number; qrImage: string } | null>(
     null,
   );
+  // Set once a NETS order is created and the terminal payment initiated —
+  // same "presence drives the modal" convention as paynowQr above. See
+  // NetsPaymentModal's own comment for the socket-driven flow this opens.
+  const [netsPayment, setNetsPayment] = useState<{ orderId: string; referenceId: string; amount: number } | null>(
+    null,
+  );
 
   function finalizeBooking(booking: BookingConfirmation) {
     setConfirmation(booking);
@@ -1040,6 +1048,36 @@ export default function PosPortalPage() {
         ? `Booking ${booking.bookingNumber} confirmed!`
         : `Booking ${booking.bookingNumber} confirmed with a partial payment — ${formatCurrency(booking.balanceAmount)} still due.`,
     );
+    printTicketForBooking(booking);
+  }
+
+  // NETS already prints on its own inside the EXE the moment the terminal
+  // approves (index.js's confirmAndPrintNetsPayment) — asking again here
+  // would just be a wasted duplicate round trip, so this is skipped for
+  // that mode. Cash and PayNow have no such hook today; this is the only
+  // place their ticket ever gets printed. Fire-and-forget and silent on
+  // failure (EXE not running, no printer yet, socket not connected) — the
+  // booking itself already succeeded and must never be blocked or alarmed
+  // by a printing hiccup; the EXE's own pending-print queue picks up a
+  // "no printer configured" case automatically once one is set up.
+  function printTicketForBooking(booking: BookingConfirmation) {
+    if (booking.paymentModeName.toLowerCase() === "nets") return;
+    void (async () => {
+      try {
+        const res = await api.get<ApiEnvelope<unknown>>(`/pos/booking/bookings/${booking._id}/ticket-groups`);
+        const ticketData = unwrap(res);
+        netsSocketService.printTicket(
+          { orderId: booking.referenceId, ticketData, paymentMethod: booking.paymentModeName.toUpperCase() },
+          (ack) => {
+            if (ack.status !== "success") {
+              console.warn("Ticket print request was not accepted by the Nets-Service EXE:", ack.error || ack.message);
+            }
+          },
+        );
+      } catch (err) {
+        console.warn("Could not fetch ticket data for printing:", err);
+      }
+    })();
   }
 
   const hasStockIssues = cart.some((l) => l.quantityExceedsStock);
@@ -1047,7 +1085,7 @@ export default function PosPortalPage() {
     selectedCustomer && cart.length > 0 && !hasStockIssues && !summaryLoading;
   const cashMode = paymentModes.find((m) => m.name.toLowerCase() === "cash");
   const selectedModeName =
-    paymentModes.find((m) => m._id === selectedPaymentModeId)?.name ?? "Cash";
+    paymentModes.find((m) => m._id === selectedPaymentModeId)?.name ?? "CASH";
   // Items are sitting in the cart with nobody to book them for — call it
   // out right at the search box instead of only at the disabled checkout
   // button, which is easy to miss until the very end.
@@ -1154,6 +1192,23 @@ export default function PosPortalPage() {
         return;
       }
 
+      if (selectedModeName.toLowerCase() === "nets") {
+        // Fixes the amount and creates the PENDING transaction the terminal
+        // result will confirm — see controllers/pos-orders' initiateNetsPayment
+        // on the backend. Unlike PayNow, there's no QR to show; the
+        // referenceId/amount this returns is what NetsPaymentModal sends
+        // straight to the physical (or, with simulation on, simulated)
+        // terminal over the socket connection.
+        const initRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; currency: string }>>(
+          `/pos/booking/orders/${created._id}/nets/initiate`,
+          { amount: paymentAmount },
+        );
+        const init = unwrap(initRes);
+        setPaymentPopupOpen(false);
+        setNetsPayment({ orderId: created._id, referenceId: init.referenceId, amount: init.amount });
+        return;
+      }
+
       const booking = await pollOrderStatus("/pos/booking/orders", created._id);
       setPaymentPopupOpen(false);
       finalizeBooking(booking);
@@ -1179,6 +1234,19 @@ export default function PosPortalPage() {
     setPaynowQr(null);
   }
 
+  function handleNetsConfirmed(booking: BookingConfirmation) {
+    setNetsPayment(null);
+    finalizeBooking(booking);
+  }
+
+  function cancelNetsPayment() {
+    // Same reasoning as cancelPaynowQr — the order/pending transaction are
+    // left exactly as they are; this only stops watching. A genuinely
+    // still-in-flight terminal payment (rare — the terminal itself has its
+    // own timeout) isn't cancelled by closing this modal.
+    setNetsPayment(null);
+  }
+
   function startNewTransaction() {
     clearCustomer();
     setCart([]);
@@ -1191,6 +1259,7 @@ export default function PosPortalPage() {
     setPaymentAmountInput("");
     setPaymentPopupOpen(false);
     setPaynowQr(null);
+    setNetsPayment(null);
     lineCounter = 0;
     const cash = paymentModes.find((m) => m.name.toLowerCase() === "cash");
     setSelectedPaymentModeId(cash?._id ?? "");
@@ -1776,6 +1845,19 @@ export default function PosPortalPage() {
         onCancel={cancelPaynowQr}
       />
 
+      <NetsPaymentModal
+        open={!!netsPayment}
+        referenceId={netsPayment?.referenceId ?? ""}
+        amount={netsPayment?.amount ?? 0}
+        onPoll={async () => {
+          const res = await api.get<ApiEnvelope<OrderStatusResult>>(`/pos/booking/orders/${netsPayment?.orderId}/status`);
+          const data = unwrap(res);
+          return { status: data.status, data };
+        }}
+        onConfirmed={(data) => handleNetsConfirmed(data as BookingConfirmation)}
+        onCancel={cancelNetsPayment}
+      />
+
       <CreateCustomerModal
         open={createCustomerOpen}
         onClose={() => setCreateCustomerOpen(false)}
@@ -1847,16 +1929,55 @@ function PosShell({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const menuRefMobile = useRef<HTMLDivElement>(null);
+  const menuRefDesktop = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (
+        menuRefMobile.current?.contains(target) ||
+        menuRefDesktop.current?.contains(target)
+      ) {
+        return;
+      }
+      setMenuOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
 
   return (
     <div className="pos-flame-canvas relative flex h-screen w-full flex-col overflow-hidden">
       <AnimatePresence>{signingOut && <SignOutOverlay />}</AnimatePresence>
+      <NetsStatusWidget />
       <div
         aria-hidden="true"
         className="h-1.5 shrink-0 bg-dark-orange"
       />
-      <header className="relative z-20 flex shrink-0 flex-col gap-2 border-b border-white/70 bg-white/95 px-2 py-2 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.22)] backdrop-blur-md sm:px-4 sm:py-2.5 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-3 lg:px-6 lg:py-3">
-        <div className="flex min-w-0 items-center justify-between gap-2 lg:justify-start">
+      <header className="relative z-20 flex shrink-0 flex-col gap-2 border-b border-gold-400/40 bg-gradient-to-r from-[#FFFCF7] via-[#FFF3DE] to-[#FFE9C7] px-2 py-2 shadow-[0_8px_28px_-8px_rgba(179,39,63,0.28)] backdrop-blur-md sm:px-4 sm:py-2.5 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-3 lg:px-6 lg:py-3">
+        {/* Glow is clipped here so it doesn't leak; the header itself must
+            stay overflow-visible or the account menu is cut off by Cart. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+        >
+          <span className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
+          <span className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-flame-400/15 blur-3xl" />
+        </div>
+        <div className="relative flex min-w-0 items-center justify-between gap-2 lg:justify-start">
           <motion.img
             src="/SSD_Full_Logo.webp"
             alt="Sri Siva Durga Temple"
@@ -1869,7 +1990,7 @@ function PosShell({
             <div className="hidden sm:block">
               <TempleClock variant="flame" />
             </div>
-            <div className="relative">
+            <div className="relative z-30" ref={menuRefMobile}>
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-white/60"
@@ -1937,7 +2058,7 @@ function PosShell({
           <div className="hidden sm:block">
             <TempleClock variant="flame" />
           </div>
-          <div className="relative">
+          <div className="relative z-30" ref={menuRefDesktop}>
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-white/60"
@@ -2868,6 +2989,24 @@ function PaynowIcon({ className = "" }: { className?: string }) {
   );
 }
 
+/** Card + contactless-wave glyph for NETS, matching CashIcon/PaynowIcon's stroke weight/shape language. */
+function NetsIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={`h-5 w-5 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+    >
+      <rect x="2.5" y="5" width="15" height="14" rx="2" strokeLinejoin="round" />
+      <path d="M2.5 9.5h15" strokeLinecap="round" />
+      <path d="M19.5 8.5a5 5 0 0 1 0 7M22 6.5a8 8 0 0 1 0 11" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function ProceedPaymentModal({
   open,
   onClose,
@@ -3145,6 +3284,206 @@ function PaynowQrModal({
   );
 }
 
+const NETS_STATUS_POLL_INTERVAL_MS = 2000;
+// The terminal itself has already approved by the time this phase starts —
+// all that's left is one HTTP round trip from the EXE to SSD-Backend, which
+// should resolve in well under a second normally. 30s is generous enough to
+// absorb a slow network/cold start without making a genuinely broken
+// confirmation (wrong URL, secret mismatch, backend down) look like it's
+// still "just working on it" for an uncomfortably long time.
+const NETS_CONFIRMING_TIMEOUT_MS = 30000;
+
+/**
+ * Shown once a NETS order's payment has been initiated (see
+ * handleConfirmBooking's NETS branch) — sends the payment to the terminal
+ * over the socket connection the moment it opens, then narrates the
+ * PAYMENT_MESSAGE lifecycle live (INITIATED -> SUCCESS/FAILED/CANCELLED/
+ * TERMINAL_ERROR/RETRY — see SSD Nets-Service's SOCKET_COMMANDS_REFERENCE.md).
+ *
+ * Unlike PaynowQrModal, there's nothing to scan and no indefinite wait —
+ * the terminal (or, with the EXE's simulation mode on, its simulated
+ * stand-in) always resolves the transaction itself. Once it reports
+ * SUCCESS, this switches to the SAME polling contract PaynowQrModal uses
+ * (`onPoll`/`onConfirmed`) to wait for SSD-Backend's own confirmation —
+ * the terminal approving the card is not the same moment the booking gets
+ * confirmed; that happens asynchronously, once the EXE calls SSD-Backend's
+ * /payments/nets/callback.
+ */
+function NetsPaymentModal({
+  open,
+  referenceId,
+  amount,
+  onPoll,
+  onConfirmed,
+  onCancel,
+}: {
+  open: boolean;
+  referenceId: string;
+  amount: number;
+  onPoll: () => Promise<{ status: "pending" | "confirmed" | "cancelled" | "expired"; data?: unknown }>;
+  onConfirmed: (data: unknown) => void;
+  onCancel: () => void;
+}) {
+  const [phase, setPhase] = useState<"sending" | "initiated" | "confirming" | "failed">("sending");
+  const [message, setMessage] = useState("Sending payment request to the terminal…");
+
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setPhase("sending");
+      setMessage("Sending payment request to the terminal…");
+    }
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false; // effect torn down (modal closed/unmounted)
+    let stopped = false; // a terminal outcome (confirmed/failed) was already reached — stop polling either way
+    let pollTimeoutId: number;
+    let confirmingTimeoutId: number;
+
+    function pollUntilConfirmed() {
+      // Defense-in-depth: the EXE now broadcasts an explicit FAILED
+      // PAYMENT_MESSAGE if it can't reach/gets rejected by SSD-Backend (see
+      // index.js's confirmAndPrintNetsPayment), which is what normally ends
+      // this poll early. But if the EXE process itself dies or can't
+      // broadcast at all, this cap is what stops the spinner from running
+      // forever with no explanation — the terminal genuinely did approve
+      // the card by this point, so this is reported as a confirmation
+      // problem, not a declined payment.
+      confirmingTimeoutId = window.setTimeout(() => {
+        if (cancelled || stopped) return;
+        stopped = true;
+        setPhase("failed");
+        setMessage(
+          "Terminal approved, but SSD-Backend hasn't confirmed the booking after 30 seconds. Check the Nets-Service EXE's log file and SSD-Backend's own console for a request to /payments/nets/callback."
+        );
+      }, NETS_CONFIRMING_TIMEOUT_MS);
+
+      async function tick() {
+        let result;
+        try {
+          result = await onPoll();
+        } catch {
+          if (!cancelled && !stopped) pollTimeoutId = window.setTimeout(tick, NETS_STATUS_POLL_INTERVAL_MS);
+          return;
+        }
+        if (cancelled || stopped) return;
+        if (result.status === "confirmed") {
+          stopped = true;
+          window.clearTimeout(confirmingTimeoutId);
+          onConfirmed(result.data);
+          return;
+        }
+        if (result.status === "cancelled" || result.status === "expired") {
+          stopped = true;
+          window.clearTimeout(confirmingTimeoutId);
+          setPhase("failed");
+          setMessage("The order could not be confirmed — it was cancelled or its hold expired. Close this and try again.");
+          return;
+        }
+        if (!cancelled && !stopped) pollTimeoutId = window.setTimeout(tick, NETS_STATUS_POLL_INTERVAL_MS);
+      }
+      tick();
+    }
+
+    const offPaymentMessage = netsSocketService.on("PAYMENT_MESSAGE", (data) => {
+      if (cancelled || stopped) return;
+      const payload = data as { status?: string; message?: string; response?: { translated?: { responsetext?: string } } };
+      const normalized = normalizeRealtimeStatus(payload as Record<string, unknown>);
+
+      if (normalized === "online") {
+        // "online" here means the SDK's own SUCCESS/COMPLETED status — see
+        // normalizeRealtimeStatus, which is shared with terminal-connectivity
+        // reporting since the SDK reuses the same status vocabulary.
+        setPhase("confirming");
+        setMessage("Terminal approved — confirming with SSD-Backend…");
+        pollUntilConfirmed();
+        return;
+      }
+      if (payload.status === "INITIATED") {
+        setPhase("initiated");
+        setMessage(payload.message || "Payment initiated — follow the prompts on the terminal.");
+        return;
+      }
+      // CANCELLED / TERMINAL_ERROR / RETRY / BACKEND_CONFIRMATION_FAILED / a
+      // SUCCESS that failed the genuine-approval check (see the EXE's
+      // paymentOutcomes.js) — all land here as a stopped, explainable
+      // failure rather than a silent hang. Also stops any poll already in
+      // flight from the "confirming" phase above.
+      stopped = true;
+      window.clearTimeout(confirmingTimeoutId);
+      setPhase("failed");
+      setMessage(payload.message || payload.response?.translated?.responsetext || `Payment ${payload.status?.toLowerCase() || "failed"}.`);
+    });
+
+    netsSocketService.processNetsPayment({ orderId: referenceId, amount }, (ack) => {
+      if (cancelled || stopped) return;
+      if (ack.status !== "success") {
+        stopped = true;
+        setPhase("failed");
+        setMessage(typeof ack.error === "string" ? ack.error : ack.error?.message || ack.message || "Could not reach the NETS terminal.");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      offPaymentMessage();
+      window.clearTimeout(pollTimeoutId);
+      window.clearTimeout(confirmingTimeoutId);
+    };
+    // referenceId/amount/onPoll/onConfirmed intentionally excluded — this
+    // effect should only restart when the modal opens/closes, matching
+    // PaynowQrModal's own convention.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const isFailed = phase === "failed";
+
+  return (
+    <PosFlipModal
+      open={open}
+      onBackdrop={isFailed ? onCancel : undefined}
+      tone="gold"
+      panelClassName="flex w-full max-w-sm flex-col items-center overflow-hidden rounded-2xl border border-white/70 bg-white px-6 py-6 text-center shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]"
+    >
+      <h2 className="font-accent text-[17px] font-extrabold tracking-tight text-ink-100">Pay with NETS</h2>
+      <p className="mt-1 text-[12px] text-ink-500">Reference {referenceId}</p>
+
+      <div className="mt-4 flex h-32 w-32 items-center justify-center rounded-full border-4 border-gold-500/30 bg-ivory-50">
+        {isFailed ? (
+          <span className="text-[40px] text-crimson-500">✕</span>
+        ) : phase === "confirming" ? (
+          <EmblemLoader size="sm" label="" />
+        ) : (
+          <span className="animate-pulse text-[40px] text-[#7c1527]">💳</span>
+        )}
+      </div>
+
+      <p className="mt-4 text-[22px] font-extrabold text-[#7c1527]">{formatCurrency(amount)}</p>
+
+      {isFailed ? (
+        <p className="mt-3 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-[12px] text-crimson-500">{message}</p>
+      ) : (
+        <p className="mt-3 flex items-center gap-2 text-[12px] text-ink-500">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+          {message}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={!isFailed && phase !== "sending" && phase !== "initiated"}
+        className="mt-5 rounded-md border border-gold-500/30 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-ink-300 transition-[border-color,color] duration-200 hover:border-flame-500/60 hover:text-flame-600 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {isFailed ? "Close" : "Cancel"}
+      </button>
+    </PosFlipModal>
+  );
+}
+
 function PaymentModeBoxes({
   modes,
   value,
@@ -3164,8 +3503,8 @@ function PaymentModeBoxes({
       <div className={dense ? "flex flex-wrap gap-1.5" : "grid grid-cols-2 gap-1.5"}>
         {modes.map((m) => {
           const modeKey = m.name.toLowerCase();
-          const isEnabled = modeKey === "cash" || modeKey === "paynow";
-          const ModeIcon = modeKey === "paynow" ? PaynowIcon : CashIcon;
+          const isEnabled = modeKey === "cash" || modeKey === "paynow" || modeKey === "nets";
+          const ModeIcon = modeKey === "paynow" ? PaynowIcon : modeKey === "nets" ? NetsIcon : CashIcon;
           const selected = isEnabled && value === m._id;
           const tileShape = dense
             ? "flex flex-row items-center gap-1.5 rounded-md px-2.5 py-1.5"
@@ -4335,6 +4674,11 @@ function BookingSuccessView({
   // booking's own balance instead — see PaynowQrModal's own comment on why
   // `onPoll` is generic.
   const [payAgainQr, setPayAgainQr] = useState<{ referenceId: string; amount: number; qrImage: string } | null>(null);
+  // Same idea as payAgainQr above, for a NETS top-up — see submitPayAgain's
+  // NETS branch. Previously missing entirely, which let NETS silently fall
+  // through to the Cash-style instant-confirm route below and mark a top-up
+  // "paid" with no terminal ever charged.
+  const [payAgainNets, setPayAgainNets] = useState<{ referenceId: string; amount: number } | null>(null);
   const balanceBeforeTopUp = useRef(confirmation.balanceAmount);
 
   useEffect(() => {
@@ -4401,6 +4745,31 @@ function BookingSuccessView({
         const qr = unwrap(qrRes);
         balanceBeforeTopUp.current = confirmation.balanceAmount;
         setPayAgainQr(qr);
+      } catch (err) {
+        toast.error(extractErrorMessage(err));
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    if (modeName === "nets") {
+      // Same reasoning as the PayNow branch above — a NETS top-up must go
+      // to the actual terminal, not the instant-confirm route below (see
+      // POST /pos/booking/bookings/:id/payments's own guard rejecting NETS
+      // now). POST /pos/booking/nets/initiate is the referenceId-keyed
+      // counterpart to the main checkout's order-id-keyed
+      // /orders/:id/nets/initiate — this booking has no live PosOrder
+      // response to have gotten an order id from.
+      setSubmitting(true);
+      try {
+        const initRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; currency: string }>>(
+          "/pos/booking/nets/initiate",
+          { referenceId: confirmation.referenceId, amount },
+        );
+        const init = unwrap(initRes);
+        balanceBeforeTopUp.current = confirmation.balanceAmount;
+        setPayAgainNets({ referenceId: init.referenceId, amount: init.amount });
       } catch (err) {
         toast.error(extractErrorMessage(err));
       } finally {
@@ -4593,13 +4962,49 @@ function BookingSuccessView({
         applyPayAgainResult({
           receiptNo: latestTxn?.receiptNo ?? "",
           amount: +(balanceBeforeTopUp.current - data.balanceAmount).toFixed(2),
-          paymentModeName: latestTxn?.paymentModeName ?? "PayNow",
+          paymentModeName: latestTxn?.paymentModeName ?? "PAYNOW",
           paymentStatus: data.balanceAmount <= 0.005 ? "paid" : "partial",
           amountPaid: data.amountPaid,
           balanceAmount: data.balanceAmount,
         });
       }}
       onCancel={() => setPayAgainQr(null)}
+    />
+    <NetsPaymentModal
+      open={!!payAgainNets}
+      referenceId={payAgainNets?.referenceId ?? ""}
+      amount={payAgainNets?.amount ?? 0}
+      onPoll={async () => {
+        const res = await api.get<
+          ApiEnvelope<{
+            transactions: { receiptNo: string; amount: number; paymentModeName: string }[];
+            amountPaid: number;
+            balanceAmount: number;
+          }>
+        >(`/pos/booking/bookings/${confirmation._id}`);
+        const data = unwrap(res);
+        // Same reasoning as PaynowQrModal's onPoll above — this booking is
+        // already confirmed, so a genuine drop in balance since the
+        // terminal was sent this payment is the only signal it landed.
+        if (data.balanceAmount < balanceBeforeTopUp.current - 0.005) {
+          return { status: "confirmed" as const, data };
+        }
+        return { status: "pending" as const };
+      }}
+      onConfirmed={(raw) => {
+        const data = raw as { transactions: { receiptNo: string; amount: number; paymentModeName: string }[]; amountPaid: number; balanceAmount: number };
+        const latestTxn = data.transactions[data.transactions.length - 1];
+        setPayAgainNets(null);
+        applyPayAgainResult({
+          receiptNo: latestTxn?.receiptNo ?? "",
+          amount: +(balanceBeforeTopUp.current - data.balanceAmount).toFixed(2),
+          paymentModeName: latestTxn?.paymentModeName ?? "NETS",
+          paymentStatus: data.balanceAmount <= 0.005 ? "paid" : "partial",
+          amountPaid: data.amountPaid,
+          balanceAmount: data.balanceAmount,
+        });
+      }}
+      onCancel={() => setPayAgainNets(null)}
     />
     </>
   );

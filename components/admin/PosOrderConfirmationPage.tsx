@@ -5,10 +5,11 @@ import DataTable, { type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineButton from "../divine/DivineButton";
 import DivineInput from "../divine/DivineInput";
+import DivineDatePicker from "../divine/DivineDatePicker";
 import { CheckIcon } from "../divine/icons";
 import { api, unwrap, extractErrorMessage, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
-import { formatTempleDateTime } from "../../lib/datetime";
+import { formatTempleDateTime, toISODateString } from "../../lib/datetime";
 import { toast } from "../../lib/toastStore";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { EmblemLoader } from "../divine/EmblemLoader";
@@ -56,6 +57,22 @@ type PendingDetail = {
 function formatCurrency(v: number) {
   return `$${v.toFixed(2)}`;
 }
+
+/**
+ * The temple's own receiving bank display details — shown read-only on the
+ * confirm form, exactly like HEB's own admin confirm screens render a fixed
+ * "HINDU ENDOWMENTS BOARD" / account no. pair (see
+ * D:\PROJECTS\HEB\Admin-Frontend's pos-order-confirmation CreateModal.tsx).
+ * No backend "entity bank details" model exists anywhere in this codebase
+ * (checked — Entity carries no accountNo/bankName fields), so this is
+ * hardcoded the same way HEB's is, not fetched.
+ *
+ * PLACEHOLDER — pending SSD's real temple bank account display details.
+ */
+const RECEIVING_PARTY = {
+  name: "SRI SIVA DURGA TEMPLE",
+  accountNo: "PENDING-ACCOUNT-NO",
+};
 
 function KindPill({ kind }: { kind: ConfirmationKind }) {
   return kind === "new_payment" ? (
@@ -109,6 +126,12 @@ export default function PosOrderConfirmationPage() {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const [gatewayReferenceInput, setGatewayReferenceInput] = useState("");
+  // HEB-style audit fields (D:\PROJECTS\HEB\Admin-Frontend's pos-order-confirmation
+  // CreateModal.tsx) — additive audit trail only, see SSD-Backend's
+  // request-objects.js for why none of these affect idempotency/matching.
+  const [txnDateInput, setTxnDateInput] = useState("");
+  const [senderNameInput, setSenderNameInput] = useState("");
+  const [senderBankIdInput, setSenderBankIdInput] = useState("");
   const [confirming, setConfirming] = useState(false);
 
   function refreshList() {
@@ -125,6 +148,9 @@ export default function PosOrderConfirmationPage() {
     setDetailLoading(true);
     setDetail(null);
     setGatewayReferenceInput("");
+    setTxnDateInput(toISODateString(new Date()));
+    setSenderNameInput("");
+    setSenderBankIdInput("");
     try {
       const r = await api.get<ApiEnvelope<PendingDetail>>(`/pos-order-confirmation/pending/${referenceId}`);
       setDetail(unwrap(r));
@@ -136,10 +162,23 @@ export default function PosOrderConfirmationPage() {
     }
   }
 
+  // Case-insensitive — payment mode names are now stored in all caps
+  // ("PAYNOW", not "PayNow"), same reasoning as every other paymentModeName
+  // comparison in this codebase (see createOrder's own .toLowerCase() checks).
+  const isPaynow = detail?.paymentModeName?.toUpperCase() === "PAYNOW";
+
   async function handleConfirm() {
     if (!detail) return;
     if (!gatewayReferenceInput.trim()) {
-      toast.error("Enter a reference for this confirmation — the same reference DBS's own notification would carry.");
+      toast.error("Enter the Transaction Reference ID for this confirmation — the same reference the bank/terminal's own notification would carry.");
+      return;
+    }
+    if (!txnDateInput) {
+      toast.error("Enter the Payment Date for this confirmation.");
+      return;
+    }
+    if (isPaynow && !senderNameInput.trim()) {
+      toast.error("Enter the Sender Party Name for this PayNow confirmation.");
       return;
     }
 
@@ -147,6 +186,11 @@ export default function PosOrderConfirmationPage() {
     try {
       const r = await api.post<ApiEnvelope<{ alreadyProcessed: boolean }>>(`/pos-order-confirmation/${detail.referenceId}/confirm`, {
         gatewayReference: gatewayReferenceInput.trim(),
+        txnType: isPaynow ? "Inward Paynow" : `Inward ${detail.paymentModeName}`,
+        txnDate: txnDateInput,
+        valueDt: txnDateInput,
+        receivingParty: RECEIVING_PARTY,
+        ...(isPaynow ? { senderParty: { name: senderNameInput.trim(), senderBankId: senderBankIdInput.trim() } } : {}),
       });
       const result = unwrap(r);
       toast.created(result.alreadyProcessed ? "Already confirmed — nothing changed." : "Payment confirmed.");
@@ -273,15 +317,57 @@ export default function PosOrderConfirmationPage() {
             </div>
 
             {canConfirm ? (
-              <div className="space-y-2 rounded-xl border border-[#ead9c6] bg-white px-4 py-4">
+              <div className="space-y-4 rounded-xl border border-[#ead9c6] bg-white px-4 py-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-[#7c1527]">Confirm Receipt of Payment</p>
+
+                {/* Receiving party — the temple's own account, fixed/read-only,
+                    same convention as HEB's own admin confirm screens. */}
+                <div className="rounded-lg bg-[#faf3e8] px-3 py-2 text-[12.5px]">
+                  <p className="text-ink-500">Receiving Party</p>
+                  <p className="font-medium">
+                    {RECEIVING_PARTY.name} · {RECEIVING_PARTY.accountNo}
+                  </p>
+                </div>
+
                 <DivineInput
                   staticLabel
-                  label="Bank / Gateway Reference (or a note identifying this confirmation)"
-                  placeholder="e.g. the DBS txnRefId"
+                  label="Transaction Reference ID"
+                  placeholder={isPaynow ? "e.g. the DBS txnRefId" : "e.g. the NETS terminal approval code"}
                   value={gatewayReferenceInput}
                   onChange={(e) => setGatewayReferenceInput(e.target.value)}
                 />
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <DivineDatePicker staticLabel label="Payment Date" value={txnDateInput} onChange={setTxnDateInput} />
+                  {/* Value Date always mirrors Payment Date, same as HEB's own
+                      confirm screen (not independently editable there either). */}
+                  <div>
+                    <p className="mb-1.5 text-[12.5px] font-medium text-ink-500">Value Date</p>
+                    <div className="flex h-10 items-center rounded-lg border border-[#ead9c6] bg-[#faf3e8] px-3 text-[13.5px] text-ink-100">
+                      {txnDateInput || "—"}
+                    </div>
+                  </div>
+                </div>
+
+                {isPaynow && (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <DivineInput
+                      staticLabel
+                      label="Sender Party Name"
+                      placeholder="Payer's name"
+                      value={senderNameInput}
+                      onChange={(e) => setSenderNameInput(e.target.value)}
+                    />
+                    <DivineInput
+                      staticLabel
+                      label="Sender Bank ID"
+                      placeholder="e.g. DBSSSGSGXXX"
+                      value={senderBankIdInput}
+                      onChange={(e) => setSenderBankIdInput(e.target.value)}
+                    />
+                  </div>
+                )}
+
                 <p className="text-[11px] text-ink-500">
                   Confirming attests that {formatCurrency(detail.amount)} was actually received — the amount itself cannot be
                   changed here. Confirming the same reference twice never double-counts.
