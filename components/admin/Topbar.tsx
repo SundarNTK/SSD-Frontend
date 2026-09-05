@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAuthStore, endSession } from "../../lib/authStore";
 import { LogoutIcon } from "../divine/icons";
 import TempleClock from "./TempleClock";
+import NetsStatusButton from "./NetsStatusButton";
 import { USER_TYPE_LABEL } from "../../lib/userTypes";
 
 
@@ -100,6 +101,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
       </div>
 
       <div className="flex shrink-0 items-center gap-3">
+        <NetsStatusButton />
         <TempleClock />
 
         <span aria-hidden="true" className="hidden h-7 w-px bg-gold-300/35 sm:block" />

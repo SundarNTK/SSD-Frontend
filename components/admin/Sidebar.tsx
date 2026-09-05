@@ -56,6 +56,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: <GridIcon />,
     children: [
       { label: "Printing Group", to: "/admin/masters/printing-groups", module: MODULES.printingGroups },
+      { label: "Print Split Setting", to: "/admin/masters/print-split-setting", module: MODULES.printSplitSetting },
       { label: "Unit", to: "/admin/masters/units", module: MODULES.units },
       { label: "Deity", to: "/admin/masters/deities", module: MODULES.deities },
       { label: "GST", to: "/admin/masters/gst", module: MODULES.gst },

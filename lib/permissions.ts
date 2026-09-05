@@ -11,6 +11,7 @@ export const MODULES = {
   roles: "roles",
   emailTemplates: "email-templates",
   printingGroups: "printing-groups",
+  printSplitSetting: "print-split-setting",
   units: "units",
   deities: "deities",
   gst: "gst",
