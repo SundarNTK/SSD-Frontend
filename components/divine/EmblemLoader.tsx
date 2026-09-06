@@ -37,7 +37,7 @@ export function EmblemLoader({
   }, []);
 
   const box = size === "sm" ? SIZE.sm.box : "h-40 w-40";
-  const logo = size === "sm" ? SIZE.sm.logo : "h-[4.25rem]";
+  const logo = size === "sm" ? SIZE.sm.logo : "h-[3.25rem]";
   const starCount = size === "sm" ? 4 : 6;
   const radius = size === "sm" ? 42 : 44;
   const starPx = size === "sm" ? 7 : 10;
@@ -76,8 +76,8 @@ export function EmblemLoader({
           <img
             src={LOGO}
             alt=""
-            width={size === "sm" ? 32 : 68}
-            height={size === "sm" ? 32 : 68}
+            width={size === "sm" ? 32 : 52}
+            height={size === "sm" ? 32 : 52}
             decoding="async"
             className={`ldr-bloom-lite object-contain ${logo} w-auto`}
           />
