@@ -18,6 +18,8 @@ const STATUS_STYLE: Record<TerminalStatus, { color: string; soft: string; label:
 
 type LogEntry = { id: number; time: string; message: string; tone: "info" | "success" | "error" };
 
+const MIN_LOADING_MS = 450;
+
 function PlugIcon({ color }: { color: string }) {
   return (
     <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -77,11 +79,14 @@ export default function NetsStatusButton() {
       const ack = data as NetsAck;
       addLog(`Logon response: ${ack.message || ack.status}`, ack.status === "success" ? "success" : "error");
     });
+    // LOGON_MESSAGE carries the same real-terminal-state shape STATUS_MESSAGE
+    // does (see normalizeRealtimeStatus) — there's no separate "logged on"
+    // state to track, same as HEB's own NetsTerminalStatus.tsx: a logon
+    // success just resolves back into the same Online/Offline indicator.
     const offLogonMessage = netsSocketService.on("LOGON_MESSAGE", (data) => {
       setStatus(normalizeRealtimeStatus(data as Record<string, unknown>));
       addLog(`LOGON_MESSAGE: ${(data as Record<string, unknown>)?.status ?? "unknown"}`, "info");
     });
-
     // Auto-check on open, same as HEB's modal.
     handleCheckStatus();
 
@@ -110,20 +115,46 @@ export default function NetsStatusButton() {
     });
   }
 
+  // Not required before a payment — confirmed by reading the actual payment
+  // code path (and HEB's own production usage of the identical SDK): no
+  // code anywhere checks for a prior logon. Kept available here as a manual
+  // action in case the physical terminal or NETS's own host ever needs a
+  // fresh sign-on (e.g. after being powered off) — the same reasoning
+  // HEB's own panel keeps it around for.
   function handleLogon() {
-    if (!socketConnected) {
-      addLog("Cannot logon — socket not connected to the Nets-Service EXE.", "error");
-      return;
-    }
+    // No socketConnected guard here on purpose (there used to be one) —
+    // netsSocketService.terminalLogon() now attempts a fresh reconnect on
+    // its own when the socket is down, which is exactly the situation this
+    // button is usually clicked in (terminal shown offline). Returning
+    // early here instead of calling it meant that reconnect logic never
+    // even ran for this button.
     setLoggingOn(true);
     addLog("Triggering terminal logon…");
+    // Simulation mode can resolve in a handful of milliseconds — fast
+    // enough that the loading state flips off before the browser paints
+    // it, making a working click look like nothing happened. Enforce a
+    // minimum visible duration so there's always a perceptible spinner.
+    const startedAt = Date.now();
     netsSocketService.terminalLogon((ack) => {
-      setLoggingOn(false);
-      if (ack.status !== "success") addLog(`Logon failed: ${ack.error || ack.message}`, "error");
+      const elapsed = Date.now() - startedAt;
+      const remaining = Math.max(0, MIN_LOADING_MS - elapsed);
+      window.setTimeout(() => {
+        setLoggingOn(false);
+        if (ack.status !== "success") addLog(`Logon failed: ${ack.error || ack.message}`, "error");
+      }, remaining);
     });
   }
 
   const style = STATUS_STYLE[socketConnected ? status : "offline"];
+  // The whole pill now carries the state (was a translucent header button
+  // with only a small colored dot in the corner — easy to miss at a
+  // glance). Three tones: ready (solid green), socket up but terminal not
+  // ready yet (amber), fully offline (the original translucent look).
+  const headerTone = isNetsReady
+    ? "border-emerald-400/70 bg-emerald-600 text-white hover:bg-emerald-500"
+    : socketConnected
+      ? "border-amber-400/70 bg-amber-500/90 text-white hover:bg-amber-500"
+      : "border-gold-400/40 bg-white/10 text-gold-100 hover:bg-white/20";
 
   return (
     <>
@@ -131,15 +162,10 @@ export default function NetsStatusButton() {
         type="button"
         onClick={() => setOpen(true)}
         title={isNetsReady ? "NETS: Connected" : socketConnected ? "NETS: Terminal not ready" : "NETS: Service offline"}
-        className="group relative flex h-9 items-center gap-1.5 rounded-lg border border-gold-400/40 bg-white/10 px-3 text-[12.5px] font-medium text-gold-100 transition-colors hover:bg-white/20"
+        className={`flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[12.5px] font-semibold transition-colors ${headerTone}`}
       >
         <PrinterIcon />
         <span className="hidden sm:inline">NETS</span>
-        <span
-          aria-hidden="true"
-          className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-[#5a0f1c]"
-          style={{ backgroundColor: style.color }}
-        />
       </button>
 
       <AnimatePresence>
@@ -162,8 +188,8 @@ export default function NetsStatusButton() {
                 transition={{ duration: 0.18, ease: "easeOut" }}
                 className="pointer-events-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#ead9c6] bg-[#fffaf2] shadow-[0_30px_80px_-20px_rgba(124,21,39,0.45)]"
               >
-                {/* Header — icon chip + title, gradient matching DivineButton's own maroon->gold */}
-                <div className="flex items-center justify-between gap-3 border-b border-[#ead9c6] bg-gradient-to-r from-maroon to-[#FFA733] px-5 py-4">
+                {/* Header — icon chip + title, solid maroon (was a maroon->gold gradient) */}
+                <div className="flex items-center justify-between gap-3 border-b border-[#ead9c6] bg-maroon px-5 py-4">
                   <div className="flex items-center gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white ring-1 ring-white/30">
                       <PrinterIcon />
@@ -206,14 +232,33 @@ export default function NetsStatusButton() {
                       </p>
                     </div>
 
-                    <DivineButton variant="primary" fullWidth type="button" loading={checking} onClick={handleCheckStatus}>
+                    <DivineButton variant="marigold" fullWidth type="button" loading={checking} onClick={handleCheckStatus}>
                       <span className="inline-flex items-center gap-2">
                         <RefreshIcon className="h-4 w-4" /> Check Status
                       </span>
                     </DivineButton>
-                    <DivineButton variant="ghost" fullWidth type="button" loading={loggingOn} disabled={status === "online"} onClick={handleLogon}>
+                    <button
+                      type="button"
+                      onClick={handleLogon}
+                      disabled={loggingOn || status === "online"}
+                      className={`flex w-full items-center justify-center gap-2 rounded-md border px-5 py-3 text-[15px] font-accent tracking-wide transition-colors disabled:cursor-not-allowed ${
+                        status === "online"
+                          ? "border-[#e5ddd0] bg-white text-ink-500 disabled:opacity-60"
+                          : "border-[#c1272d] bg-[#fdecec] text-[#c1272d] hover:bg-[#fbdada]"
+                      }`}
+                    >
+                      {loggingOn && (
+                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
+                        </svg>
+                      )}
                       Terminal Logon
-                    </DivineButton>
+                    </button>
+                    <p className="px-0.5 text-[11px] leading-snug text-ink-500">
+                      Not required for a payment to go through — Check Status is enough day to day. Use this only if
+                      the terminal seems unresponsive after being powered off, or if NETS itself ever asks for it.
+                    </p>
 
                     {!socketConnected && (
                       <div className="flex items-start gap-2 rounded-lg border border-[#f0c987] bg-[#fdf3e2] px-3 py-2.5 text-[12px] text-[#8a5a10]">
@@ -226,7 +271,7 @@ export default function NetsStatusButton() {
                   </div>
 
                   <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-[#ead9c6] bg-white">
-                    <div className="flex items-center gap-2 bg-gradient-to-r from-maroon to-[#FFA733] px-3 py-2.5">
+                    <div className="flex items-center gap-2 bg-maroon px-3 py-2.5">
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M4 6h16M4 12h16M4 18h10" />
                       </svg>

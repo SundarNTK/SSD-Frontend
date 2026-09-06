@@ -66,7 +66,16 @@ class NetsSocketService {
         const socket = io(url, {
           transports: ["websocket", "polling"],
           reconnection: true,
-          reconnectionAttempts: 10,
+          // Unbounded — this is a kiosk counter PC where the EXE can be
+          // closed and reopened at any time (a restart, an update, someone
+          // closing the window by accident). A finite cap here (this used
+          // to be 10) meant socket.io gave up retrying for good after
+          // roughly 30-40s of backoff and never tried again on its own —
+          // exactly the "closed the EXE, reopened it later, page never
+          // reconnects even after a manual Check Status" bug. Retrying
+          // forever at a capped interval (reconnectionDelayMax below) costs
+          // nothing since this is all localhost.
+          reconnectionAttempts: Infinity,
           reconnectionDelay: 1000,
           reconnectionDelayMax: 5000,
           timeout: 5000,
@@ -149,7 +158,18 @@ class NetsSocketService {
 
   checkTerminalStatus(cb?: (ack: NetsAck) => void) {
     if (!this.getConnectionStatus()) {
-      cb?.({ status: "error", error: "Socket not connected to the Nets-Service EXE." });
+      // A manual "Check Status" click while disconnected most often means
+      // the EXE was closed and has since been reopened — give reconnecting
+      // a real chance instead of just reporting the old error. The
+      // background auto-reconnect (see connect()'s unbounded
+      // reconnectionAttempts) would eventually catch this too, but a
+      // button someone just pressed should try immediately, not wait for
+      // the next backoff tick.
+      this.connect()
+        .then(() => this.checkTerminalStatus(cb))
+        .catch(() =>
+          cb?.({ status: "error", error: "Could not reach the Nets-Service EXE on localhost:2003 — make sure it's running." })
+        );
       return;
     }
     this.socket!.emit("terminal:status", { timestamp: new Date().toISOString() }, (ack: NetsAck) => cb?.(ack));
@@ -157,7 +177,17 @@ class NetsSocketService {
 
   terminalLogon(cb?: (ack: NetsAck) => void) {
     if (!this.getConnectionStatus()) {
-      cb?.({ status: "error", error: "Socket not connected to the Nets-Service EXE." });
+      // Same fix as checkTerminalStatus() — the Logon button is only ever
+      // enabled while the terminal shows not-connected, which is exactly
+      // when the socket itself is most likely to also be down. Erroring
+      // out instantly here (the old behavior) made the button flip its
+      // loading state on and off in the same tick, with no attempt to
+      // actually recover — looked like clicking it did nothing at all.
+      this.connect()
+        .then(() => this.terminalLogon(cb))
+        .catch(() =>
+          cb?.({ status: "error", error: "Could not reach the Nets-Service EXE on localhost:2003 — make sure it's running." })
+        );
       return;
     }
     this.socket!.emit("terminal:logon", { timestamp: new Date().toISOString() }, (ack: NetsAck) => cb?.(ack));
