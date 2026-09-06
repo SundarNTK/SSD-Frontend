@@ -110,10 +110,29 @@ export function useNetsTerminalConnection() {
       if (!cancelled && netsSocketService.getConnectionStatus()) runStatusCheck();
     }, STATUS_POLL_INTERVAL_MS);
 
+    // Chrome (and other browsers) throttle setTimeout/setInterval in
+    // background tabs down to roughly once a minute or slower — that
+    // applies to the poll above, the retry timer, and even Socket.IO's own
+    // internal reconnection backoff, all equally. A tab left in the
+    // background while the EXE restarts (e.g. toggling simulation mode,
+    // which restarts the service) can sit fully disconnected for minutes
+    // after coming back to the foreground, waiting on a timer the browser
+    // was sitting on — this is what made the admin tab and the POS tab
+    // reconnect at very different speeds despite running identical code.
+    // Forcing an immediate check the moment the tab becomes visible again
+    // closes that gap instead of waiting for a throttled timer to catch up.
+    const onVisibilityChange = () => {
+      if (cancelled || document.visibilityState !== "visible") return;
+      if (netsSocketService.getConnectionStatus()) runStatusCheck();
+      else attemptConnect();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     return () => {
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
       clearInterval(pollId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       offConnection();
       offStatus();
       offLogon();
