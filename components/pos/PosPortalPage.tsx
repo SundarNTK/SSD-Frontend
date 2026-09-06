@@ -2546,7 +2546,7 @@ function HebInspiredSuccessModal({
               <img
                 src="/SSD_Full_Logo-Transparant.webp"
                 alt="Sri Siva Durga Temple"
-                className="relative z-10 mx-auto h-[2.75rem] w-auto max-w-[180px] object-contain"
+                className="relative z-10 mx-auto h-14 w-auto max-w-[210px] object-contain"
               />
               <div className="relative mx-auto mt-1.5 mb-1.5 flex h-14 w-14 items-center justify-center">
                 <span
@@ -2600,6 +2600,20 @@ function HebInspiredSuccessModal({
                   <p className="text-[10px] text-ink-500">Payment Mode</p>
                   <p className="mt-0.5 truncate font-sans text-[13px] font-bold text-ink-100">{paymentMode ?? "—"}</p>
                 </div>
+              </div>
+              <div className="mt-2.5 flex items-center justify-center gap-2 rounded-xl border border-[#ead9b4] bg-[#fff8e8] px-3 py-2">
+                <span aria-hidden="true" className="relative flex h-7 w-8 shrink-0 items-center justify-center">
+                  <svg width="26" height="20" viewBox="0 0 26 20" fill="none">
+                    <rect x="4" y="6" width="18" height="9" rx="1.5" fill="#e6b422" />
+                    <rect x="7" y="0.5" width="12" height="6.5" rx="1" fill="#fff" stroke="#e6b422" strokeWidth="1.2" />
+                    <circle cx="18.5" cy="9.5" r="1" fill="#fff" />
+                    <rect x="7.5" y="13.5" width="11" height="6" rx="0.8" fill="#fff" stroke="#e6b422" strokeWidth="1" />
+                  </svg>
+                  <span className="ssd-print-paper absolute left-1/2 top-[14px] h-2.5 w-3 -translate-x-1/2 border border-[#e6b422]/50 bg-white" />
+                </span>
+                <p className="text-left text-[11px] font-semibold leading-snug text-[#8a5a10]">
+                  Your ticket is printing — please collect it at the counter.
+                </p>
               </div>
               <button
                 type="button"
@@ -4799,7 +4813,13 @@ function BookingSuccessView({
       <motion.div
         initial={{ opacity: 0, y: 48, scale: 0.94 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ type: "spring", stiffness: 280, damping: 24 }}
+        // A spring recomputes its position every single frame based on
+        // velocity/physics; a fixed-duration tween is calculated once and
+        // just interpolated, so it keeps its smoothness even when the main
+        // thread is busy (a network response resolving, etc.) — same
+        // visual arc (this damping was already high enough to have barely
+        // any overshoot), just cheaper to render under load.
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         className="relative mx-auto flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-maroon/15 bg-white text-center shadow-[0_28px_70px_-24px_rgba(124,21,39,0.45)]"
       >
         <div aria-hidden="true" className="h-1 shrink-0 bg-maroon" />

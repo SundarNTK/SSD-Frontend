@@ -544,7 +544,15 @@ select option {
   box-shadow: 0 0 10px var(--c, #ffd23f);
   left: var(--lx);
   top: var(--ly);
-  animation: pos-spark-fly var(--dur, 1.15s) ease-out var(--delay, 0s) infinite;
+  will-change: transform, opacity;
+  /* Was `infinite` — 15 of these render on every single popup (every modal
+     uses PosFlipModal's default "flip" motion), so every popup was paying
+     the cost of animating 15 particles for as long as it stayed open, not
+     just once on entrance, plus visibly snapping back to restart every
+     ~1.1-1.4s. A one-shot burst still looks identical for the entrance
+     itself; `both` holds the final (invisible) state after it finishes
+     instead of restarting. */
+  animation: pos-spark-fly var(--dur, 1.15s) ease-out var(--delay, 0s) 1 both;
 }
 
 @keyframes pos-lotus-breathe {
@@ -932,11 +940,46 @@ select option {
 }
 
 .ssd-flip-stamp {
+  /* will-change hints the browser to promote this to its own GPU layer
+     before the animation starts, rather than deciding mid-animation — the
+     3D perspective rotation below is the heaviest single animation in any
+     popup, and skipping that setup cost on the very first frame is what
+     actually removes the stutter, not changing the motion itself. */
+  will-change: transform, opacity;
   animation: ssd-sc-spin 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.04s both;
 }
 
 .ssd-flip-in {
+  will-change: transform, opacity;
   animation: ssd-sc-spin-smooth 0.88s cubic-bezier(0.22, 1, 0.36, 1) 0.04s both;
+}
+
+@keyframes ssd-print-paper {
+  0%,
+  12% {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  65% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+
+.ssd-print-paper {
+  /* scaleY, not height — grows the "receipt" without ever triggering a
+     layout recalc, same reasoning as the will-change fixes above. One
+     small element, so this loops fine unlike the 15-particle spark field. */
+  transform-origin: top center;
+  will-change: transform, opacity;
+  animation: ssd-print-paper 1.8s ease-in-out 1.1s infinite;
 }
 
 .ssd-gold-tick {
