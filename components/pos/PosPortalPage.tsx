@@ -1039,6 +1039,13 @@ export default function PosPortalPage() {
   const [netsPayment, setNetsPayment] = useState<{ orderId: string; referenceId: string; amount: number } | null>(
     null,
   );
+  // Same "presence drives the modal" convention, for Credit Card — a
+  // separate state (not a `kind` field bolted onto netsPayment) so it's
+  // impossible for a leftover NETS payment to accidentally reopen as a
+  // Credit Card modal or vice versa.
+  const [creditCardPayment, setCreditCardPayment] = useState<{ orderId: string; referenceId: string; amount: number } | null>(
+    null,
+  );
 
   function finalizeBooking(booking: BookingConfirmation) {
     setConfirmation(booking);
@@ -1051,17 +1058,20 @@ export default function PosPortalPage() {
     printTicketForBooking(booking);
   }
 
-  // NETS already prints on its own inside the EXE the moment the terminal
-  // approves (index.js's confirmAndPrintNetsPayment) — asking again here
-  // would just be a wasted duplicate round trip, so this is skipped for
-  // that mode. Cash and PayNow have no such hook today; this is the only
-  // place their ticket ever gets printed. Fire-and-forget and silent on
-  // failure (EXE not running, no printer yet, socket not connected) — the
-  // booking itself already succeeded and must never be blocked or alarmed
-  // by a printing hiccup; the EXE's own pending-print queue picks up a
-  // "no printer configured" case automatically once one is set up.
+  // NETS and Credit Card both already print on their own inside the EXE the
+  // moment the terminal approves (index.js's confirmAndPrintNetsPayment,
+  // which fires for any genuinely-approved terminal payment regardless of
+  // paymentType/isCreditTxn) — asking again here would just be a wasted
+  // duplicate round trip, so both are skipped. Cash and PayNow have no such
+  // hook today; this is the only place their ticket ever gets printed.
+  // Fire-and-forget and silent on failure (EXE not running, no printer yet,
+  // socket not connected) — the booking itself already succeeded and must
+  // never be blocked or alarmed by a printing hiccup; the EXE's own
+  // pending-print queue picks up a "no printer configured" case
+  // automatically once one is set up.
   function printTicketForBooking(booking: BookingConfirmation) {
-    if (booking.paymentModeName.toLowerCase() === "nets") return;
+    const modeName = booking.paymentModeName.toLowerCase();
+    if (modeName === "nets" || modeName === "credit card") return;
     void (async () => {
       try {
         const res = await api.get<ApiEnvelope<unknown>>(`/pos/booking/bookings/${booking._id}/ticket-groups`);
@@ -1209,6 +1219,21 @@ export default function PosPortalPage() {
         return;
       }
 
+      if (selectedModeName.toLowerCase() === "credit card") {
+        // Mirrors the NETS branch above exactly — same terminal, same
+        // pending-transaction/confirm flow, just Credit Card's own initiate
+        // route and PAYMENT_MESSAGE-watching modal (see NetsPaymentModal's
+        // kind prop).
+        const initRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; currency: string }>>(
+          `/pos/booking/orders/${created._id}/credit-card/initiate`,
+          { amount: paymentAmount },
+        );
+        const init = unwrap(initRes);
+        setPaymentPopupOpen(false);
+        setCreditCardPayment({ orderId: created._id, referenceId: init.referenceId, amount: init.amount });
+        return;
+      }
+
       const booking = await pollOrderStatus("/pos/booking/orders", created._id);
       setPaymentPopupOpen(false);
       finalizeBooking(booking);
@@ -1247,6 +1272,15 @@ export default function PosPortalPage() {
     setNetsPayment(null);
   }
 
+  function handleCreditCardConfirmed(booking: BookingConfirmation) {
+    setCreditCardPayment(null);
+    finalizeBooking(booking);
+  }
+
+  function cancelCreditCardPayment() {
+    setCreditCardPayment(null);
+  }
+
   function startNewTransaction() {
     clearCustomer();
     setCart([]);
@@ -1260,6 +1294,7 @@ export default function PosPortalPage() {
     setPaymentPopupOpen(false);
     setPaynowQr(null);
     setNetsPayment(null);
+    setCreditCardPayment(null);
     lineCounter = 0;
     const cash = paymentModes.find((m) => m.name.toLowerCase() === "cash");
     setSelectedPaymentModeId(cash?._id ?? "");
@@ -1856,6 +1891,20 @@ export default function PosPortalPage() {
         }}
         onConfirmed={(data) => handleNetsConfirmed(data as BookingConfirmation)}
         onCancel={cancelNetsPayment}
+      />
+
+      <NetsPaymentModal
+        open={!!creditCardPayment}
+        kind="CREDIT_CARD"
+        referenceId={creditCardPayment?.referenceId ?? ""}
+        amount={creditCardPayment?.amount ?? 0}
+        onPoll={async () => {
+          const res = await api.get<ApiEnvelope<OrderStatusResult>>(`/pos/booking/orders/${creditCardPayment?.orderId}/status`);
+          const data = unwrap(res);
+          return { status: data.status, data };
+        }}
+        onConfirmed={(data) => handleCreditCardConfirmed(data as BookingConfirmation)}
+        onCancel={cancelCreditCardPayment}
       />
 
       <CreateCustomerModal
@@ -3021,6 +3070,25 @@ function NetsIcon({ className = "" }: { className?: string }) {
   );
 }
 
+// Same terminal as NETS, so drawn as a plain card silhouette (no
+// contactless arcs) to stay visually distinct from NetsIcon above.
+function CreditCardIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={`h-5 w-5 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+    >
+      <rect x="2" y="5" width="20" height="14" rx="2" strokeLinejoin="round" />
+      <path d="M2 9.5h20" strokeLinecap="round" />
+      <path d="M5 15h5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function ProceedPaymentModal({
   open,
   onClose,
@@ -3325,6 +3393,7 @@ const NETS_CONFIRMING_TIMEOUT_MS = 30000;
  */
 function NetsPaymentModal({
   open,
+  kind = "NETS",
   referenceId,
   amount,
   onPoll,
@@ -3332,13 +3401,19 @@ function NetsPaymentModal({
   onCancel,
 }: {
   open: boolean;
+  // Same terminal, same PAYMENT_MESSAGE lifecycle either way — this only
+  // picks which socket call to fire (see netsSocketService.ts's
+  // processNetsPayment vs processCreditCardPayment) and the modal's own
+  // title/label. Defaults to "NETS" so every existing call site (before
+  // Credit Card support) keeps working unchanged.
+  kind?: "NETS" | "CREDIT_CARD";
   referenceId: string;
   amount: number;
   onPoll: () => Promise<{ status: "pending" | "confirmed" | "cancelled" | "expired"; data?: unknown }>;
   onConfirmed: (data: unknown) => void;
   onCancel: () => void;
 }) {
-  const [phase, setPhase] = useState<"sending" | "initiated" | "confirming" | "failed">("sending");
+  const [phase, setPhase] = useState<"sending" | "initiated" | "verifying" | "confirming" | "failed">("sending");
   const [message, setMessage] = useState("Sending payment request to the terminal…");
 
   const [wasOpen, setWasOpen] = useState(open);
@@ -3421,6 +3496,21 @@ function NetsPaymentModal({
         setMessage(payload.message || "Payment initiated — follow the prompts on the terminal.");
         return;
       }
+      // The EXE's own nets-service-sdk didn't hear back from the terminal
+      // in time (no ACK, a NACK loop, or no result frame — see the SSD
+      // patch in patches/nets-service-sdk+1.1.21.patch) and is re-querying
+      // it directly (Function 56 "Recovery") for the real outcome before
+      // giving up — the terminal may already have completed the charge
+      // even though the app-level exchange got out of sync. NOT a failure
+      // yet: stay in a waiting state and keep listening for the recovery
+      // query's own follow-up PAYMENT_MESSAGE (a genuine SUCCESS routes
+      // through the "online" branch above; a genuine failure still reaches
+      // the catch-all below).
+      if (payload.status === "UNKNOWN" && (payload as { action?: string }).action === "VERIFYING_STATUS") {
+        setPhase("verifying");
+        setMessage(payload.message || "Terminal didn't confirm in time — verifying the real outcome directly with it. Please wait…");
+        return;
+      }
       // CANCELLED / TERMINAL_ERROR / RETRY / BACKEND_CONFIRMATION_FAILED / a
       // SUCCESS that failed the genuine-approval check (see the EXE's
       // paymentOutcomes.js) — all land here as a stopped, explainable
@@ -3432,12 +3522,13 @@ function NetsPaymentModal({
       setMessage(payload.message || payload.response?.translated?.responsetext || `Payment ${payload.status?.toLowerCase() || "failed"}.`);
     });
 
-    netsSocketService.processNetsPayment({ orderId: referenceId, amount }, (ack) => {
+    const sendPayment = kind === "CREDIT_CARD" ? netsSocketService.processCreditCardPayment.bind(netsSocketService) : netsSocketService.processNetsPayment.bind(netsSocketService);
+    sendPayment({ orderId: referenceId, amount }, (ack) => {
       if (cancelled || stopped) return;
       if (ack.status !== "success") {
         stopped = true;
         setPhase("failed");
-        setMessage(typeof ack.error === "string" ? ack.error : ack.error?.message || ack.message || "Could not reach the NETS terminal.");
+        setMessage(typeof ack.error === "string" ? ack.error : ack.error?.message || ack.message || `Could not reach the ${kind === "CREDIT_CARD" ? "credit card" : "NETS"} terminal.`);
       }
     });
 
@@ -3447,8 +3538,8 @@ function NetsPaymentModal({
       window.clearTimeout(pollTimeoutId);
       window.clearTimeout(confirmingTimeoutId);
     };
-    // referenceId/amount/onPoll/onConfirmed intentionally excluded — this
-    // effect should only restart when the modal opens/closes, matching
+    // referenceId/amount/onPoll/onConfirmed/kind intentionally excluded —
+    // this effect should only restart when the modal opens/closes, matching
     // PaynowQrModal's own convention.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -3462,13 +3553,15 @@ function NetsPaymentModal({
       tone="gold"
       panelClassName="flex w-full max-w-sm flex-col items-center overflow-hidden rounded-2xl border border-white/70 bg-white px-6 py-6 text-center shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]"
     >
-      <h2 className="font-accent text-[17px] font-extrabold tracking-tight text-ink-100">Pay with NETS</h2>
+      <h2 className="font-accent text-[17px] font-extrabold tracking-tight text-ink-100">
+        Pay with {kind === "CREDIT_CARD" ? "Credit Card" : "NETS"}
+      </h2>
       <p className="mt-1 text-[12px] text-ink-500">Reference {referenceId}</p>
 
       <div className="mt-4 flex h-32 w-32 items-center justify-center rounded-full border-4 border-gold-500/30 bg-ivory-50">
         {isFailed ? (
           <span className="text-[40px] text-crimson-500">✕</span>
-        ) : phase === "confirming" ? (
+        ) : phase === "confirming" || phase === "verifying" ? (
           <EmblemLoader size="sm" label="" />
         ) : (
           <span className="animate-pulse text-[40px] text-[#7c1527]">💳</span>
@@ -3517,8 +3610,9 @@ function PaymentModeBoxes({
       <div className={dense ? "flex flex-wrap gap-1.5" : "grid grid-cols-2 gap-1.5"}>
         {modes.map((m) => {
           const modeKey = m.name.toLowerCase();
-          const isEnabled = modeKey === "cash" || modeKey === "paynow" || modeKey === "nets";
-          const ModeIcon = modeKey === "paynow" ? PaynowIcon : modeKey === "nets" ? NetsIcon : CashIcon;
+          const isEnabled = modeKey === "cash" || modeKey === "paynow" || modeKey === "nets" || modeKey === "credit card";
+          const ModeIcon =
+            modeKey === "paynow" ? PaynowIcon : modeKey === "nets" ? NetsIcon : modeKey === "credit card" ? CreditCardIcon : CashIcon;
           const selected = isEnabled && value === m._id;
           const tileShape = dense
             ? "flex flex-row items-center gap-1.5 rounded-md px-2.5 py-1.5"
@@ -4693,6 +4787,9 @@ function BookingSuccessView({
   // through to the Cash-style instant-confirm route below and mark a top-up
   // "paid" with no terminal ever charged.
   const [payAgainNets, setPayAgainNets] = useState<{ referenceId: string; amount: number } | null>(null);
+  // Same idea, for a Credit Card top-up — see submitPayAgain's Credit Card
+  // branch, mirroring the NETS one above exactly.
+  const [payAgainCreditCard, setPayAgainCreditCard] = useState<{ referenceId: string; amount: number } | null>(null);
   const balanceBeforeTopUp = useRef(confirmation.balanceAmount);
 
   useEffect(() => {
@@ -4784,6 +4881,26 @@ function BookingSuccessView({
         const init = unwrap(initRes);
         balanceBeforeTopUp.current = confirmation.balanceAmount;
         setPayAgainNets({ referenceId: init.referenceId, amount: init.amount });
+      } catch (err) {
+        toast.error(extractErrorMessage(err));
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    if (modeName === "credit card") {
+      // Same reasoning as the NETS branch above — see POST /pos/booking/
+      // bookings/:id/payments's own guard rejecting "CREDIT CARD" too.
+      setSubmitting(true);
+      try {
+        const initRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; currency: string }>>(
+          "/pos/booking/credit-card/initiate",
+          { referenceId: confirmation.referenceId, amount },
+        );
+        const init = unwrap(initRes);
+        balanceBeforeTopUp.current = confirmation.balanceAmount;
+        setPayAgainCreditCard({ referenceId: init.referenceId, amount: init.amount });
       } catch (err) {
         toast.error(extractErrorMessage(err));
       } finally {
@@ -5025,6 +5142,40 @@ function BookingSuccessView({
         });
       }}
       onCancel={() => setPayAgainNets(null)}
+    />
+    <NetsPaymentModal
+      open={!!payAgainCreditCard}
+      kind="CREDIT_CARD"
+      referenceId={payAgainCreditCard?.referenceId ?? ""}
+      amount={payAgainCreditCard?.amount ?? 0}
+      onPoll={async () => {
+        const res = await api.get<
+          ApiEnvelope<{
+            transactions: { receiptNo: string; amount: number; paymentModeName: string }[];
+            amountPaid: number;
+            balanceAmount: number;
+          }>
+        >(`/pos/booking/bookings/${confirmation._id}`);
+        const data = unwrap(res);
+        if (data.balanceAmount < balanceBeforeTopUp.current - 0.005) {
+          return { status: "confirmed" as const, data };
+        }
+        return { status: "pending" as const };
+      }}
+      onConfirmed={(raw) => {
+        const data = raw as { transactions: { receiptNo: string; amount: number; paymentModeName: string }[]; amountPaid: number; balanceAmount: number };
+        const latestTxn = data.transactions[data.transactions.length - 1];
+        setPayAgainCreditCard(null);
+        applyPayAgainResult({
+          receiptNo: latestTxn?.receiptNo ?? "",
+          amount: +(balanceBeforeTopUp.current - data.balanceAmount).toFixed(2),
+          paymentModeName: latestTxn?.paymentModeName ?? "CREDIT CARD",
+          paymentStatus: data.balanceAmount <= 0.005 ? "paid" : "partial",
+          amountPaid: data.amountPaid,
+          balanceAmount: data.balanceAmount,
+        });
+      }}
+      onCancel={() => setPayAgainCreditCard(null)}
     />
     </>
   );
