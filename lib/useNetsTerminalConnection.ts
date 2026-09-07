@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import netsSocketService, { normalizeAckStatus, normalizeRealtimeStatus, type NetsAck } from "./netsSocketService";
 
 /**
@@ -20,10 +20,20 @@ import netsSocketService, { normalizeAckStatus, normalizeRealtimeStatus, type Ne
  * (controllers/pos/index.js) that the new NETS-initiate endpoint
  * (controllers/pos-orders' initiateNetsPayment) was never wired into.
  */
-// Falls back to polling in case a single status check's answer — the ack or
-// the STATUS_MESSAGE broadcast — is ever dropped (e.g. mid-reconnect), so
-// the indicator self-heals on its own instead of requiring the user to
-// reload the page to force a fresh connect()/check cycle.
+// Falls back to polling ONLY while the terminal is known to be offline, so
+// the indicator self-heals on its own once the terminal comes back, instead
+// of requiring the user to reload the page. A "Check Status" call is not a
+// local/software check — the EXE relays it all the way to the physical NETS
+// terminal over the serial port, and a real terminal audibly beeps on every
+// command it receives. Polling on this timer unconditionally (the previous
+// behaviour) meant every open tab — admin panel and POS panel both, each
+// running its own copy of this hook — hit the real terminal with a fresh
+// STATUS_CHECK every 5s forever, even while already confirmed online: two
+// tabs open meant the terminal beeped twice every 5 seconds, indefinitely.
+// HEB's own kiosk/POS frontend (User-Frontend-POS) never does this either —
+// it checks once on connect, then relies entirely on the EXE's own pushed
+// STATUS_MESSAGE/LOGON_MESSAGE broadcasts (see offStatus/offLogon below) to
+// learn about a state change, the same way this hook now does once online.
 const STATUS_POLL_INTERVAL_MS = 5000;
 // How long to wait before trying connect() again after the socket's very
 // first connection attempt fails outright (every candidate URL refused —
@@ -37,17 +47,27 @@ const CONNECT_RETRY_DELAY_MS = 3000;
 export function useNetsTerminalConnection() {
   const [socketConnected, setSocketConnected] = useState(false);
   const [terminalConnected, setTerminalConnected] = useState(false);
+  // Mirrors terminalConnected for the interval callback below, which is set
+  // up once (empty deps) and would otherwise only ever see the state's
+  // initial value — a ref sidesteps re-subscribing the whole effect (and
+  // its socket listeners) on every online/offline flip just to read it.
+  const terminalConnectedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
+    const setTerminalConnectedState = (value: boolean) => {
+      terminalConnectedRef.current = value;
+      setTerminalConnected(value);
+    };
+
     const runStatusCheck = () => {
       netsSocketService.checkTerminalStatus((ack: NetsAck) => {
         if (cancelled) return;
         const normalized = normalizeAckStatus(ack);
-        if (normalized === "online") setTerminalConnected(true);
-        else if (normalized === "offline") setTerminalConnected(false);
+        if (normalized === "online") setTerminalConnectedState(true);
+        else if (normalized === "offline") setTerminalConnectedState(false);
       });
     };
 
@@ -93,21 +113,29 @@ export function useNetsTerminalConnection() {
         // producing an impossible "Service Offline" + "Terminal Online"
         // combination in the UI. Once the socket is confirmed back up,
         // runStatusCheck() above will re-establish the real answer.
-        setTerminalConnected(false);
+        setTerminalConnectedState(false);
       }
     });
 
     const applyRealtime = (data: unknown) => {
       const normalized = normalizeRealtimeStatus(data as Record<string, unknown>);
-      if (normalized === "online") setTerminalConnected(true);
-      else if (normalized === "offline") setTerminalConnected(false);
+      if (normalized === "online") setTerminalConnectedState(true);
+      else if (normalized === "offline") setTerminalConnectedState(false);
       // busy/connecting/error/unknown: leave terminalConnected as-is
     };
     const offStatus = netsSocketService.on("STATUS_MESSAGE", applyRealtime);
     const offLogon = netsSocketService.on("LOGON_MESSAGE", applyRealtime);
 
+    // Gated on !terminalConnectedRef.current — see the STATUS_POLL_INTERVAL_MS
+    // comment above. Once online, this tick is a no-op: state changes reach
+    // us via the STATUS_MESSAGE/LOGON_MESSAGE broadcasts above instead. A
+    // genuinely offline terminal never reaches the physical unit either —
+    // the EXE fails the check locally (COM port not open) before it ever
+    // writes to the wire, so retrying every 5s while offline stays silent.
     const pollId = setInterval(() => {
-      if (!cancelled && netsSocketService.getConnectionStatus()) runStatusCheck();
+      if (!cancelled && !terminalConnectedRef.current && netsSocketService.getConnectionStatus()) {
+        runStatusCheck();
+      }
     }, STATUS_POLL_INTERVAL_MS);
 
     // Chrome (and other browsers) throttle setTimeout/setInterval in

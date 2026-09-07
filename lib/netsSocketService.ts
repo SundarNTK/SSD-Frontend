@@ -197,9 +197,11 @@ class NetsSocketService {
    * Sends a payment to the physical (or, with the EXE's simulation mode on,
    * simulated) terminal. This ack only confirms the EXE accepted the
    * request — the actual outcome arrives later as a PAYMENT_MESSAGE event
-   * (INITIATED, then SUCCESS/FAILED/CANCELLED/TERMINAL_ERROR/RETRY), which
-   * is what NetsPaymentModal (components/pos/PosPortalPage.tsx) actually
-   * watches.
+   * (INITIATED, then SUCCESS/FAILED/CANCELLED/TERMINAL_ERROR/RETRY, or an
+   * interim UNKNOWN/VERIFYING_STATUS while the EXE re-queries the terminal
+   * after a communication hiccup — see nets-service-sdk's patched Recovery
+   * path), which is what NetsPaymentModal (components/pos/PosPortalPage.tsx)
+   * actually watches.
    */
   processNetsPayment(payment: { orderId: string; amount: number; currency?: string }, cb?: (ack: NetsAck) => void) {
     if (!this.getConnectionStatus()) {
@@ -213,6 +215,33 @@ class NetsSocketService {
         amount: payment.amount.toFixed(2),
         currency: payment.currency || "SGD",
         paymentType: "NETS",
+        timestamp: new Date().toISOString(),
+      },
+      (ack: NetsAck) => cb?.(ack)
+    );
+  }
+
+  /**
+   * Same terminal, same physical hardware, same PAYMENT_MESSAGE lifecycle as
+   * processNetsPayment above — the EXE's own websocket-handler.js routes
+   * both into the same handleTerminalPayment, differing only by the
+   * isCreditTxn/paymentType flag it sends the SDK (which transaction type it
+   * asks the terminal to run). Kept as a separate method (not a `type`
+   * parameter on processNetsPayment) since the socket EVENT NAME itself
+   * differs — terminal:payment:credit_card, not terminal:payment:nets.
+   */
+  processCreditCardPayment(payment: { orderId: string; amount: number; currency?: string }, cb?: (ack: NetsAck) => void) {
+    if (!this.getConnectionStatus()) {
+      cb?.({ status: "error", error: "Socket not connected to the Nets-Service EXE." });
+      return;
+    }
+    this.socket!.emit(
+      "terminal:payment:credit_card",
+      {
+        orderId: payment.orderId,
+        amount: payment.amount.toFixed(2),
+        currency: payment.currency || "SGD",
+        paymentType: "CREDIT_CARD",
         timestamp: new Date().toISOString(),
       },
       (ack: NetsAck) => cb?.(ack)
