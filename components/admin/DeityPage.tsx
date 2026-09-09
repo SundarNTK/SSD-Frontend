@@ -27,6 +27,10 @@ export type Deity = {
   tamilName: string;
   printingGroup: Ref | null;
   status: number;
+  // Lower sorts first; deities sharing the same value fall back to
+  // alphabetical by name (the backend does this sort, not the frontend —
+  // see SSD-Backend's models/deities and every deity-listing query).
+  displayOrder: number;
 };
 
 const schema = z.object({
@@ -35,6 +39,7 @@ const schema = z.object({
   tamilName: z.string().trim(),
   printingGroup: z.string().min(1, "Printing group is required"),
   status: z.number(),
+  displayOrder: z.number().int("Must be a whole number").min(0, "Must be 0 or greater"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -83,7 +88,7 @@ export default function DeityPage() {
 
   function openCreate() {
     setEditing(null);
-    reset({ code: "", name: "", tamilName: "", printingGroup: "", status: 1 });
+    reset({ code: "", name: "", tamilName: "", printingGroup: "", status: 1, displayOrder: 0 });
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -96,6 +101,7 @@ export default function DeityPage() {
       tamilName: deity.tamilName,
       printingGroup: deity.printingGroup?._id ?? "",
       status: deity.status,
+      displayOrder: deity.displayOrder ?? 0,
     });
     update.setError(null);
     setDrawerOpen(true);
@@ -111,6 +117,11 @@ export default function DeityPage() {
   });
 
   const columns: DataTableColumn<Deity>[] = [
+    {
+      key: "displayOrder",
+      label: "Order",
+      render: (d) => <span className="tabular-nums text-ink-500">{d.displayOrder ?? 0}</span>,
+    },
     { key: "code", label: "Code", render: (d) => <span className="font-medium tabular-nums text-amber-700">{d.code}</span> },
     { key: "name", label: "Name", render: (d) => <span className="font-medium">{d.name}</span> },
     { key: "tamilName", label: "Tamil Name", render: (d) => <span className="text-ink-500">{d.tamilName || "—"}</span> },
@@ -238,6 +249,21 @@ export default function DeityPage() {
               )}
             />
           </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DivineInput
+              staticLabel
+              label="Display Order"
+              type="number"
+              min={0}
+              step={1}
+              error={errors.displayOrder?.message}
+              {...register("displayOrder", { valueAsNumber: true })}
+            />
+          </div>
+          <p className="-mt-3 text-[12.5px] text-ink-400">
+            Deities are listed lowest number first, wherever Deity Master is used (deity mapping pickers, POS
+            selection, ticket printing). Deities left at the same number sort alphabetically among themselves.
+          </p>
         </form>
       </FormDrawer>
     </>
