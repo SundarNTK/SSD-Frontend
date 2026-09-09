@@ -7,6 +7,18 @@ export type PosDisplayLine = {
   lineTotal: number;
 };
 
+/** One payment actually collected against this booking so far — Cash for
+ * the first installment, PayNow for the second, etc. Session-local (see
+ * PosPortalPage's BookingSuccessView): built up as each payment lands
+ * during this checkout, not fetched from the booking's full server-side
+ * history, so it's accurate for the common case (one cashier session
+ * collecting installments) but won't backfill payments from before this
+ * screen was open. */
+export type PosDisplayPaymentEntry = {
+  mode: string;
+  amount: number;
+};
+
 export type PosDisplayPayload = {
   phase: "idle" | "cart" | "collecting" | "paynow" | "terminal" | "done";
   customerName?: string | null;
@@ -21,6 +33,7 @@ export type PosDisplayPayload = {
   bookingNumber?: string | null;
   paymentStatus?: "paid" | "partial" | "pending" | null;
   statusMessage?: string | null;
+  paymentHistory?: PosDisplayPaymentEntry[];
 };
 
 export const IDLE_DISPLAY: PosDisplayPayload = {
