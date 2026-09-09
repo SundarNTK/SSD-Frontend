@@ -31,7 +31,10 @@ export type Deity = {
   // Lower sorts first; deities sharing the same value fall back to
   // alphabetical by name (the backend does this sort, not the frontend —
   // see SSD-Backend's models/deities and every deity-listing query).
+  // displayOrder governs SELECTION lists (pickers, POS cart); printOrder is
+  // the separate order deities print in on a ticket — the two can differ.
   displayOrder: number;
+  printOrder: number;
 };
 
 const schema = z.object({
@@ -41,6 +44,7 @@ const schema = z.object({
   printingGroup: z.string().min(1, "Printing group is required"),
   status: z.number(),
   displayOrder: z.number().int("Must be a whole number").min(0, "Must be 0 or greater"),
+  printOrder: z.number().int("Must be a whole number").min(0, "Must be 0 or greater"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -87,7 +91,7 @@ export default function DeityPage() {
 
   function openCreate() {
     setEditing(null);
-    reset({ code: "", name: "", tamilName: "", printingGroup: "", status: 1, displayOrder: 0 });
+    reset({ code: "", name: "", tamilName: "", printingGroup: "", status: 1, displayOrder: 0, printOrder: 0 });
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -101,6 +105,7 @@ export default function DeityPage() {
       printingGroup: deity.printingGroup?._id ?? "",
       status: deity.status,
       displayOrder: deity.displayOrder ?? 0,
+      printOrder: deity.printOrder ?? 0,
     });
     update.setError(null);
     setDrawerOpen(true);
@@ -118,8 +123,13 @@ export default function DeityPage() {
   const columns: DataTableColumn<Deity>[] = [
     {
       key: "displayOrder",
-      label: "Order",
+      label: "Display Order",
       render: (d) => <span className="tabular-nums text-ink-500">{d.displayOrder ?? 0}</span>,
+    },
+    {
+      key: "printOrder",
+      label: "Print Order",
+      render: (d) => <span className="tabular-nums text-ink-500">{d.printOrder ?? 0}</span>,
     },
     { key: "code", label: "Code", render: (d) => <span className="font-medium tabular-nums text-amber-700">{d.code}</span> },
     { key: "name", label: "Name", render: (d) => <span className="font-medium">{d.name}</span> },
@@ -255,13 +265,25 @@ export default function DeityPage() {
               type="number"
               min={0}
               step={1}
+              hint="Order deities appear in selection/dropdown lists."
               error={errors.displayOrder?.message}
               {...register("displayOrder", { valueAsNumber: true })}
             />
+            <DivineInput
+              staticLabel
+              label="Print Order"
+              type="number"
+              min={0}
+              step={1}
+              hint="Order deities print in on a ticket."
+              error={errors.printOrder?.message}
+              {...register("printOrder", { valueAsNumber: true })}
+            />
           </div>
           <p className="-mt-3 text-[12.5px] text-ink-400">
-            Deities are listed lowest number first, wherever Deity Master is used (deity mapping pickers, POS
-            selection, ticket printing). Deities left at the same number sort alphabetically among themselves.
+            Display Order controls wherever deities are selected (deity mapping pickers, POS selection, this list).
+            Print Order controls the order deities print in on a ticket — the two are independent. Either way,
+            deities left at the same number sort alphabetically among themselves.
           </p>
         </form>
       </FormDrawer>

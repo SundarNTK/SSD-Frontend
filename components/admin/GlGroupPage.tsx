@@ -18,12 +18,13 @@ import { toast } from "../../lib/toastStore";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
 import { usePageSize } from "../../lib/usePageSize";
 
-type Ref = { _id: string; name: string };
+type Ref = { _id: string; name: string; code?: string };
 
 export type GlGroup = {
   _id: string;
   level: 1 | 2 | 3;
   name: string;
+  code: string;
   description: string;
   status: number;
   level1?: Ref | null;
@@ -34,6 +35,7 @@ const schema = z.object({
   level1: z.string().optional(),
   level2: z.string().optional(),
   name: z.string().trim().min(1, "Name is required").max(150),
+  code: z.string().trim().min(1, "Code is required").max(30),
   description: z.string().trim().max(300),
   status: z.number(),
 });
@@ -104,7 +106,7 @@ export default function GlGroupPage() {
     const res = await api.get<ApiEnvelope<{ items: GlGroup[] }>>("/masters/gl-groups", {
       params: { level: 1, status: 1, pageSize: 100 },
     });
-    setLevel1Options(unwrap(res).items.map((g) => ({ value: g._id, label: g.name })));
+    setLevel1Options(unwrap(res).items.map((g) => ({ value: g._id, label: g.code ? `${g.name} (${g.code})` : g.name })));
   }
 
   async function loadLevel2Options(level1Id: string) {
@@ -115,7 +117,7 @@ export default function GlGroupPage() {
     const res = await api.get<ApiEnvelope<{ items: GlGroup[] }>>("/masters/gl-groups", {
       params: { level: 2, level1: level1Id, status: 1, pageSize: 100 },
     });
-    setLevel2Options(unwrap(res).items.map((g) => ({ value: g._id, label: g.name })));
+    setLevel2Options(unwrap(res).items.map((g) => ({ value: g._id, label: g.code ? `${g.name} (${g.code})` : g.name })));
   }
 
   useEffect(() => {
@@ -130,7 +132,7 @@ export default function GlGroupPage() {
 
   function openCreate() {
     setEditing(null);
-    reset({ level1: "", level2: "", name: "", description: "", status: 1 });
+    reset({ level1: "", level2: "", name: "", code: "", description: "", status: 1 });
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -141,6 +143,7 @@ export default function GlGroupPage() {
       level1: group.level1?._id ?? "",
       level2: group.level2?._id ?? "",
       name: group.name,
+      code: group.code,
       description: group.description,
       status: group.status,
     });
@@ -165,6 +168,7 @@ export default function GlGroupPage() {
     const body: Record<string, unknown> = {
       level: activeLevel,
       name: values.name,
+      code: values.code,
       description: values.description,
       status: values.status,
     };
@@ -185,6 +189,7 @@ export default function GlGroupPage() {
     ...(activeLevel === 3
       ? [{ key: "level2", label: "Level 2", render: (g: GlGroup) => <span className="text-ink-500">{g.level2?.name ?? "—"}</span> }]
       : []),
+    { key: "code", label: "Code", render: (g) => <span className="font-medium tabular-nums text-amber-700">{g.code || "—"}</span> },
     { key: "name", label: "Name", render: (g) => <span className="font-medium">{g.name}</span> },
     { key: "description", label: "Description", render: (g) => <span className="text-ink-500">{g.description || "—"}</span> },
     { key: "status", label: "Status", render: (g) => (
@@ -233,7 +238,7 @@ export default function GlGroupPage() {
           setPage(1);
           setSearch(v);
         }}
-        searchPlaceholder={`Search Level ${activeLevel} groups…`}
+        searchPlaceholder={`Search Level ${activeLevel} groups by name or code…`}
         statusFilter={statusFilter}
         onStatusFilterChange={(v) => {
           setPage(1);
@@ -263,7 +268,7 @@ export default function GlGroupPage() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title={editing ? `Edit Level ${editing.level}` : `Add Level ${activeLevel}`}
-        subtitle={editing ? editing.name : undefined}
+        subtitle={editing ? `${editing.name}${editing.code ? ` · ${editing.code}` : ""}` : undefined}
         error={create.error || update.error}
         footer={
           <div className="flex justify-end gap-3">
@@ -335,11 +340,29 @@ export default function GlGroupPage() {
             </p>
           )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {editing ? (
+              <div className="w-full">
+                <p className="mb-2 text-[11px] uppercase tracking-wide text-amber-600">Code</p>
+                <div className="rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-2.5 text-[15px] font-medium tabular-nums text-ink-300">
+                  {editing.code || "—"}
+                </div>
+                <p className="mt-1.5 pl-1 text-[11.5px] text-ink-500">Code can&rsquo;t be changed after creation.</p>
+              </div>
+            ) : (
+              <DivineInput staticLabel
+                label="Code"
+                error={errors.code?.message}
+                hint="Code cannot be changed after the group is created."
+                {...register("code")}
+              />
+            )}
             <DivineInput staticLabel
               label={`Level ${editing?.level ?? activeLevel} Name`}
               error={errors.name?.message}
               {...register("name")}
             />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Controller
               control={control}
               name="status"

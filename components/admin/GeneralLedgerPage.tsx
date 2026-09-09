@@ -20,7 +20,7 @@ import { patchMasterStatus } from "../../lib/patchMasterStatus";
 import { usePageSize } from "../../lib/usePageSize";
 import { GST_TYPE_OPTIONS } from "../../lib/gstTypes";
 
-type Ref = { _id: string; name: string };
+type Ref = { _id: string; name: string; code?: string };
 
 /**
  * gstType is the GST Master *type* name (e.g. "Standard Rated"), not a
@@ -54,12 +54,17 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+function groupDisplay(group?: Ref | null) {
+  if (!group) return null;
+  return group.code ? `${group.name} (${group.code})` : group.name;
+}
+
 async function fetchGroupOptions(level: 1 | 2 | 3, level1?: string, level2?: string): Promise<ListboxOption[]> {
   const params: Record<string, string | number> = { level, status: 1, pageSize: 100 };
   if (level1) params.level1 = level1;
   if (level2) params.level2 = level2;
-  const res = await api.get<ApiEnvelope<{ items: { _id: string; name: string }[] }>>("/masters/gl-groups", { params });
-  return unwrap(res).items.map((g) => ({ value: g._id, label: g.name }));
+  const res = await api.get<ApiEnvelope<{ items: { _id: string; name: string; code?: string }[] }>>("/masters/gl-groups", { params });
+  return unwrap(res).items.map((g) => ({ value: g._id, label: groupDisplay(g) ?? g.name }));
 }
 
 export default function GeneralLedgerPage() {
@@ -168,7 +173,9 @@ export default function GeneralLedgerPage() {
       label: "GL Group",
       render: (g) => (
         <span className="text-ink-500">
-          {[g.groupLevel1?.name, g.groupLevel2?.name, g.groupLevel3?.name].filter(Boolean).join(" › ") || "—"}
+          {[groupDisplay(g.groupLevel1), groupDisplay(g.groupLevel2), groupDisplay(g.groupLevel3)]
+            .filter(Boolean)
+            .join(" › ") || "—"}
         </span>
       ),
     },
