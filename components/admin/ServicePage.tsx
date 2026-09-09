@@ -25,6 +25,7 @@ import { toast } from "../../lib/toastStore";
 import TamilNameField from "./TamilNameField";
 import { withOptionalImage } from "../../lib/withOptionalImage";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { usePageSize } from "../../lib/usePageSize";
 import { DEFAULT_VISIBILITY, flagsToVisibility, visibilityToFlags } from "../../lib/visibility";
 import VisibilityPills from "./VisibilityPills";
 
@@ -96,8 +97,6 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_PAGE_SIZE = 10;
-
 const DEFAULT_VALUES: FormValues = {
   code: "",
   name: "",
@@ -157,7 +156,7 @@ export default function ServicePage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Service | null>(null);
   const [deleting, setDeleting] = useState<Service | null>(null);

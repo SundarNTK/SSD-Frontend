@@ -16,6 +16,7 @@ import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { usePageSize } from "../../lib/usePageSize";
 
 type Ref = { _id: string; name: string };
 
@@ -39,7 +40,6 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_PAGE_SIZE = 10;
 const TABS: { level: 1 | 2 | 3; label: string }[] = [
   { level: 1, label: "Level 1" },
   { level: 2, label: "Level 2" },
@@ -64,7 +64,7 @@ export default function GlGroupPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<GlGroup | null>(null);
 

@@ -2,8 +2,8 @@ export const VISIBILITY_POS = "pos";
 export const VISIBILITY_CUSTOMER_PORTAL = "customerPortal";
 
 export const VISIBILITY_OPTIONS = [
-  { value: VISIBILITY_POS, label: "POS Visibility" },
-  { value: VISIBILITY_CUSTOMER_PORTAL, label: "Customer Portal Visibility" },
+  { value: VISIBILITY_POS, label: "Temple POS" },
+  { value: VISIBILITY_CUSTOMER_PORTAL, label: "Customer POS" },
 ];
 
 export const DEFAULT_VISIBILITY = [VISIBILITY_POS, VISIBILITY_CUSTOMER_PORTAL];

@@ -8,12 +8,12 @@ export default function VisibilityPills({ pos, portal }: { pos?: boolean; portal
     <span className="flex flex-wrap gap-1">
       {showPos && (
         <span className="inline-flex items-center rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11.5px] font-medium text-amber-800">
-          POS
+          Temple POS
         </span>
       )}
       {showPortal && (
         <span className="inline-flex items-center rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[11.5px] font-medium text-sky-800">
-          Portal
+          Customer POS
         </span>
       )}
     </span>

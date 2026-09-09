@@ -13,6 +13,7 @@ import { formatTempleDateTime, toISODateString } from "../../lib/datetime";
 import { toast } from "../../lib/toastStore";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { EmblemLoader } from "../divine/EmblemLoader";
+import { usePageSize } from "../../lib/usePageSize";
 
 type ConfirmationKind = "new_payment" | "balance_due";
 
@@ -119,7 +120,7 @@ export default function PosOrderConfirmationPage() {
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const { pageSize, setPageSize } = usePageSize();
 
   const [detail, setDetail] = useState<PendingDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);

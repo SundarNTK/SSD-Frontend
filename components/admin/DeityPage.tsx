@@ -17,6 +17,7 @@ import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { usePageSize } from "../../lib/usePageSize";
 
 type Ref = { _id: string; name: string };
 
@@ -44,8 +45,6 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_PAGE_SIZE = 10;
-
 export default function DeityPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.deities, "fullAccess");
@@ -56,7 +55,7 @@ export default function DeityPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Deity | null>(null);
   const [deleting, setDeleting] = useState<Deity | null>(null);

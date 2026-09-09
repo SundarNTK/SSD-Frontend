@@ -14,6 +14,7 @@ import { formatTempleDateTime } from "../../lib/datetime";
 import { toast } from "../../lib/toastStore";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { EmblemLoader } from "../divine/EmblemLoader";
+import { usePageSize } from "../../lib/usePageSize";
 
 type PaymentStatus = "paid" | "partial" | "pending";
 
@@ -203,8 +204,6 @@ const COLUMNS: DataTableColumn<BookingListItem>[] = [
   },
 ];
 
-const DEFAULT_PAGE_SIZE = 10;
-
 /**
  * Read-only ledger of every confirmed/cancelled booking (see
  * GET /pos/booking/bookings) — mirrors Inventory History's shape: search +
@@ -227,7 +226,7 @@ export default function PosTransactionsPage() {
   const [portalFilter, setPortalFilter] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
 
   // Every active payment mode — an installment doesn't have to come in the
   // same way the booking itself was opened with (e.g. booked on Cash,

@@ -17,6 +17,14 @@ export type SessionUser = {
    * request against the database regardless of what's stored here.
    */
   permissions?: Record<string, { view: boolean; edit: boolean; fullAccess: boolean }>;
+  /**
+   * "Rows per page" last chosen on any Master list screen — see
+   * lib/usePageSize.ts, which is the actual thing every screen reads/writes
+   * this through. Kept here (not just in usePageSize's own store) so a
+   * plain page reload mid-session, with no fresh login, still opens at the
+   * last-saved value instead of resetting to the default.
+   */
+  paginationCount?: number;
 };
 
 /** Why the session ended, so the login page can say something useful. */

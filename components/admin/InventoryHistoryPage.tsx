@@ -6,6 +6,7 @@ import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import { api } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { formatTempleDateTime } from "../../lib/datetime";
+import { usePageSize } from "../../lib/usePageSize";
 
 export type InventoryMovement = {
   _id: string;
@@ -51,8 +52,6 @@ const TYPE_FILTER_OPTIONS: ListboxOption[] = [
   { value: "Service", label: "Service" },
 ];
 
-const DEFAULT_PAGE_SIZE = 10;
-
 /**
  * Read-only ledger of every stock movement (see GET /inventory/history) —
  * every row is written exclusively by Inventory Adjustment's create form,
@@ -64,7 +63,7 @@ export default function InventoryHistoryPage() {
   const [search, setSearch] = useState("");
   const [type, setType] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
 
   useEffect(() => {
     list.run({ page, pageSize, search: search || undefined, refType: type || undefined });

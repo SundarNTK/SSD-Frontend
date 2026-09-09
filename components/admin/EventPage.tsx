@@ -26,6 +26,7 @@ import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { usePageSize } from "../../lib/usePageSize";
 
 type Ref = { _id: string; name: string };
 
@@ -115,8 +116,6 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_PAGE_SIZE = 10;
-
 const DEFAULT_VALUES: FormValues = {
   code: "",
   name: "",
@@ -157,7 +156,7 @@ export default function EventPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Event | null>(null);
   const [deleting, setDeleting] = useState<Event | null>(null);
@@ -476,12 +475,12 @@ export default function EventPage() {
             <Controller
               control={control}
               name="posVisibility"
-              render={({ field }) => <DivineRadioGroup boxed label="POS Visibility" value={field.value} onChange={field.onChange} />}
+              render={({ field }) => <DivineRadioGroup boxed label="Temple POS" value={field.value} onChange={field.onChange} />}
             />
             <Controller
               control={control}
               name="publicVisibility"
-              render={({ field }) => <DivineRadioGroup boxed label="Customer Portal Visibility" value={field.value} onChange={field.onChange} />}
+              render={({ field }) => <DivineRadioGroup boxed label="Customer POS" value={field.value} onChange={field.onChange} />}
             />
             <Controller
               control={control}

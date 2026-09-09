@@ -17,15 +17,23 @@ import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { usePageSize } from "../../lib/usePageSize";
+import { GST_TYPE_OPTIONS } from "../../lib/gstTypes";
 
 type Ref = { _id: string; name: string };
-type GstRef = { _id: string; type: string; percentage: number; code: string };
 
+/**
+ * gstType is the GST Master *type* name (e.g. "Standard Rated"), not a
+ * reference to one specific dated GST record — the applicable rate for
+ * that type is resolved by the backend at calculation time against the
+ * transaction's document date, since GST Master allows several date-ranged
+ * records per type (rate history / scheduled changes). See GstPage.
+ */
 export type GeneralLedger = {
   _id: string;
   name: string;
   code: string;
-  gstType: GstRef | null;
+  gstType: string;
   groupLevel1: Ref | null;
   groupLevel2: Ref | null;
   groupLevel3: Ref | null;
@@ -46,8 +54,6 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_PAGE_SIZE = 10;
-
 async function fetchGroupOptions(level: 1 | 2 | 3, level1?: string, level2?: string): Promise<ListboxOption[]> {
   const params: Record<string, string | number> = { level, status: 1, pageSize: 100 };
   if (level1) params.level1 = level1;
@@ -62,7 +68,6 @@ export default function GeneralLedgerPage() {
   const canEdit = can(MODULES.generalLedgers, "edit");
   const { items, total, list, create, update, remove } = useApiResource<GeneralLedger>(api, "/masters/general-ledgers");
 
-  const [gstOptions, setGstOptions] = useState<ListboxOption[]>([]);
   const [level1Options, setLevel1Options] = useState<ListboxOption[]>([]);
   const [level2Options, setLevel2Options] = useState<ListboxOption[]>([]);
   const [level3Options, setLevel3Options] = useState<ListboxOption[]>([]);
@@ -70,15 +75,12 @@ export default function GeneralLedgerPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<GeneralLedger | null>(null);
   const [deleting, setDeleting] = useState<GeneralLedger | null>(null);
 
   useEffect(() => {
-    api
-      .get<ApiEnvelope<{ items: GstRef[] }>>("/masters/gst", { params: { status: 1, pageSize: 100 } })
-      .then((res) => setGstOptions(unwrap(res).items.map((g) => ({ value: g._id, label: `${g.type} (${g.percentage}%)` }))));
     fetchGroupOptions(1).then(setLevel1Options);
   }, []);
 
@@ -128,7 +130,7 @@ export default function GeneralLedgerPage() {
     reset({
       name: gl.name,
       code: gl.code,
-      gstType: gl.gstType?._id ?? "",
+      gstType: gl.gstType ?? "",
       groupLevel1: gl.groupLevel1?._id ?? "",
       groupLevel2: gl.groupLevel2?._id ?? "",
       groupLevel3: gl.groupLevel3?._id ?? "",
@@ -159,7 +161,7 @@ export default function GeneralLedgerPage() {
     {
       key: "gst",
       label: "GST",
-      render: (g) => <span className="text-ink-500">{g.gstType ? `${g.gstType.type} (${g.gstType.percentage}%)` : "—"}</span>,
+      render: (g) => <span className="text-ink-500">{g.gstType || "—"}</span>,
     },
     {
       key: "group",
@@ -267,7 +269,7 @@ export default function GeneralLedgerPage() {
                   label="GST Type"
                   value={field.value}
                   onChange={field.onChange}
-                  options={gstOptions}
+                  options={GST_TYPE_OPTIONS}
                   placeholder="Select GST type"
                   error={errors.gstType?.message}
                 />
