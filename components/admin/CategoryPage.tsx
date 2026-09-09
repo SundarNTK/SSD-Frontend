@@ -22,6 +22,7 @@ import { toast } from "../../lib/toastStore";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
 import { DEFAULT_VISIBILITY, flagsToVisibility, visibilityToFlags } from "../../lib/visibility";
 import VisibilityPills from "./VisibilityPills";
+import { usePageSize } from "../../lib/usePageSize";
 
 export type Category = {
   _id: string;
@@ -50,8 +51,6 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_PAGE_SIZE = 10;
-
 export default function CategoryPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.categories, "fullAccess");
@@ -63,7 +62,7 @@ export default function CategoryPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState<Category | null>(null);

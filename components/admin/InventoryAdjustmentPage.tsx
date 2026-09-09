@@ -16,6 +16,7 @@ import { useApiResource } from "../../lib/useApiResource";
 import { useAsyncAction } from "../../lib/useAsyncAction";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { usePageSize } from "../../lib/usePageSize";
 
 const TYPE_OPTIONS: ListboxOption[] = [
   { value: "Item", label: "Item" },
@@ -51,8 +52,6 @@ const DEFAULT_VALUES: FormValues = {
   remarks: "",
 };
 
-const DEFAULT_PAGE_SIZE = 10;
-
 /**
  * The one write screen in Inventory — everything else (Available Stock,
  * Inventory History, Low Stock Report) is a read-only view of what this
@@ -78,7 +77,7 @@ export default function InventoryAdjustmentPage() {
   const [search, setSearch] = useState("");
   const [type, setType] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {

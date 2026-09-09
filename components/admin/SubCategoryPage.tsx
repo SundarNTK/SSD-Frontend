@@ -24,6 +24,7 @@ import { withOptionalImage } from "../../lib/withOptionalImage";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
 import { DEFAULT_VISIBILITY, flagsToVisibility, visibilityToFlags } from "../../lib/visibility";
 import VisibilityPills from "./VisibilityPills";
+import { usePageSize } from "../../lib/usePageSize";
 
 export type SubCategory = {
   _id: string;
@@ -54,8 +55,6 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_PAGE_SIZE = 10;
-
 async function fetchCategoryOptions(): Promise<ListboxOption[]> {
   const res = await api.get<ApiEnvelope<{ items: { _id: string; name: string }[] }>>(
     "/masters/categories",
@@ -75,7 +74,7 @@ export default function SubCategoryPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<SubCategory | null>(null);
   const [deleting, setDeleting] = useState<SubCategory | null>(null);

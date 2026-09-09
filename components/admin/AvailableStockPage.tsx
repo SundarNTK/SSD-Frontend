@@ -5,6 +5,7 @@ import DataTable, { type DataTableColumn } from "./DataTable";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import { api } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
+import { usePageSize } from "../../lib/usePageSize";
 
 export type StockRow = {
   _id: string;
@@ -28,8 +29,6 @@ const TYPE_OPTIONS: ListboxOption[] = [
   { value: "Service", label: "Service" },
 ];
 
-const DEFAULT_PAGE_SIZE = 10;
-
 /**
  * Read-only — merges Item and Service (two different collections) into one
  * list server-side (see GET /inventory/available-stock), so this page just
@@ -41,7 +40,7 @@ export default function AvailableStockPage() {
   const [search, setSearch] = useState("");
   const [type, setType] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
 
   useEffect(() => {
     list.run({ page, pageSize, search: search || undefined, type: type || undefined });

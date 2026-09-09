@@ -13,11 +13,13 @@ import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineButton from "../divine/DivineButton";
 import { formatTempleDate, parseISODateString } from "../../lib/datetime";
-import { api, unwrap, type ApiEnvelope } from "../../lib/api";
+import { api } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { usePageSize } from "../../lib/usePageSize";
+import { GST_TYPE_OPTIONS, GST_TYPE_HELP, canonicalGstType, isZeroRateType, isOfficialType } from "../../lib/gstTypes";
 
 export type Gst = {
   _id: string;
@@ -28,31 +30,6 @@ export type Gst = {
   effectiveEndDate: string | null;
   status: number;
 };
-
-const GST_TYPES = ["Standard Rated", "Zero-Rated", "Exempt", "Out of Scope"] as const;
-const ZERO_RATE_TYPES = ["Zero-Rated", "Exempt", "Out of Scope"] as const;
-
-const GST_TYPE_OPTIONS = GST_TYPES.map((value) => ({ value, label: value }));
-
-const GST_TYPE_HELP: Record<(typeof GST_TYPES)[number], string> = {
-  "Standard Rated": "GST is applicable. Configure the GST rate (for example 9%). The system calculates GST during transactions.",
-  Exempt: "GST is not applicable. Rate is fixed at 0% and GST amount is zero.",
-  "Zero-Rated": "GST is applicable at 0%. GST amount is zero.",
-  "Out of Scope": "Outside GST calculation. GST is not calculated. Rate is fixed at 0%.",
-};
-
-function canonicalGstType(type: string) {
-  if (type === "Standard GST") return "Standard Rated";
-  return type;
-}
-
-function isZeroRateType(type: string) {
-  return (ZERO_RATE_TYPES as readonly string[]).includes(canonicalGstType(type));
-}
-
-function isOfficialType(type: string) {
-  return (GST_TYPES as readonly string[]).includes(canonicalGstType(type));
-}
 
 const schema = z
   .object({
@@ -90,27 +67,6 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-type PendingConflict = {
-  values: FormValues;
-  existing: Gst;
-  kind: "create" | "activate";
-  targetId?: string;
-};
-
-const DEFAULT_PAGE_SIZE = 10;
-
-async function findActiveOfType(type: string, excludeId?: string) {
-  const response = await api.get<ApiEnvelope<{ items: Gst[] }>>("/masters/gst", {
-    params: { status: 1, pageSize: 100, type },
-  });
-  const { items } = unwrap(response);
-  return items.find((g) => g._id !== excludeId) ?? null;
-}
-
-function lastActiveError(type: string) {
-  return `Can't inactivate this GST. At least one "${type}" record must stay active.`;
-}
-
 export default function GstPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.gst, "fullAccess");
@@ -120,13 +76,10 @@ export default function GstPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Gst | null>(null);
   const [deleting, setDeleting] = useState<Gst | null>(null);
-  const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
-  const [checkingActive, setCheckingActive] = useState(false);
-  const [conflictBusy, setConflictBusy] = useState(false);
 
   useEffect(() => {
     list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined });
@@ -180,90 +133,19 @@ export default function GstPage() {
     setDrawerOpen(true);
   }
 
-  async function persist(values: FormValues, replaceActive = false, recordId?: string) {
+  const submit = handleSubmit(async (values) => {
     const payload = {
       ...values,
       type: canonicalGstType(values.type),
       percentage: isZeroRateType(values.type) ? 0 : values.percentage,
       effectiveEndDate: values.effectiveEndDate || null,
-      replaceActive,
     };
-    const id = recordId ?? editing?._id;
-    const ok = id ? await update.run(id, payload) : await create.run(payload);
+    const ok = editing ? await update.run(editing._id, payload) : await create.run(payload);
     if (ok !== undefined) {
       setDrawerOpen(false);
-      setPendingConflict(null);
-      if (id) toast.updated("GST rate updated successfully.");
+      if (editing) toast.updated("GST rate updated successfully.");
       else toast.created("GST rate created successfully.");
     }
-  }
-
-  function gstToFormValues(g: Gst, status: number): FormValues {
-    const knownType = isOfficialType(g.type) ? canonicalGstType(g.type) : g.type;
-    return {
-      type: knownType,
-      percentage: isZeroRateType(g.type) ? 0 : g.percentage,
-      code: g.code,
-      effectiveStartDate: g.effectiveStartDate.slice(0, 10),
-      effectiveEndDate: g.effectiveEndDate ? g.effectiveEndDate.slice(0, 10) : "",
-      status,
-    };
-  }
-
-  async function changeListStatus(g: Gst, status: number) {
-    if (status === g.status) return;
-    if (g.status === 1 && status === 0 && isOfficialType(g.type)) {
-      const other = await findActiveOfType(g.type, g._id);
-      if (!other) {
-        toast.error(lastActiveError(g.type));
-        return;
-      }
-    }
-    if (status === 1) {
-      const existing = await findActiveOfType(g.type, g._id);
-      if (existing) {
-        setPendingConflict({ values: gstToFormValues(g, 1), existing, kind: "activate", targetId: g._id });
-        return;
-      }
-    }
-    await patchMasterStatus(update, g._id, status, "GST");
-  }
-
-  const submit = handleSubmit(async (values) => {
-    setCheckingActive(true);
-    try {
-      const sameType = !editing || values.type === editing.type;
-      if (editing?.status === 1 && values.status === 0 && sameType && isOfficialType(editing.type)) {
-        const other = await findActiveOfType(editing.type, editing._id);
-        if (!other) {
-          toast.error(lastActiveError(editing.type));
-          return;
-        }
-      } else if (!editing && values.status === 0) {
-        const other = await findActiveOfType(values.type);
-        if (!other) {
-          toast.error(
-            `Can't create this GST as inactive. At least one "${values.type}" record must be active.`
-          );
-          return;
-        }
-      }
-
-      if (values.status === 1) {
-        const existing = await findActiveOfType(values.type, editing?._id);
-        if (existing) {
-          setPendingConflict({
-            values,
-            existing,
-            kind: editing ? "activate" : "create",
-          });
-          return;
-        }
-      }
-    } finally {
-      setCheckingActive(false);
-    }
-    await persist(values);
   });
 
   const columns: DataTableColumn<Gst>[] = [
@@ -281,7 +163,7 @@ export default function GstPage() {
       ),
     },
     { key: "status", label: "Status", render: (g) => (
-      <StatusToggleCell status={g.status} canEdit={canEdit} onChange={(status) => changeListStatus(g, status)} />
+      <StatusToggleCell status={g.status} canEdit={canEdit} onChange={(status) => patchMasterStatus(update, g._id, status, "GST")} />
     ) },
   ];
 
@@ -289,7 +171,7 @@ export default function GstPage() {
     <>
       <DataTable
         title="GST Master"
-        subtitle="Tax rates, effective for a date range — referenced by the General Ledger master."
+        subtitle="Tax rates, effective for a date range. The rate applied to a transaction is picked by matching its document date against these ranges — same-type ranges can't overlap."
         columns={columns}
         rows={items}
         rowKey={(g) => g._id}
@@ -346,50 +228,6 @@ export default function GstPage() {
         }}
       />
 
-      <ConfirmDialog
-        open={Boolean(pendingConflict)}
-        title={
-          pendingConflict?.kind === "create"
-            ? "This GST type is already active"
-            : "Only one active GST record is allowed"
-        }
-        message={
-          pendingConflict
-            ? `An active "${pendingConflict.existing.type}" record already exists (${pendingConflict.existing.code}). Only one active record is allowed per GST type. Save this record as inactive, or deactivate the existing active record and keep this one active?`
-            : ""
-        }
-        cancelLabel="Cancel"
-        altConfirmLabel="Save as inactive"
-        onAltConfirm={async () => {
-          if (!pendingConflict || conflictBusy) return;
-          setConflictBusy(true);
-          try {
-            await persist({ ...pendingConflict.values, status: 0 }, false, pendingConflict.targetId);
-          } finally {
-            setConflictBusy(false);
-          }
-        }}
-        confirmLabel={
-          pendingConflict?.kind === "create"
-            ? "Deactivate old and create as active"
-            : "Deactivate old and keep this active"
-        }
-        loading={conflictBusy}
-        onCancel={() => {
-          if (conflictBusy) return;
-          setPendingConflict(null);
-        }}
-        onConfirm={async () => {
-          if (!pendingConflict || conflictBusy) return;
-          setConflictBusy(true);
-          try {
-            await persist(pendingConflict.values, true, pendingConflict.targetId);
-          } finally {
-            setConflictBusy(false);
-          }
-        }}
-      />
-
       <FormDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -401,7 +239,7 @@ export default function GstPage() {
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
               Cancel
             </DivineButton>
-            <DivineButton variant="flame" fullWidth={false} type="submit" form="gst-form" loading={checkingActive || create.submitting || update.submitting}>
+            <DivineButton variant="flame" fullWidth={false} type="submit" form="gst-form" loading={create.submitting || update.submitting}>
               {editing ? "Save changes" : "Save"}
             </DivineButton>
           </div>
@@ -430,7 +268,7 @@ export default function GstPage() {
           </div>
           {selectedType && isOfficialType(selectedType) && (
             <p className="-mt-2 text-[12.5px] leading-relaxed text-ink-500">
-              {GST_TYPE_HELP[canonicalGstType(selectedType) as (typeof GST_TYPES)[number]]}
+              {GST_TYPE_HELP[canonicalGstType(selectedType) as keyof typeof GST_TYPE_HELP]}
             </p>
           )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -475,7 +313,7 @@ export default function GstPage() {
                   onChange={field.onChange}
                   minDate={parseISODateString(effectiveStartDate)}
                   placeholder="Ongoing"
-                  hint="Leave empty for a rate with no end date."
+                  hint="Leave empty for a rate with no end date. Same-type active ranges can't overlap."
                   error={errors.effectiveEndDate?.message}
                 />
               )}
@@ -483,26 +321,7 @@ export default function GstPage() {
             <Controller
               control={control}
               name="status"
-              render={({ field }) => (
-                <DivineStatusSelect
-                  value={field.value}
-                  onChange={async (next) => {
-                    if (
-                      next === 0 &&
-                      editing?.status === 1 &&
-                      isOfficialType(editing.type) &&
-                      canonicalGstType(selectedType) === canonicalGstType(editing.type)
-                    ) {
-                      const other = await findActiveOfType(editing.type, editing._id);
-                      if (!other) {
-                        toast.error(lastActiveError(editing.type));
-                        return;
-                      }
-                    }
-                    field.onChange(next);
-                  }}
-                />
-              )}
+              render={({ field }) => <DivineStatusSelect value={field.value} onChange={field.onChange} />}
             />
           </div>
         </form>

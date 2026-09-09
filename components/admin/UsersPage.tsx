@@ -23,6 +23,7 @@ import { emailField } from "../../lib/validation";
 import { USER_TYPES, USER_TYPE_LABEL } from "../../lib/userTypes";
 import { toast } from "../../lib/toastStore";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { usePageSize } from "../../lib/usePageSize";
 
 /** Names only — the assignable-roles endpoint deliberately omits permissions. */
 type AssignableRole = { _id: string; name: string };
@@ -69,8 +70,6 @@ const editSchema = z.object({
 type CreateValues = z.infer<typeof createSchema>;
 type EditValues = z.infer<typeof editSchema>;
 
-const DEFAULT_PAGE_SIZE = 10;
-
 export default function UsersPage() {
   const { can, user: currentUser } = usePermissions();
   const canCreate = can(MODULES.users, "fullAccess");
@@ -85,7 +84,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
 

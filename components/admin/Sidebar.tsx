@@ -113,14 +113,33 @@ type SidebarProps = {
  * (each NavGroup uses its own label) since SVG gradient ids are looked up
  * globally in the page's DOM, not scoped to the element that defines them.
  */
-function GradientChevron({ id, className = "" }: { id: string; className?: string }) {
+function GradientChevron({ id, className = "", active = false }: { id: string; className?: string; active?: boolean }) {
   return (
-    <svg className={`h-4 w-4 shrink-0 ${className}`} viewBox="0 0 20 20">
+    <svg
+      className={`h-[18px] w-[18px] shrink-0 ${active ? "" : "drop-shadow-[0_1px_1px_rgba(255,251,240,0.7)]"} ${className}`}
+      viewBox="0 0 20 20"
+    >
       <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#8f1c30" />
-          <stop offset="50%" stopColor="#ff9d42" />
-          <stop offset="100%" stopColor="#ffc145" />
+        {/* Two dark, saturated stops (no light-gold end) — the sidebar's own
+            background is a cream/gold/orange wash, so the chevron's old
+            orange->light-gold tail was landing almost exactly on top of it.
+            Staying dark end-to-end keeps it visible against every part of
+            that background, not just the darker corners. A row that's the
+            *active* one is solid maroon itself though, so that same dark
+            fill would now vanish into ITS background instead — solid white
+            there, matching the row's own white label/icon color. */}
+        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+          {active ? (
+            <>
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="100%" stopColor="#ffffff" />
+            </>
+          ) : (
+            <>
+              <stop offset="0%" stopColor="#7c1527" />
+              <stop offset="100%" stopColor="#8f1c30" />
+            </>
+          )}
         </linearGradient>
       </defs>
       <path
@@ -140,8 +159,18 @@ function GradientChevron({ id, className = "" }: { id: string; className?: strin
 // active/inactive never shifts text by the border's width.
 const ACTIVE_NAV_CLASS =
   "border-gold-400 bg-maroon text-white font-semibold shadow-[0_8px_18px_-8px_rgba(124,21,39,0.7)] ring-1 ring-inset ring-gold-400/45";
+// A resting glass chip, not just bare text on the photo — the same
+// legibility problem the expanded Masters panel had (text floating
+// directly on a busy, variable-brightness background) applied to every
+// top-level row before a user ever hovers or expands anything.
 const INACTIVE_NAV_CLASS =
-  "border-transparent text-ink-100 hover:bg-maroon/15 hover:text-maroon hover:shadow-[inset_0_0_0_1px_rgba(124,21,39,0.12)]";
+  "border-transparent bg-white/25 text-ink-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5)] hover:bg-maroon/15 hover:text-maroon hover:shadow-[inset_0_0_0_1px_rgba(124,21,39,0.12)]";
+// A group header while its children are showing — distinct from both the
+// solid-maroon ACTIVE_NAV_CLASS (reserved for the actual current-page row)
+// and the plain hover-only INACTIVE_NAV_CLASS, so "this section is open"
+// reads at a glance even when none of its children is the active route.
+const OPEN_GROUP_CLASS =
+  "border-gold-400/60 bg-white/55 text-maroon shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)] ring-1 ring-inset ring-maroon/20 backdrop-blur-sm";
 
 /**
  * Static column on desktop; a slide-in drawer with a backdrop below `md`.
@@ -390,14 +419,19 @@ function NavGroup({
         onClick={handleClick}
         aria-expanded={expanded}
         title={collapsed ? item.label : undefined}
-        className={`flex w-full items-center gap-3 rounded-xl border-l-[3px] py-2.5 pl-[9px] pr-3 text-[13.5px] font-semibold transition-[background-color,color,box-shadow] duration-200 ${collapsed ? "md:justify-center" : ""} ${
-          holdsCurrentRoute && !expanded ? ACTIVE_NAV_CLASS : INACTIVE_NAV_CLASS
+        className={`flex w-full items-center gap-3 rounded-xl border-l-[3px] py-2.5 pl-[9px] pr-3 text-[13.5px] font-semibold transition-[background-color,color,box-shadow,backdrop-filter] duration-200 ${collapsed ? "md:justify-center" : ""} ${
+          holdsCurrentRoute && !expanded
+            ? ACTIVE_NAV_CLASS
+            : expanded && !collapsed
+              ? OPEN_GROUP_CLASS
+              : INACTIVE_NAV_CLASS
         }`}
       >
         <span className="shrink-0">{item.icon}</span>
         <span className={`flex-1 text-left ${collapsed ? "md:hidden" : ""}`}>{item.label}</span>
         <GradientChevron
           id={`nav-chevron-${item.label.replace(/\s+/g, "-")}`}
+          active={holdsCurrentRoute && !expanded}
           className={`transition-transform duration-200 ${collapsed ? "md:hidden" : ""} ${expanded ? "rotate-180" : ""}`}
         />
       </button>
@@ -411,15 +445,24 @@ function NavGroup({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            {/* The rail gives the children a visible spine to hang from, so
-                the nesting reads at a glance rather than from indent alone.
-                A real `bg-gradient-to-b` div instead of `border-l` — a
-                border-color can't be a gradient either. */}
-            <div className="relative ml-[22px] mt-1 space-y-0.5 pl-3">
-              <span aria-hidden="true" className="absolute top-0 bottom-0 left-0 w-[1.5px] bg-gradient-to-b from-crimson-600 via-flame-500 to-[#FFC145]" />
-              {(item.children ?? []).map((child) => (
-                <ChildLink key={child.to} to={child.to} label={child.label} onNavigate={onNavigate} />
-              ))}
+            {/* Frosted glass panel — the temple photo behind the sidebar
+                otherwise runs right under these rows with nothing to mark
+                where the expanded group starts/ends, so "expanded" and
+                "collapsed" looked almost identical at a glance. The blurred,
+                translucent backdrop plus a soft border/shadow gives the
+                open group its own visible surface, sitting above whichever
+                background is showing through. */}
+            <div className="relative ml-[22px] mt-1 overflow-hidden rounded-xl border border-white/60 bg-white/40 p-1.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55),0_6px_20px_-8px_rgba(124,21,39,0.35)] backdrop-blur-md">
+              {/* The rail gives the children a visible spine to hang from, so
+                  the nesting reads at a glance rather than from indent alone.
+                  A real `bg-gradient-to-b` div instead of `border-l` — a
+                  border-color can't be a gradient either. */}
+              <div className="relative space-y-0.5 pl-3">
+                <span aria-hidden="true" className="absolute top-0.5 bottom-0.5 left-0 w-[1.5px] bg-gradient-to-b from-crimson-600 via-flame-500 to-[#FFC145]" />
+                {(item.children ?? []).map((child) => (
+                  <ChildLink key={child.to} to={child.to} label={child.label} onNavigate={onNavigate} />
+                ))}
+              </div>
             </div>
           </motion.ul>
         )}

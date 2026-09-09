@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import DataTable, { type DataTableColumn } from "./DataTable";
 import { api } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
+import { usePageSize } from "../../lib/usePageSize";
 
 export type LowStockRow = {
   _id: string;
@@ -13,8 +14,6 @@ export type LowStockRow = {
   threshold: number;
   unitOfMeasure: string | null;
 };
-
-const DEFAULT_PAGE_SIZE = 10;
 
 /**
  * Read-only — items whose currentStock has dropped below their own
@@ -26,7 +25,7 @@ export default function LowStockReportPage() {
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
 
   useEffect(() => {
     list.run({ page, pageSize, search: search || undefined });

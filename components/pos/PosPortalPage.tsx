@@ -36,6 +36,9 @@ import { useAuthStore, endSession } from "../../lib/authStore";
 import { USER_TYPE_LABEL } from "../../lib/userTypes";
 import TempleClock from "../admin/TempleClock";
 import NetsStatusWidget from "./NetsStatusWidget";
+import { PosCustomerDisplayDock } from "./PosCustomerDisplayPage";
+import { usePosDisplayPublisher } from "../../lib/usePosDisplayPublisher";
+import { IDLE_DISPLAY, type PosDisplayPayload } from "../../lib/posDisplay";
 import netsSocketService, { normalizeRealtimeStatus } from "../../lib/netsSocketService";
 import { formatTempleDateTime, getTempleTimeParts } from "../../lib/datetime";
 import { sanitizeMobileInput, isValidSgMobile, SG_MOBILE_ERROR } from "../../lib/mobileNumber";
@@ -1046,6 +1049,8 @@ export default function PosPortalPage() {
   const [creditCardPayment, setCreditCardPayment] = useState<{ orderId: string; referenceId: string; amount: number } | null>(
     null,
   );
+  const [successDisplay, setSuccessDisplay] = useState<PosDisplayPayload | null>(null);
+  const { code: displayCode, error: displayError, publish: publishCustomerDisplay } = usePosDisplayPublisher();
 
   function finalizeBooking(booking: BookingConfirmation) {
     setConfirmation(booking);
@@ -1295,20 +1300,120 @@ export default function PosPortalPage() {
     setPaynowQr(null);
     setNetsPayment(null);
     setCreditCardPayment(null);
+    setSuccessDisplay(null);
     lineCounter = 0;
     const cash = paymentModes.find((m) => m.name.toLowerCase() === "cash");
     setSelectedPaymentModeId(cash?._id ?? "");
   }
 
+  const customerDisplayPayload = useMemo((): PosDisplayPayload => {
+    const lines = (step === "done" && confirmation ? confirmation.lines : cart).map((l) => ({
+      name: l.name,
+      quantity: l.quantity,
+      lineTotal: l.lineTotal ?? l.unitPrice * l.quantity,
+    }));
+    const grandTotal = step === "done" && confirmation ? confirmation.grandTotal : (summary?.grandTotal ?? 0);
+    const customerName = selectedCustomer?.name ?? confirmation?.customer?.name ?? null;
+
+    if (step === "done" && confirmation) {
+      if (successDisplay) return successDisplay;
+      return {
+        phase: "done",
+        customerName,
+        lines,
+        grandTotal,
+        payingNow: confirmation.amountPaid,
+        amountPaid: confirmation.amountPaid,
+        balanceDue: confirmation.balanceAmount,
+        bookingNumber: confirmation.bookingNumber,
+        paymentStatus: confirmation.paymentStatus,
+        mode: confirmation.paymentModeName,
+      };
+    }
+
+    if (paynowQr) {
+      return {
+        phase: "paynow",
+        customerName,
+        lines,
+        grandTotal,
+        payingNow: paynowQr.amount,
+        balanceDue: Math.max(0, +(grandTotal - paynowQr.amount).toFixed(2)),
+        mode: "PAYNOW",
+        qrImage: paynowQr.qrImage,
+        referenceId: paynowQr.referenceId,
+      };
+    }
+
+    if (netsPayment || creditCardPayment) {
+      const terminal = netsPayment ?? creditCardPayment;
+      return {
+        phase: "terminal",
+        customerName,
+        lines,
+        grandTotal,
+        payingNow: terminal!.amount,
+        balanceDue: Math.max(0, +(grandTotal - terminal!.amount).toFixed(2)),
+        mode: netsPayment ? "NETS" : "CREDIT CARD",
+        referenceId: terminal!.referenceId,
+        statusMessage: "Please complete payment on the terminal.",
+      };
+    }
+
+    if (paymentPopupOpen && summary) {
+      return {
+        phase: "collecting",
+        customerName,
+        lines,
+        grandTotal: summary.grandTotal,
+        payingNow: Number.isNaN(paymentAmount) ? 0 : paymentAmount,
+        balanceDue: paymentBalanceAmount,
+        mode: selectedModeName,
+      };
+    }
+
+    if (cart.length > 0) {
+      return {
+        phase: "cart",
+        customerName,
+        lines,
+        grandTotal,
+        payingNow: 0,
+        balanceDue: 0,
+      };
+    }
+
+    return IDLE_DISPLAY;
+  }, [
+    step,
+    confirmation,
+    successDisplay,
+    cart,
+    summary,
+    selectedCustomer,
+    paynowQr,
+    netsPayment,
+    creditCardPayment,
+    paymentPopupOpen,
+    paymentAmount,
+    paymentBalanceAmount,
+    selectedModeName,
+  ]);
+
+  useEffect(() => {
+    publishCustomerDisplay(customerDisplayPayload);
+  }, [customerDisplayPayload, publishCustomerDisplay]);
+
   // ─────────────────────────────────────────────────────────────────────────
 
   if (step === "done" && confirmation) {
     return (
-      <PosShell user={user}>
+      <PosShell user={user} onNewTransaction={startNewTransaction} displayCode={displayCode} displayError={displayError}>
         <BookingSuccessView
           confirmation={confirmation}
           paymentModes={paymentModes}
           onNewTransaction={startNewTransaction}
+          onDisplayState={setSuccessDisplay}
           onPaymentRecorded={(result) =>
             setConfirmation((prev) => (prev ? { ...prev, ...result } : prev))
           }
@@ -1321,7 +1426,7 @@ export default function PosPortalPage() {
   const showingFolder = !showingSearch && activeFolder;
 
   return (
-    <PosShell user={user} onNewTransaction={startNewTransaction}>
+    <PosShell user={user} onNewTransaction={startNewTransaction} displayCode={displayCode} displayError={displayError}>
       <div className="relative z-10 grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-2 sm:gap-4 sm:p-3 md:grid-cols-2 lg:h-full lg:grid-cols-[minmax(180px,0.7fr)_minmax(0,2.5fr)_minmax(210px,0.78fr)] lg:overflow-hidden lg:p-4 xl:grid-cols-[minmax(200px,240px)_minmax(0,1fr)_minmax(230px,300px)]">
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
         <motion.div
@@ -1970,10 +2075,14 @@ export default function PosPortalPage() {
 function PosShell({
   user,
   onNewTransaction,
+  displayCode,
+  displayError,
   children,
 }: {
   user: ReturnType<typeof useAuthStore.getState>["user"];
   onNewTransaction?: () => void;
+  displayCode?: string;
+  displayError?: string | null;
   children: React.ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -2057,7 +2166,7 @@ function PosShell({
                     initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="absolute right-0 top-[calc(100%+8px)] z-30 w-44 overflow-hidden rounded-xl border border-gold-500/20 bg-white shadow-[0_20px_50px_-15px_rgba(0,0,0,0.3)]"
+                    className="absolute right-0 top-[calc(100%+8px)] z-30 w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-gold-500/20 bg-white shadow-[0_20px_50px_-15px_rgba(0,0,0,0.3)]"
                   >
                     <button
                       onClick={() => {
@@ -2101,6 +2210,7 @@ function PosShell({
               New Transaction
             </FlameActionButton>
           )}
+          {displayCode !== undefined && <PosCustomerDisplayDock code={displayCode} error={displayError} />}
         </div>
 
         <div className="hidden min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3 lg:flex">
@@ -2135,7 +2245,7 @@ function PosShell({
                   initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="absolute right-0 top-[calc(100%+8px)] z-30 w-44 overflow-hidden rounded-xl border border-gold-500/20 bg-white shadow-[0_20px_50px_-15px_rgba(0,0,0,0.3)]"
+                  className="absolute right-0 top-[calc(100%+8px)] z-30 w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-gold-500/20 bg-white shadow-[0_20px_50px_-15px_rgba(0,0,0,0.3)]"
                 >
                   <button
                     onClick={() => {
@@ -4752,11 +4862,13 @@ function BookingSuccessView({
   paymentModes,
   onNewTransaction,
   onPaymentRecorded,
+  onDisplayState,
 }: {
   confirmation: BookingConfirmation;
   paymentModes: PaymentMode[];
   onNewTransaction: () => void;
   onPaymentRecorded: (result: RecordPaymentResult) => void;
+  onDisplayState?: (payload: PosDisplayPayload) => void;
 }) {
   // Until the booking is fully paid, the only action is "Pay Again" —
   // cashiers cannot skip a remaining balance from this screen. Booking
@@ -4791,6 +4903,76 @@ function BookingSuccessView({
   // branch, mirroring the NETS one above exactly.
   const [payAgainCreditCard, setPayAgainCreditCard] = useState<{ referenceId: string; amount: number } | null>(null);
   const balanceBeforeTopUp = useRef(confirmation.balanceAmount);
+
+  useEffect(() => {
+    if (!onDisplayState) return;
+    const lines = confirmation.lines.map((l) => ({
+      name: l.name,
+      quantity: l.quantity,
+      lineTotal: l.lineTotal ?? l.unitPrice * l.quantity,
+    }));
+    const modeName = paymentModes.find((m) => m._id === modeId)?.name ?? confirmation.paymentModeName;
+    const payingNow = Number(amountInput);
+
+    if (payAgainQr) {
+      onDisplayState({
+        phase: "paynow",
+        customerName: confirmation.customer.name,
+        lines,
+        grandTotal: confirmation.grandTotal,
+        payingNow: payAgainQr.amount,
+        amountPaid: confirmation.amountPaid,
+        balanceDue: confirmation.balanceAmount,
+        mode: "PAYNOW",
+        qrImage: payAgainQr.qrImage,
+        referenceId: payAgainQr.referenceId,
+        bookingNumber: confirmation.bookingNumber,
+        paymentStatus: confirmation.paymentStatus,
+      });
+      return;
+    }
+    if (payAgainNets || payAgainCreditCard) {
+      const terminal = payAgainNets ?? payAgainCreditCard;
+      onDisplayState({
+        phase: "terminal",
+        customerName: confirmation.customer.name,
+        lines,
+        grandTotal: confirmation.grandTotal,
+        payingNow: terminal!.amount,
+        amountPaid: confirmation.amountPaid,
+        balanceDue: confirmation.balanceAmount,
+        mode: payAgainNets ? "NETS" : "CREDIT CARD",
+        referenceId: terminal!.referenceId,
+        bookingNumber: confirmation.bookingNumber,
+        paymentStatus: confirmation.paymentStatus,
+        statusMessage: "Please complete payment on the terminal.",
+      });
+      return;
+    }
+    onDisplayState({
+      phase: stillDue && payAgainOpen ? "collecting" : "done",
+      customerName: confirmation.customer.name,
+      lines,
+      grandTotal: confirmation.grandTotal,
+      payingNow: stillDue && payAgainOpen && !Number.isNaN(payingNow) ? payingNow : confirmation.amountPaid,
+      amountPaid: confirmation.amountPaid,
+      balanceDue: confirmation.balanceAmount,
+      mode: modeName,
+      bookingNumber: confirmation.bookingNumber,
+      paymentStatus: confirmation.paymentStatus,
+    });
+  }, [
+    onDisplayState,
+    confirmation,
+    payAgainQr,
+    payAgainNets,
+    payAgainCreditCard,
+    stillDue,
+    payAgainOpen,
+    amountInput,
+    modeId,
+    paymentModes,
+  ]);
 
   useEffect(() => {
     if (!stillDue) return;

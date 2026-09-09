@@ -20,6 +20,7 @@ import { sanitizeMobileInput, isValidSgMobile, SG_MOBILE_ERROR } from "../../lib
 import { formatTempleDateTime } from "../../lib/datetime";
 import { toast } from "../../lib/toastStore";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { usePageSize } from "../../lib/usePageSize";
 
 type Customer = {
   _id: string;
@@ -50,7 +51,6 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_PAGE_SIZE = 10;
 const GENDER_OPTIONS = [
   { value: "", label: "Not specified" },
   { value: "MALE", label: "Male" },
@@ -71,7 +71,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { pageSize, setPageSize } = usePageSize();
   const [editing, setEditing] = useState<Customer | null>(null);
 
   useEffect(() => {
