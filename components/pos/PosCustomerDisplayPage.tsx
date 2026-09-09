@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { CartIcon } from "../divine/icons";
+import { CartIcon, CloseIcon } from "../divine/icons";
 import {
   IDLE_DISPLAY,
   POS_DISPLAY_CODE_PATTERN,
@@ -12,6 +12,7 @@ import {
   type PosDisplayPayload,
 } from "../../lib/posDisplay";
 import { api, extractErrorMessage } from "../../lib/api";
+import { SuccessModal } from "./SuccessModal";
 
 function formatCurrency(v: number) {
   return `$${Number(v || 0).toFixed(2)}`;
@@ -27,6 +28,13 @@ export default function PosCustomerDisplayPage() {
   const [payload, setPayload] = useState<PosDisplayPayload>(IDLE_DISPLAY);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linked, setLinked] = useState(false);
+  // amountPaid strictly increases with each payment collected against a
+  // booking (partial or final), so it doubles as a per-payment key: track
+  // which one the customer already dismissed, and pop the celebration
+  // again the moment a *different* payment (the next partial, or the
+  // final one) lands — not on every poll tick of the same still-current
+  // "done" payload.
+  const [dismissedForAmount, setDismissedForAmount] = useState<number | null>(null);
 
   useEffect(() => {
     if (codeFromUrl.length === 6) {
@@ -68,8 +76,24 @@ export default function PosCustomerDisplayPage() {
   const lines = payload.lines ?? [];
   const isPartial = payload.balanceDue > 0.005 && (payload.phase === "collecting" || payload.phase === "paynow" || payload.phase === "done" || payload.phase === "terminal");
 
+  const donePartial = payload.balanceDue > 0.005 || payload.paymentStatus === "partial";
+  const showSuccessModal =
+    payload.phase === "done" && payload.amountPaid != null && dismissedForAmount !== payload.amountPaid;
+
   return (
     <div className="pos-flame-canvas flex h-screen w-full flex-col overflow-hidden text-ink-100">
+      <SuccessModal
+        open={showSuccessModal}
+        onClose={() => setDismissedForAmount(payload.amountPaid ?? null)}
+        title={donePartial ? "Partial Payment Success" : "Booking Success"}
+        amountLabel={donePartial ? "Amount received now" : "Total amount paid"}
+        amount={formatCurrency(donePartial ? payload.payingNow : payload.amountPaid ?? payload.payingNow)}
+        amountPaid={formatCurrency(payload.amountPaid ?? payload.payingNow)}
+        bookingNo={payload.bookingNumber ?? undefined}
+        paymentMode={payload.mode ?? undefined}
+        cta={donePartial ? "Continue" : "Thank You"}
+        paymentHistory={payload.paymentHistory?.map((p) => ({ mode: p.mode, amount: formatCurrency(p.amount) }))}
+      />
       <div aria-hidden className="h-1.5 shrink-0 bg-dark-orange" />
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-gold-400/40 bg-gradient-to-r from-[#FFFCF7] via-[#FFF3DE] to-[#FFE9C7] px-4 py-3">
         <img src="/SSD_Full_Logo.webp" alt="Sri Siva Durga Temple" className="h-12 w-auto max-w-[240px] object-contain sm:h-14" />
@@ -90,6 +114,27 @@ export default function PosCustomerDisplayPage() {
       ) : (
         <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden p-3 lg:grid-cols-[1.15fr_0.85fr] lg:p-5">
           <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#7c1527]/30 bg-white/90 shadow-[0_16px_36px_-12px_rgba(0,0,0,0.28)]">
+            <AnimatePresence>
+              {payload.customerName && (
+                <motion.div
+                  key={payload.customerName}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  className="flex items-center justify-center gap-3 border-b border-gold-400/30 bg-gradient-to-r from-[#FFFCF7] via-[#FFF3DE] to-[#FFE9C7] px-4 py-2.5"
+                >
+                  <span aria-hidden className="h-px w-8 shrink-0 bg-gradient-to-r from-transparent to-gold-500/60 sm:w-12" />
+                  <p className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap">
+                    <span className="text-[12px] font-medium tracking-wide text-ink-500">Welcome,</span>
+                    <span className="ssd-success-title font-accent text-[17px] font-extrabold tracking-wide">
+                      {payload.customerName}
+                    </span>
+                  </p>
+                  <span aria-hidden className="h-px w-8 shrink-0 bg-gradient-to-l from-transparent to-gold-500/60 sm:w-12" />
+                </motion.div>
+              )}
+            </AnimatePresence>
             <div className="flex items-center justify-between bg-[#7c1527] px-4 py-3 text-white">
               <p className="flex items-center gap-2 font-accent text-[18px] font-extrabold">
                 <CartIcon /> Your order
@@ -199,6 +244,19 @@ function Totals({ payload, isPartial }: { payload: PosDisplayPayload; isPartial:
         <span>Balance due</span>
         <span>{formatCurrency(payload.balanceDue)}</span>
       </div>
+      {payload.phase !== "idle" && payload.phase !== "cart" && (payload.paymentHistory?.length ?? 0) > 0 && (
+        <div className="rounded-xl border border-gold-500/20 bg-[#fff8e8] px-3 py-2">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#8a5a10]">Already paid</p>
+          <div className="space-y-1">
+            {payload.paymentHistory!.map((p, i) => (
+              <div key={i} className="flex items-center justify-between text-[12.5px]">
+                <span className="text-[#5c3d0d]">{p.mode}</span>
+                <span className="font-bold text-ink-100">{formatCurrency(p.amount)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -304,7 +362,15 @@ export function useLanDisplayOrigin() {
   return lanOrigin;
 }
 
-export function SecondScreenDetails({ code, error }: { code: string; error?: string | null }) {
+export function SecondScreenDetails({
+  code,
+  error,
+  onClose,
+}: {
+  code: string;
+  error?: string | null;
+  onClose?: () => void;
+}) {
   const lanOrigin = useLanDisplayOrigin();
   const [copied, setCopied] = useState(false);
   const origin = lanOrigin || "";
@@ -325,7 +391,19 @@ export function SecondScreenDetails({ code, error }: { code: string; error?: str
 
   return (
     <div className="space-y-2.5 text-left">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#7c1527]">Second screen</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-[#7c1527]">Second screen</p>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="-mr-1 -mt-1 rounded-full p-1 text-ink-500 hover:bg-black/5 hover:text-ink-100"
+          >
+            <CloseIcon className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
       <p className="text-[11.5px] text-ink-500">Open this URL on your phone or tablet — any Wi-Fi with internet works.</p>
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-500">Pairing code</p>
@@ -384,7 +462,7 @@ export function PosCustomerDisplayDock({ code, error }: { code: string; error?: 
             exit={{ opacity: 0 }}
             className="absolute left-0 top-[calc(100%+8px)] z-40 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-gold-500/20 bg-white p-3 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.3)] sm:left-auto sm:right-0"
           >
-            <SecondScreenDetails code={code} error={error} />
+            <SecondScreenDetails code={code} error={error} onClose={() => setOpen(false)} />
           </motion.div>
         )}
       </AnimatePresence>
