@@ -113,18 +113,33 @@ type SidebarProps = {
  * (each NavGroup uses its own label) since SVG gradient ids are looked up
  * globally in the page's DOM, not scoped to the element that defines them.
  */
-function GradientChevron({ id, className = "" }: { id: string; className?: string }) {
+function GradientChevron({ id, className = "", active = false }: { id: string; className?: string; active?: boolean }) {
   return (
-    <svg className={`h-[18px] w-[18px] shrink-0 drop-shadow-[0_1px_1px_rgba(255,251,240,0.7)] ${className}`} viewBox="0 0 20 20">
+    <svg
+      className={`h-[18px] w-[18px] shrink-0 ${active ? "" : "drop-shadow-[0_1px_1px_rgba(255,251,240,0.7)]"} ${className}`}
+      viewBox="0 0 20 20"
+    >
       <defs>
         {/* Two dark, saturated stops (no light-gold end) — the sidebar's own
             background is a cream/gold/orange wash, so the chevron's old
             orange->light-gold tail was landing almost exactly on top of it.
             Staying dark end-to-end keeps it visible against every part of
-            that background, not just the darker corners. */}
+            that background, not just the darker corners. A row that's the
+            *active* one is solid maroon itself though, so that same dark
+            fill would now vanish into ITS background instead — solid white
+            there, matching the row's own white label/icon color. */}
         <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#7c1527" />
-          <stop offset="100%" stopColor="#8f1c30" />
+          {active ? (
+            <>
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="100%" stopColor="#ffffff" />
+            </>
+          ) : (
+            <>
+              <stop offset="0%" stopColor="#7c1527" />
+              <stop offset="100%" stopColor="#8f1c30" />
+            </>
+          )}
         </linearGradient>
       </defs>
       <path
@@ -416,6 +431,7 @@ function NavGroup({
         <span className={`flex-1 text-left ${collapsed ? "md:hidden" : ""}`}>{item.label}</span>
         <GradientChevron
           id={`nav-chevron-${item.label.replace(/\s+/g, "-")}`}
+          active={holdsCurrentRoute && !expanded}
           className={`transition-transform duration-200 ${collapsed ? "md:hidden" : ""} ${expanded ? "rotate-180" : ""}`}
         />
       </button>
