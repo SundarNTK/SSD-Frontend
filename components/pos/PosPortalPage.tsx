@@ -312,7 +312,13 @@ type RecordPaymentResult = {
 // this didn't (config incomplete, a render failure) — the order itself is
 // still valid and has a referenceId, so the frontend falls back to the
 // standalone route with it rather than losing the order.
-type PaynowPaymentDetails = { amount: number; qr: string; engine: string };
+// `referenceId` here is the PENDING TRANSACTION's own fresh per-attempt
+// reference — NOT the order's own `referenceId` alongside it below. Every
+// PayNow QR (this order's first payment, or any later top-up) must embed
+// its own never-reused reference, or a second live QR against the same
+// booking risks being refused/mis-reconciled by the bank for reusing a
+// reference it already saw settle once — see backend's confirmPosPayment.
+type PaynowPaymentDetails = { referenceId: string; amount: number; qr: string; engine: string };
 type CreateOrderResult =
   | ({ status: "confirmed" } & BookingConfirmation)
   | {
@@ -1040,14 +1046,19 @@ export default function PosPortalPage() {
   // Set once a NETS order is created and the terminal payment initiated —
   // same "presence drives the modal" convention as paynowQr above. See
   // NetsPaymentModal's own comment for the socket-driven flow this opens.
-  const [netsPayment, setNetsPayment] = useState<{ orderId: string; referenceId: string; amount: number } | null>(
+  // `manual` marks an instance opened via the "Manual Confirm" button on
+  // Collect Payment — the pending transaction is created exactly the same
+  // way, but NetsPaymentModal skips sending anything to the terminal and
+  // opens straight into the transaction-ref-number entry form instead of
+  // narrating an auto flow that was never started.
+  const [netsPayment, setNetsPayment] = useState<{ orderId: string; referenceId: string; amount: number; manual?: boolean } | null>(
     null,
   );
   // Same "presence drives the modal" convention, for Credit Card — a
   // separate state (not a `kind` field bolted onto netsPayment) so it's
   // impossible for a leftover NETS payment to accidentally reopen as a
   // Credit Card modal or vice versa.
-  const [creditCardPayment, setCreditCardPayment] = useState<{ orderId: string; referenceId: string; amount: number } | null>(
+  const [creditCardPayment, setCreditCardPayment] = useState<{ orderId: string; referenceId: string; amount: number; manual?: boolean } | null>(
     null,
   );
   const [successDisplay, setSuccessDisplay] = useState<PosDisplayPayload | null>(null);
@@ -1124,7 +1135,7 @@ export default function PosPortalPage() {
     setPaymentPopupOpen(true);
   }
 
-  async function handleConfirmBooking() {
+  async function handleConfirmBooking(opts: { manual?: boolean } = {}) {
     if (!selectedCustomer) {
       toast.error("No customer selected.");
       return;
@@ -1201,10 +1212,13 @@ export default function PosPortalPage() {
             { referenceId: created.referenceId, amount: paymentAmount },
           );
           const qr = unwrap(qrRes);
-          details = { amount: qr.amount, qr: qr.qrImage, engine: "" };
+          details = { referenceId: qr.referenceId, amount: qr.amount, qr: qr.qrImage, engine: "" };
         }
         setPaymentPopupOpen(false);
-        setPaynowQr({ orderId: created._id, referenceId: created.referenceId, amount: details.amount, qrImage: details.qr });
+        // details.referenceId — the pending transaction's own per-attempt
+        // reference, embedded in the QR itself — not created.referenceId
+        // (the order's stable identity). See PaynowPaymentDetails' own comment.
+        setPaynowQr({ orderId: created._id, referenceId: details.referenceId, amount: details.amount, qrImage: details.qr });
         return;
       }
 
@@ -1221,7 +1235,7 @@ export default function PosPortalPage() {
         );
         const init = unwrap(initRes);
         setPaymentPopupOpen(false);
-        setNetsPayment({ orderId: created._id, referenceId: init.referenceId, amount: init.amount });
+        setNetsPayment({ orderId: created._id, referenceId: init.referenceId, amount: init.amount, manual: opts.manual });
         return;
       }
 
@@ -1236,7 +1250,7 @@ export default function PosPortalPage() {
         );
         const init = unwrap(initRes);
         setPaymentPopupOpen(false);
-        setCreditCardPayment({ orderId: created._id, referenceId: init.referenceId, amount: init.amount });
+        setCreditCardPayment({ orderId: created._id, referenceId: init.referenceId, amount: init.amount, manual: opts.manual });
         return;
       }
 
@@ -1969,7 +1983,8 @@ export default function PosPortalPage() {
         balance={paymentBalanceAmount}
         modeName={selectedModeName}
         loading={bookingLoading}
-        onConfirm={handleConfirmBooking}
+        onConfirm={() => handleConfirmBooking()}
+        onManualConfirm={() => handleConfirmBooking({ manual: true })}
       />
 
       <PaynowQrModal
@@ -1997,6 +2012,17 @@ export default function PosPortalPage() {
         }}
         onConfirmed={(data) => handleNetsConfirmed(data as BookingConfirmation)}
         onCancel={cancelNetsPayment}
+        startInManualMode={!!netsPayment?.manual}
+        onManualConfirm={async (transactionRefNo) => {
+          try {
+            await api.post(`/pos/booking/manual-confirm`, {
+              referenceId: netsPayment?.referenceId,
+              transactionRefNo,
+            });
+          } catch (err) {
+            throw new Error(extractErrorMessage(err));
+          }
+        }}
       />
 
       <NetsPaymentModal
@@ -2011,6 +2037,17 @@ export default function PosPortalPage() {
         }}
         onConfirmed={(data) => handleCreditCardConfirmed(data as BookingConfirmation)}
         onCancel={cancelCreditCardPayment}
+        startInManualMode={!!creditCardPayment?.manual}
+        onManualConfirm={async (transactionRefNo) => {
+          try {
+            await api.post(`/pos/booking/manual-confirm`, {
+              referenceId: creditCardPayment?.referenceId,
+              transactionRefNo,
+            });
+          } catch (err) {
+            throw new Error(extractErrorMessage(err));
+          }
+        }}
       />
 
       <CreateCustomerModal
@@ -2966,6 +3003,7 @@ function ProceedPaymentModal({
   modeName,
   loading,
   onConfirm,
+  onManualConfirm,
 }: {
   open: boolean;
   onClose: () => void;
@@ -2981,7 +3019,14 @@ function ProceedPaymentModal({
   modeName: string;
   loading: boolean;
   onConfirm: () => void;
+  // Only meaningful for NETS/Credit Card (rendered as a second button next
+  // to "Confirm ... Payment" for those modes only) — creates the exact same
+  // pending terminal payment as the normal flow, but skips sending anything
+  // to the terminal and opens NetsPaymentModal straight into its manual
+  // transaction-ref-number form. See handleConfirmBooking's `manual` opt.
+  onManualConfirm: () => void;
 }) {
+  const isTerminalMode = modeName.toLowerCase() === "nets" || modeName.toLowerCase() === "credit card";
   return (
     <PosFlipModal
       open={open}
@@ -3060,6 +3105,17 @@ function ProceedPaymentModal({
         >
           Cancel
         </button>
+        {isTerminalMode && (
+          <button
+            type="button"
+            onClick={onManualConfirm}
+            disabled={!modeId || loading || !amountValid}
+            title="Enter the transaction reference number from the terminal's printed slip instead of waiting for its automatic confirmation."
+            className="rounded-md border border-[#7c1527]/40 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-[#7c1527] transition-colors duration-200 hover:bg-[#7c1527]/10 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Manual Confirm
+          </button>
+        )}
         <FlameActionButton
           icon={<LockIcon />}
           chevron={false}
@@ -3261,6 +3317,8 @@ function NetsPaymentModal({
   onPoll,
   onConfirmed,
   onCancel,
+  onManualConfirm,
+  startInManualMode,
 }: {
   open: boolean;
   // Same terminal, same PAYMENT_MESSAGE lifecycle either way — this only
@@ -3274,9 +3332,31 @@ function NetsPaymentModal({
   onPoll: () => Promise<{ status: "pending" | "confirmed" | "cancelled" | "expired"; data?: unknown }>;
   onConfirmed: (data: unknown) => void;
   onCancel: () => void;
+  // Fallback for when the terminal's own automatic callback hasn't landed
+  // (or the cashier reads a genuine approval off the printed slip and
+  // doesn't want to wait): POSTs the entered transaction reference number
+  // straight to POST /pos/booking/manual-confirm, which runs through the
+  // exact same dispatchPaymentConfirmation() the automatic path uses — see
+  // that route's own comment. Rejecting the promise (e.g. a bad ref number,
+  // an already-processed payment) surfaces as an inline error in the
+  // manual-confirm form; resolving it hands control back to this modal's
+  // own onPoll/onConfirmed flow below, exactly as a real terminal
+  // confirmation would.
+  onManualConfirm: (transactionRefNo: string) => Promise<void>;
+  // Set when this instance was opened via Collect Payment's own "Manual
+  // Confirm" button rather than "Confirm NETS/Credit Card Payment" — the
+  // pending transaction still gets created exactly the same way, but this
+  // modal never sends anything to the terminal (no socket call, no
+  // PAYMENT_MESSAGE listener) and opens straight into the transaction-ref
+  // form below instead of narrating an auto flow that was never started.
+  startInManualMode?: boolean;
 }) {
   const [phase, setPhase] = useState<"sending" | "initiated" | "verifying" | "confirming" | "failed">("sending");
   const [message, setMessage] = useState("Sending payment request to the terminal…");
+  const [manualOpen, setManualOpen] = useState(!!startInManualMode);
+  const [manualRef, setManualRef] = useState("");
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
 
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
@@ -3284,11 +3364,48 @@ function NetsPaymentModal({
     if (open) {
       setPhase("sending");
       setMessage("Sending payment request to the terminal…");
+      setManualOpen(!!startInManualMode);
+      setManualRef("");
+      setManualError(null);
+      setManualSubmitting(false);
+    }
+  }
+
+  async function submitManualConfirm() {
+    const trimmed = manualRef.trim();
+    if (!trimmed) {
+      setManualError("Enter the transaction reference number from the terminal's printed slip.");
+      return;
+    }
+    setManualSubmitting(true);
+    setManualError(null);
+    try {
+      await onManualConfirm(trimmed);
+      // The backend has already flipped the payment to paid by the time
+      // this resolves (confirmPosPayment runs synchronously) — one
+      // immediate poll picks that up and routes into the same
+      // onConfirmed(...) a real terminal callback would, via onPoll below.
+      const result = await onPoll();
+      if (result.status === "confirmed") {
+        onConfirmed(result.data);
+        return;
+      }
+      // Extremely unlikely (would mean the confirm succeeded but the
+      // status read races behind it) — fall back to the normal poll loop
+      // already running rather than leaving the form stuck.
+      setManualOpen(false);
+    } catch (err) {
+      setManualError(err instanceof Error ? err.message : "Could not confirm this payment. Check the reference number and try again.");
+    } finally {
+      setManualSubmitting(false);
     }
   }
 
   useEffect(() => {
-    if (!open) return;
+    // A manual-only instance never talks to the terminal at all — nothing
+    // was sent, so there's nothing to listen for or narrate. The manual
+    // form's own submitManualConfirm() above is this instance's entire flow.
+    if (!open || startInManualMode) return;
     let cancelled = false; // effect torn down (modal closed/unmounted)
     let stopped = false; // a terminal outcome (confirmed/failed) was already reached — stop polling either way
     let pollTimeoutId: number;
@@ -3404,7 +3521,7 @@ function NetsPaymentModal({
     // this effect should only restart when the modal opens/closes, matching
     // PaynowQrModal's own convention.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, startInManualMode]);
 
   const isFailed = phase === "failed";
 
@@ -3420,35 +3537,112 @@ function NetsPaymentModal({
       </h2>
       <p className="mt-1 text-[12px] text-ink-500">Reference {referenceId}</p>
 
-      <div className="mt-4 flex h-32 w-32 items-center justify-center rounded-full border-4 border-gold-500/30 bg-ivory-50">
-        {isFailed ? (
-          <span className="text-[40px] text-crimson-500">✕</span>
-        ) : phase === "confirming" || phase === "verifying" ? (
-          <EmblemLoader size="sm" label="" />
-        ) : (
-          <span className="animate-pulse text-[40px] text-[#7c1527]">💳</span>
-        )}
-      </div>
+      {manualOpen ? (
+        <div className="mt-4 w-full text-left">
+          <div className="rounded-lg border border-gold-500/30 bg-ivory-50 px-3 py-2">
+            <div className="flex items-center justify-between text-[12px]">
+              <span className="text-ink-500">Order Reference</span>
+              <span className="font-semibold text-ink-100">{referenceId}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between text-[12px]">
+              <span className="text-ink-500">Amount</span>
+              <span className="font-semibold text-[#7c1527]">{formatCurrency(amount)}</span>
+            </div>
+          </div>
 
-      <p className="mt-4 text-[22px] font-extrabold text-[#7c1527]">{formatCurrency(amount)}</p>
+          <label className="mt-3 block text-[11.5px] font-semibold uppercase tracking-wide text-ink-400">
+            Transaction Reference No.
+          </label>
+          <p className="mt-0.5 text-[11px] text-ink-400">
+            From the {kind === "CREDIT_CARD" ? "credit card" : "NETS"} terminal&apos;s printed slip.
+          </p>
+          <input
+            type="text"
+            autoFocus
+            value={manualRef}
+            onChange={(e) => {
+              setManualRef(e.target.value);
+              if (manualError) setManualError(null);
+            }}
+            disabled={manualSubmitting}
+            placeholder="e.g. 123456789012"
+            className="mt-1.5 w-full rounded-md border border-gold-500/30 bg-white px-3 py-2 text-[13px] text-ink-100 outline-none focus:border-flame-500/60 disabled:opacity-60"
+          />
+          {manualError && (
+            <p className="mt-1.5 rounded-md border border-crimson-500/30 bg-crimson-500/10 px-2.5 py-1.5 text-[11.5px] text-crimson-500">
+              {manualError}
+            </p>
+          )}
 
-      {isFailed ? (
-        <p className="mt-3 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-[12px] text-crimson-500">{message}</p>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (startInManualMode) {
+                  onCancel();
+                  return;
+                }
+                setManualOpen(false);
+                setManualError(null);
+              }}
+              disabled={manualSubmitting}
+              className="flex-1 rounded-md border border-gold-500/30 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-ink-300 hover:border-flame-500/60 hover:text-flame-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {startInManualMode ? "Cancel" : "Back"}
+            </button>
+            <button
+              type="button"
+              onClick={submitManualConfirm}
+              disabled={manualSubmitting || !manualRef.trim()}
+              className="flex-1 rounded-md bg-[#7c1527] px-4 py-1.5 text-[13px] font-semibold text-white transition hover:bg-[#63101f] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {manualSubmitting ? "Confirming…" : "Confirm Payment"}
+            </button>
+          </div>
+        </div>
       ) : (
-        <p className="mt-3 flex items-center gap-2 text-[12px] text-ink-500">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-          {message}
-        </p>
-      )}
+        <>
+          <div className="mt-4 flex h-32 w-32 items-center justify-center rounded-full border-4 border-gold-500/30 bg-ivory-50">
+            {isFailed ? (
+              <span className="text-[40px] text-crimson-500">✕</span>
+            ) : phase === "confirming" || phase === "verifying" ? (
+              <EmblemLoader size="sm" label="" />
+            ) : (
+              <span className="animate-pulse text-[40px] text-[#7c1527]">💳</span>
+            )}
+          </div>
 
-      <button
-        type="button"
-        onClick={onCancel}
-        disabled={!isFailed && phase !== "sending" && phase !== "initiated"}
-        className="mt-5 rounded-md border border-gold-500/30 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-ink-300 transition-[border-color,color] duration-200 hover:border-flame-500/60 hover:text-flame-600 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {isFailed ? "Close" : "Cancel"}
-      </button>
+          <p className="mt-4 text-[22px] font-extrabold text-[#7c1527]">{formatCurrency(amount)}</p>
+
+          {isFailed ? (
+            <p className="mt-3 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-[12px] text-crimson-500">{message}</p>
+          ) : (
+            <p className="mt-3 flex items-center gap-2 text-[12px] text-ink-500">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+              {message}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={!isFailed && phase !== "sending" && phase !== "initiated"}
+            className="mt-5 rounded-md border border-gold-500/30 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-ink-300 transition-[border-color,color] duration-200 hover:border-flame-500/60 hover:text-flame-600 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isFailed ? "Close" : "Cancel"}
+          </button>
+
+          {!isFailed && (
+            <button
+              type="button"
+              onClick={() => setManualOpen(true)}
+              className="mt-2 text-[11.5px] font-semibold text-ink-400 underline decoration-dotted underline-offset-2 transition hover:text-flame-600"
+            >
+              Enter transaction ref manually
+            </button>
+          )}
+        </>
+      )}
     </PosFlipModal>
   );
 }
@@ -4650,10 +4844,10 @@ function BookingSuccessView({
   // NETS branch. Previously missing entirely, which let NETS silently fall
   // through to the Cash-style instant-confirm route below and mark a top-up
   // "paid" with no terminal ever charged.
-  const [payAgainNets, setPayAgainNets] = useState<{ referenceId: string; amount: number } | null>(null);
+  const [payAgainNets, setPayAgainNets] = useState<{ referenceId: string; amount: number; manual?: boolean } | null>(null);
   // Same idea, for a Credit Card top-up — see submitPayAgain's Credit Card
   // branch, mirroring the NETS one above exactly.
-  const [payAgainCreditCard, setPayAgainCreditCard] = useState<{ referenceId: string; amount: number } | null>(null);
+  const [payAgainCreditCard, setPayAgainCreditCard] = useState<{ referenceId: string; amount: number; manual?: boolean } | null>(null);
   const balanceBeforeTopUp = useRef(confirmation.balanceAmount);
   // Every payment actually collected against this booking during this
   // checkout — the first one from `confirmation` itself, then one more
@@ -4771,7 +4965,7 @@ function BookingSuccessView({
     }
   }
 
-  async function submitPayAgain() {
+  async function submitPayAgain(opts: { manual?: boolean } = {}) {
     const amount = Number(amountInput);
     if (amountInput === "" || Number.isNaN(amount) || amount <= 0) {
       toast.error("Enter a payment amount greater than $0.00.");
@@ -4826,7 +5020,7 @@ function BookingSuccessView({
         );
         const init = unwrap(initRes);
         balanceBeforeTopUp.current = confirmation.balanceAmount;
-        setPayAgainNets({ referenceId: init.referenceId, amount: init.amount });
+        setPayAgainNets({ referenceId: init.referenceId, amount: init.amount, manual: opts.manual });
       } catch (err) {
         toast.error(extractErrorMessage(err));
       } finally {
@@ -4846,7 +5040,7 @@ function BookingSuccessView({
         );
         const init = unwrap(initRes);
         balanceBeforeTopUp.current = confirmation.balanceAmount;
-        setPayAgainCreditCard({ referenceId: init.referenceId, amount: init.amount });
+        setPayAgainCreditCard({ referenceId: init.referenceId, amount: init.amount, manual: opts.manual });
       } catch (err) {
         toast.error(extractErrorMessage(err));
       } finally {
@@ -4991,13 +5185,28 @@ function BookingSuccessView({
                   fullWidth={false}
                   type="button"
                   loading={submitting}
-                  onClick={submitPayAgain}
+                  onClick={() => submitPayAgain()}
                   className="sm:h-10 sm:px-5"
                 >
                   Collect Payment
                 </DivineButton>
               </div>
               <PaymentModeBoxes dense modes={paymentModes} value={modeId} onChange={setModeId} />
+              {(() => {
+                const payAgainModeName = paymentModes.find((m) => m._id === modeId)?.name?.toLowerCase();
+                if (payAgainModeName !== "nets" && payAgainModeName !== "credit card") return null;
+                return (
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => submitPayAgain({ manual: true })}
+                    title="Enter the transaction reference number from the terminal's printed slip instead of waiting for its automatic confirmation."
+                    className="w-full rounded-md border border-[#7c1527]/40 bg-transparent px-4 py-1.5 text-[12.5px] font-semibold text-[#7c1527] transition-colors duration-200 hover:bg-[#7c1527]/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Manual Confirm
+                  </button>
+                );
+              })()}
             </motion.div>
           )}
         </motion.div>
@@ -5089,6 +5298,17 @@ function BookingSuccessView({
         });
       }}
       onCancel={() => setPayAgainNets(null)}
+      startInManualMode={!!payAgainNets?.manual}
+      onManualConfirm={async (transactionRefNo) => {
+        try {
+          await api.post(`/pos/booking/manual-confirm`, {
+            referenceId: payAgainNets?.referenceId,
+            transactionRefNo,
+          });
+        } catch (err) {
+          throw new Error(extractErrorMessage(err));
+        }
+      }}
     />
     <NetsPaymentModal
       open={!!payAgainCreditCard}
@@ -5123,6 +5343,17 @@ function BookingSuccessView({
         });
       }}
       onCancel={() => setPayAgainCreditCard(null)}
+      startInManualMode={!!payAgainCreditCard?.manual}
+      onManualConfirm={async (transactionRefNo) => {
+        try {
+          await api.post(`/pos/booking/manual-confirm`, {
+            referenceId: payAgainCreditCard?.referenceId,
+            transactionRefNo,
+          });
+        } catch (err) {
+          throw new Error(extractErrorMessage(err));
+        }
+      }}
     />
     </>
   );

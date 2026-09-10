@@ -26,6 +26,10 @@ type BookingListItem = {
   customer: { _id: string; customerCode: string; name: string } | null;
   lineType: string;
   paymentModeName: string;
+  // Every distinct mode a "paid" installment actually landed on, oldest
+  // first — a Cash-then-PayNow partial payment shows both, not just the
+  // booking's own first-payment mode. See controllers/pos-orders' listBookings.
+  paymentModeNames: string[];
   subtotal: number;
   gstAmount: number;
   grandTotal: number;
@@ -178,7 +182,26 @@ const COLUMNS: DataTableColumn<BookingListItem>[] = [
   },
   { key: "customer", label: "Customer", render: (b) => b.customer?.name ?? "—" },
   { key: "lineType", label: "Type", render: (b) => <span className="text-ink-500">{b.lineType}</span> },
-  { key: "paymentMode", label: "Payment Mode", render: (b) => b.paymentModeName },
+  {
+    key: "paymentMode",
+    label: "Payment Mode",
+    render: (b) => {
+      const modes = b.paymentModeNames?.length ? b.paymentModeNames : [b.paymentModeName];
+      if (modes.length === 1) return modes[0];
+      return (
+        <div className="flex flex-wrap gap-1">
+          {modes.map((m) => (
+            <span
+              key={m}
+              className="inline-flex items-center whitespace-nowrap rounded-md border border-ink-500/20 bg-ivory-100 px-1.5 py-0.5 text-[10.5px] font-medium text-ink-500"
+            >
+              {m}
+            </span>
+          ))}
+        </div>
+      );
+    },
+  },
   {
     key: "grossAmount",
     label: "Gross Amount",

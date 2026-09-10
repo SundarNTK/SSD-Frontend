@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { CartIcon, CloseIcon } from "../divine/icons";
+import { CartIcon, CheckIcon, CloseIcon } from "../divine/icons";
 import {
   IDLE_DISPLAY,
   POS_DISPLAY_CODE_PATTERN,
@@ -35,6 +35,14 @@ export default function PosCustomerDisplayPage() {
   // final one) lands — not on every poll tick of the same still-current
   // "done" payload.
   const [dismissedForAmount, setDismissedForAmount] = useState<number | null>(null);
+  // "X added to cart" toast — compares each poll's line quantities against
+  // the previous poll's to spot a genuine increase, so it only fires on a
+  // real add (not on every 700ms tick, and not on the first tick after
+  // joining mid-cart, which would otherwise announce every existing line
+  // as if it had just been added).
+  const [addedToast, setAddedToast] = useState<string | null>(null);
+  const prevLinesRef = useRef<Map<string, number> | null>(null);
+  const addedToastTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     if (codeFromUrl.length === 6) {
@@ -46,6 +54,7 @@ export default function PosCustomerDisplayPage() {
   useEffect(() => {
     if (!POS_DISPLAY_CODE_PATTERN.test(code)) return;
     let cancelled = false;
+    prevLinesRef.current = null;
 
     async function tick() {
       try {
@@ -57,7 +66,25 @@ export default function PosCustomerDisplayPage() {
         if (cancelled) return;
         setLinked(true);
         setLinkError(null);
-        setPayload(res.data?.data?.payload ?? IDLE_DISPLAY);
+        const nextPayload = res.data?.data?.payload ?? IDLE_DISPLAY;
+        const nextLines = nextPayload.lines ?? [];
+
+        const prevQty = prevLinesRef.current;
+        if (prevQty) {
+          let added: { name: string; delta: number } | null = null;
+          for (const line of nextLines) {
+            const delta = line.quantity - (prevQty.get(line.name) ?? 0);
+            if (delta > 0 && (!added || delta > added.delta)) added = { name: line.name, delta };
+          }
+          if (added) {
+            setAddedToast(`${added.name} added to cart`);
+            if (addedToastTimer.current) window.clearTimeout(addedToastTimer.current);
+            addedToastTimer.current = window.setTimeout(() => setAddedToast(null), 2600);
+          }
+        }
+        prevLinesRef.current = new Map(nextLines.map((l) => [l.name, l.quantity]));
+
+        setPayload(nextPayload);
       } catch (err) {
         if (cancelled) return;
         setLinked(false);
@@ -70,6 +97,7 @@ export default function PosCustomerDisplayPage() {
     return () => {
       cancelled = true;
       window.clearInterval(id);
+      if (addedToastTimer.current) window.clearTimeout(addedToastTimer.current);
     };
   }, [code]);
 
@@ -80,8 +108,14 @@ export default function PosCustomerDisplayPage() {
   const showSuccessModal =
     payload.phase === "done" && payload.amountPaid != null && dismissedForAmount !== payload.amountPaid;
 
+  // min-h-screen (not h-screen) below, and no overflow-hidden, until lg: —
+  // on phone/tablet the page just flows and grows with its content (the
+  // browser's own scroll), instead of clipping everything to exactly the
+  // viewport height and forcing a cramped scrollbar inside a small inner
+  // box (the QR panel in particular needs real room). Desktop/kiosk keeps
+  // the original fixed-viewport app shell.
   return (
-    <div className="pos-flame-canvas flex h-screen w-full flex-col overflow-hidden text-ink-100">
+    <div className="pos-flame-canvas flex min-h-screen w-full flex-col text-ink-100 lg:h-screen lg:overflow-hidden">
       <SuccessModal
         open={showSuccessModal}
         onClose={() => setDismissedForAmount(payload.amountPaid ?? null)}
@@ -112,29 +146,33 @@ export default function PosCustomerDisplayPage() {
           }}
         />
       ) : (
-        <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden p-3 lg:grid-cols-[1.15fr_0.85fr] lg:p-5">
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#7c1527]/30 bg-white/90 shadow-[0_16px_36px_-12px_rgba(0,0,0,0.28)]">
+        <main className="grid flex-1 grid-cols-1 gap-3 p-3 lg:min-h-0 lg:grid-cols-[1.15fr_0.85fr] lg:overflow-hidden lg:p-5">
+          {/* order-2/order-1 below: on phone/tablet (stacked, single column)
+              the QR/totals panel should come first — that's the thing a
+              devotee needs to act on (scan to pay) — with the item list
+              underneath it, not the other way round. lg: restores the
+              original side-by-side layout (cart left, totals+QR right),
+              where DOM order no longer matters. */}
+          <section className="relative order-2 flex flex-col overflow-visible rounded-2xl border border-[#7c1527]/30 bg-white/90 shadow-[0_16px_36px_-12px_rgba(0,0,0,0.28)] lg:order-1 lg:min-h-0 lg:overflow-hidden">
             <AnimatePresence>
-              {payload.customerName && (
+              {addedToast && (
                 <motion.div
-                  key={payload.customerName}
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.35, ease: "easeOut" }}
-                  className="flex items-center justify-center gap-3 border-b border-gold-400/30 bg-gradient-to-r from-[#FFFCF7] via-[#FFF3DE] to-[#FFE9C7] px-4 py-2.5"
+                  key={addedToast}
+                  initial={{ opacity: 0, y: -14, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.96 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="pointer-events-none absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-300/60 bg-emerald-600 px-4 py-2 text-[13px] font-semibold text-white shadow-[0_10px_24px_-8px_rgba(5,150,105,0.55)]"
                 >
-                  <span aria-hidden className="h-px w-8 shrink-0 bg-gradient-to-r from-transparent to-gold-500/60 sm:w-12" />
-                  <p className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap">
-                    <span className="text-[12px] font-medium tracking-wide text-ink-500">Welcome,</span>
-                    <span className="ssd-success-title font-accent text-[17px] font-extrabold tracking-wide">
-                      {payload.customerName}
-                    </span>
-                  </p>
-                  <span aria-hidden className="h-px w-8 shrink-0 bg-gradient-to-l from-transparent to-gold-500/60 sm:w-12" />
+                  <CheckIcon className="h-3.5 w-3.5 shrink-0 text-white" />
+                  {addedToast}
                 </motion.div>
               )}
             </AnimatePresence>
+            {/* Desktop only here — on mobile the same banner shows at the
+                top of the QR/totals panel instead (see the aside below),
+                since that's the panel a devotee actually sees first. */}
+            <WelcomeBanner name={payload.customerName} className="hidden lg:flex" />
             <div className="flex items-center justify-between bg-[#7c1527] px-4 py-3 text-white">
               <p className="flex items-center gap-2 font-accent text-[18px] font-extrabold">
                 <CartIcon /> Your order
@@ -143,7 +181,7 @@ export default function PosCustomerDisplayPage() {
                 {lines.length}
               </span>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <div className="flex-1 p-4 lg:min-h-0 lg:overflow-y-auto">
               {lines.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center gap-2 py-10 text-center">
                   <p className="text-[16px] font-semibold text-ink-300">Waiting for items…</p>
@@ -177,7 +215,11 @@ export default function PosCustomerDisplayPage() {
             </div>
           </section>
 
-          <aside className="flex min-h-0 flex-col overflow-y-auto rounded-2xl border border-[#7c1527]/30 bg-white/90 p-4 shadow-[0_16px_36px_-12px_rgba(0,0,0,0.28)]">
+          <aside className="order-1 flex flex-col rounded-2xl border border-[#7c1527]/30 bg-white/90 p-4 shadow-[0_16px_36px_-12px_rgba(0,0,0,0.28)] lg:order-2 lg:min-h-0 lg:overflow-y-auto">
+            {/* Mobile only — this is the first thing a devotee sees on
+                their phone (QR panel comes before the cart there), so the
+                welcome greeting belongs here instead of buried below. */}
+            <WelcomeBanner name={payload.customerName} className="-mx-4 -mt-4 mb-3 flex rounded-t-2xl lg:hidden" />
             <Totals payload={payload} isPartial={isPartial} />
             <PaymentPanel payload={payload} />
             {linkError && !linked && (
@@ -189,6 +231,36 @@ export default function PosCustomerDisplayPage() {
         </main>
       )}
     </div>
+  );
+}
+
+/**
+ * Rendered twice (see call sites above) with a different responsive
+ * `className` each time — same banner, different spot depending on
+ * viewport, since which panel a devotee sees first changes between the
+ * stacked mobile layout and the side-by-side desktop one.
+ */
+function WelcomeBanner({ name, className }: { name?: string | null; className: string }) {
+  return (
+    <AnimatePresence>
+      {name && (
+        <motion.div
+          key={name}
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className={`items-center justify-center gap-3 border-b border-gold-400/30 bg-gradient-to-r from-[#FFFCF7] via-[#FFF3DE] to-[#FFE9C7] px-4 py-2.5 ${className}`}
+        >
+          <span aria-hidden className="h-px w-8 shrink-0 bg-gradient-to-r from-transparent to-gold-500/60 sm:w-12" />
+          <p className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap">
+            <span className="text-[12px] font-medium tracking-wide text-ink-500">Welcome,</span>
+            <span className="ssd-success-title font-accent text-[17px] font-extrabold tracking-wide">{name}</span>
+          </p>
+          <span aria-hidden className="h-px w-8 shrink-0 bg-gradient-to-l from-transparent to-gold-500/60 sm:w-12" />
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -435,6 +507,15 @@ export function SecondScreenDetails({
         >
           Open on this PC
         </button>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-[#ead9c6] px-3 py-1.5 text-[12px] font-semibold text-ink-500 hover:bg-black/5 hover:text-ink-100"
+          >
+            Close
+          </button>
+        )}
       </div>
     </div>
   );
