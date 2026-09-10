@@ -3097,30 +3097,16 @@ function ProceedPaymentModal({
         )}
       </div>
 
-      <div className="relative z-10 flex shrink-0 items-center justify-end gap-3 border-t border-maroon/15 px-5 py-3 shadow-[0_-6px_16px_-4px_rgba(0,0,0,0.18)]">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-md border border-gold-500/30 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-ink-300 transition-[border-color,color] duration-200 hover:border-flame-500/60 hover:text-flame-600"
-        >
-          Cancel
-        </button>
-        {isTerminalMode && (
-          <button
-            type="button"
-            onClick={onManualConfirm}
-            disabled={!modeId || loading || !amountValid}
-            title="Enter the transaction reference number from the terminal's printed slip instead of waiting for its automatic confirmation."
-            className="rounded-md border border-[#7c1527]/40 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-[#7c1527] transition-colors duration-200 hover:bg-[#7c1527]/10 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Manual Confirm
-          </button>
-        )}
+      <div className="relative z-10 flex shrink-0 flex-col gap-2 border-t border-maroon/15 px-5 py-3 shadow-[0_-6px_16px_-4px_rgba(0,0,0,0.18)]">
+        {/* Primary CTA gets its own full-width row — cramming it in
+            alongside Cancel/Manual Confirm truncated its label for longer
+            mode names like "CREDIT CARD" and forced Manual Confirm to wrap. */}
         <FlameActionButton
           icon={<LockIcon />}
           chevron={false}
           onClick={onConfirm}
           disabled={!modeId || loading || !amountValid}
+          className="w-full justify-center"
         >
           {loading
             ? "Confirming…"
@@ -3128,6 +3114,26 @@ function ProceedPaymentModal({
               ? `Confirm ${modeName} Payment (Partial)`
               : `Confirm ${modeName} Payment`}
         </FlameActionButton>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-md border border-gold-500/30 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-ink-300 transition-[border-color,color] duration-200 hover:border-flame-500/60 hover:text-flame-600"
+          >
+            Cancel
+          </button>
+          {isTerminalMode && (
+            <button
+              type="button"
+              onClick={onManualConfirm}
+              disabled={!modeId || loading || !amountValid}
+              title="Enter the transaction reference number from the terminal's printed slip instead of waiting for its automatic confirmation."
+              className="flex-1 rounded-md border border-[#7c1527]/40 bg-transparent px-4 py-1.5 text-[13px] font-semibold text-[#7c1527] transition-colors duration-200 hover:bg-[#7c1527]/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Manual Confirm
+            </button>
+          )}
+        </div>
       </div>
     </PosFlipModal>
   );
