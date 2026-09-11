@@ -26,3 +26,10 @@ export const USER_TYPE_LABEL: Record<string, string> = {
 export function isAdminPanelType(userType?: string | null): boolean {
   return userType === USER_TYPES.SUPER_ADMIN || userType === USER_TYPES.ADMIN_USER;
 }
+
+// Note: the Hall & Meal Management area is gated by the `hallMealAccess`
+// boolean on SessionUser (see authStore.ts), not by userType — several
+// accounts can be SUPER_ADMIN, and that area is meant for exactly one (or
+// however many an Admin explicitly flips the flag on for). There is
+// deliberately no `isSuperAdmin(userType)` helper here: writing that check
+// against `userType` would be the wrong boundary for this area specifically.

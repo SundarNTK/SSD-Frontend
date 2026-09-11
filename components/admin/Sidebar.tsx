@@ -31,6 +31,16 @@ type NavItem = {
   soon?: string;
   module?: string;
   children?: NavLeaf[];
+  /**
+   * Hides this whole group unless the account's `hallMealAccess` flag is
+   * on — NOT a `userType` check: several accounts can be SUPER_ADMIN, and
+   * this is meant for exactly one (or however many an Admin explicitly
+   * flips it on for), not "every Super Admin". See SSD-Backend's
+   * `hallMealAccessOnly` middleware and models/users' `hallMealAccess`
+   * field. There is no module key for this area at all — Role permissions
+   * can't grant it — so this flag is the only gate.
+   */
+  requiresHallMealAccess?: boolean;
 };
 
 // Everything without a `to` or `children` is a preview of the shape to come,
@@ -94,6 +104,20 @@ const NAV_ITEMS: NavItem[] = [
       { label: "Available Stock", to: "/admin/inventory/available-stock", module: MODULES.inventory },
       { label: "Inventory History", to: "/admin/inventory/history", module: MODULES.inventory },
       { label: "Low Stock Report", to: "/admin/inventory/low-stock", module: MODULES.inventory },
+    ],
+  },
+  {
+    label: "Hall & Meal Management",
+    icon: <GridIcon />,
+    requiresHallMealAccess: true,
+    children: [
+      { label: "Hall Category", to: "/admin/hall-meal/hall-categories" },
+      { label: "Hall", to: "/admin/hall-meal/halls" },
+      { label: "Hall Purpose", to: "/admin/hall-meal/hall-purposes" },
+      { label: "Additional Service", to: "/admin/hall-meal/additional-services" },
+      { label: "Hall Package", to: "/admin/hall-meal/hall-packages" },
+      { label: "Food Menu Item", to: "/admin/hall-meal/food-menu-items" },
+      { label: "Food Package", to: "/admin/hall-meal/food-packages" },
     ],
   },
   { label: "Reports", icon: <ChartIcon /> },
@@ -187,20 +211,26 @@ const OPEN_GROUP_CLASS =
  * the collapsed rail both fall back to the mark alone (SSD_Logo.webp).
  */
 export default function Sidebar({ open, onClose }: SidebarProps) {
-  const { can } = usePermissions();
+  const { can, user } = usePermissions();
   const [collapsed, setCollapsed] = useState(false);
 
-  const navItems = NAV_ITEMS.map((item) => {
-    if (!item.children) return item;
-    return {
-      ...item,
-      children: item.children.filter((c) => !c.module || can(c.module, "view")),
-    };
-  }).filter((item) =>
-    item.children
-      ? item.children.length > 0
-      : !item.module || can(item.module, "view"),
-  );
+  const navItems = NAV_ITEMS
+    // Structural gate first: a group requiring hallMealAccess never even
+    // reaches the permission-based filtering below, no matter what a Role
+    // grants or whether the account is a Super Admin.
+    .filter((item) => !item.requiresHallMealAccess || user?.hallMealAccess === true)
+    .map((item) => {
+      if (!item.children) return item;
+      return {
+        ...item,
+        children: item.children.filter((c) => !c.module || can(c.module, "view")),
+      };
+    })
+    .filter((item) =>
+      item.children
+        ? item.children.length > 0
+        : !item.module || can(item.module, "view"),
+    );
 
   // Clicking a collapsed group needs somewhere for its children to appear —
   // expand the rail back out rather than trying to flyout a menu with no
