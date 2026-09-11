@@ -98,7 +98,7 @@ export default function SetPasswordView({ mode, token }: { mode: "activate" | "r
         };
 
   return (
-    <AuthShell eyebrow={copy.eyebrow} title={copy.title} subtitle={copy.subtitle}>
+    <AuthShell eyebrow={copy.eyebrow} title={copy.title} subtitle={copy.subtitle} backdrop="admin-photo">
       {checkingToken ? (
         <div className="flex justify-center py-6">
           <EmblemLoader size="sm" label="Checking link…" />

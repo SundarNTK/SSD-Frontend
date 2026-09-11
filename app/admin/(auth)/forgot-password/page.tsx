@@ -37,6 +37,7 @@ export default function ForgotPasswordPage() {
       eyebrow="Sri Siva Durga Temple"
       title="Forgot Your Password?"
       subtitle="Enter your registered email or mobile number and we'll email you a reset link."
+      backdrop="admin-photo"
       footer={
         <Link href="/admin/login" className="text-[#e8590c] underline-offset-2 hover:underline">
           ← Back to sign in
