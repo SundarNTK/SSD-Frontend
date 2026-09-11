@@ -10,7 +10,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineColorPicker from "../divine/DivineColorPicker";
-import DivineImageUpload from "../divine/DivineImageUpload";
+import DivineMasterImageUpload from "../divine/DivineMasterImageUpload";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineVisibilitySelect from "../divine/DivineVisibilitySelect";
 import DivineButton from "../divine/DivineButton";
@@ -19,6 +19,7 @@ import { api } from "../../lib/api";
 import { useApiResource, type WriteBody } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { withOptionalImage } from "../../lib/withOptionalImage";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
 import { DEFAULT_VISIBILITY, flagsToVisibility, visibilityToFlags } from "../../lib/visibility";
 import VisibilityPills from "./VisibilityPills";
@@ -59,6 +60,7 @@ export default function CategoryPage() {
 
   const [createImage, setCreateImage] = useState<File | null>(null);
   const [editImage, setEditImage] = useState<File | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
@@ -89,19 +91,18 @@ export default function CategoryPage() {
 
   function toPayload(values: FormValues, image: File | null): WriteBody {
     const { pos, portal } = visibilityToFlags(values.visibility);
-    const body = { ...values, posVisibility: pos, customerPortalVisibility: portal };
-    delete (body as { visibility?: string[] }).visibility;
-    if (!image) return body;
-    const form = new FormData();
-    Object.entries(body).forEach(([key, val]) => form.append(key, String(val)));
-    form.append("image", image);
-    return form;
+    return withOptionalImage(
+      { ...values, posVisibility: pos, customerPortalVisibility: portal, visibility: undefined },
+      image,
+      { existingValue: editing?.image ?? null, imageRemoved }
+    );
   }
 
   function openCreate() {
     setEditing(null);
     reset({ name: "", tamilName: "", code: "", displayOrder: 0, color: "#942237", description: "", visibility: DEFAULT_VISIBILITY, status: 1 });
     setCreateImage(null);
+    setImageRemoved(false);
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -119,6 +120,7 @@ export default function CategoryPage() {
       status: category.status,
     });
     setEditImage(null);
+    setImageRemoved(false);
     update.setError(null);
     setDrawerOpen(true);
   }
@@ -296,10 +298,13 @@ export default function CategoryPage() {
             />
           </div>
           <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
-          <DivineImageUpload
+          <DivineMasterImageUpload
             label="Category Image"
             value={editing?.image}
-            onChange={editing ? setEditImage : setCreateImage}
+            onChange={(file) => {
+              (editing ? setEditImage : setCreateImage)(file);
+              setImageRemoved(!file);
+            }}
           />
         </form>
       </FormDrawer>

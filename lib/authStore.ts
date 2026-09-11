@@ -12,6 +12,14 @@ export type SessionUser = {
    *  role/permission system; see models/users on the backend. */
   posAccess?: boolean;
   /**
+   * Gates the Hall & Meal Management masters specifically — same shape as
+   * `posAccess`, and just as deliberately NOT implied by `userType ===
+   * "SUPER_ADMIN"`. Only the account(s) this is turned on for (see
+   * SSD-Backend's `create:super-admin --hall-meal-access`) see that area of
+   * the Sidebar or pass the API's `hallMealAccessOnly` middleware.
+   */
+  hallMealAccess?: boolean;
+  /**
    * What this account can reach, as resolved at login. Used only to decide
    * which nav entries and buttons to render — the server re-checks every
    * request against the database regardless of what's stored here.

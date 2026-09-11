@@ -16,7 +16,7 @@ import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineOptionGroup from "../divine/DivineOptionGroup";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineButton from "../divine/DivineButton";
-import DivineImageUpload from "../divine/DivineImageUpload";
+import DivineMasterImageUpload from "../divine/DivineMasterImageUpload";
 import TamilNameField from "./TamilNameField";
 import { withOptionalImage } from "../../lib/withOptionalImage";
 import { PlusIcon, CalendarIcon, CloseIcon } from "../divine/icons";
@@ -162,6 +162,7 @@ export default function EventPage() {
   const [deleting, setDeleting] = useState<Event | null>(null);
   const [createImage, setCreateImage] = useState<File | null>(null);
   const [editImage, setEditImage] = useState<File | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
 
   useEffect(() => {
     fetchOptions("/masters/categories").then(setCategoryOptions);
@@ -195,6 +196,7 @@ export default function EventPage() {
     setEditing(null);
     reset(DEFAULT_VALUES);
     setCreateImage(null);
+    setImageRemoved(false);
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -228,6 +230,7 @@ export default function EventPage() {
       status: event.status,
     });
     setEditImage(null);
+    setImageRemoved(false);
     update.setError(null);
     setDrawerOpen(true);
   }
@@ -240,6 +243,7 @@ export default function EventPage() {
         slotDetails: values.isSlotRequired ? values.slotDetails : [],
       },
       editing ? editImage : createImage,
+      { existingValue: editing?.image ?? null, imageRemoved },
     );
     const ok = editing ? await update.run(editing._id, payload) : await create.run(payload);
     if (ok !== undefined) {
@@ -491,10 +495,13 @@ export default function EventPage() {
             />
           </div>
 
-          <DivineImageUpload
+          <DivineMasterImageUpload
             label="Event Image"
             value={editing?.image}
-            onChange={editing ? setEditImage : setCreateImage}
+            onChange={(file) => {
+              (editing ? setEditImage : setCreateImage)(file);
+              setImageRemoved(!file);
+            }}
           />
 
           {isSlotRequired && (

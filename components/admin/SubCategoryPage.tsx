@@ -13,7 +13,7 @@ import DivineColorPicker from "../divine/DivineColorPicker";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineVisibilitySelect from "../divine/DivineVisibilitySelect";
 import DivineButton from "../divine/DivineButton";
-import DivineImageUpload from "../divine/DivineImageUpload";
+import DivineMasterImageUpload from "../divine/DivineMasterImageUpload";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import TamilNameField from "./TamilNameField";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
@@ -80,6 +80,7 @@ export default function SubCategoryPage() {
   const [deleting, setDeleting] = useState<SubCategory | null>(null);
   const [createImage, setCreateImage] = useState<File | null>(null);
   const [editImage, setEditImage] = useState<File | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
 
   // Load category dropdown once on mount
   useEffect(() => {
@@ -110,6 +111,7 @@ export default function SubCategoryPage() {
     setEditing(null);
     reset({ name: "", tamilName: "", code: "", category: "", displayOrder: 0, color: "#942237", description: "", visibility: DEFAULT_VISIBILITY, status: 1 });
     setCreateImage(null);
+    setImageRemoved(false);
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -128,6 +130,7 @@ export default function SubCategoryPage() {
       status: sub.status,
     });
     setEditImage(null);
+    setImageRemoved(false);
     update.setError(null);
     setDrawerOpen(true);
   }
@@ -137,6 +140,7 @@ export default function SubCategoryPage() {
     const payload = withOptionalImage(
       { ...values, posVisibility: pos, customerPortalVisibility: portal, visibility: undefined },
       editing ? editImage : createImage,
+      { existingValue: editing?.image ?? null, imageRemoved }
     );
     const ok = editing ? await update.run(editing._id, payload) : await create.run(payload);
     if (ok !== undefined) {
@@ -326,10 +330,13 @@ export default function SubCategoryPage() {
             />
           </div>
           <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
-          <DivineImageUpload
+          <DivineMasterImageUpload
             label="Sub Category Image"
             value={editing?.image}
-            onChange={editing ? setEditImage : setCreateImage}
+            onChange={(file) => {
+              (editing ? setEditImage : setCreateImage)(file);
+              setImageRemoved(!file);
+            }}
           />
         </form>
       </FormDrawer>

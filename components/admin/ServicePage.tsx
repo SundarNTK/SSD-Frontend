@@ -16,7 +16,7 @@ import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineVisibilitySelect from "../divine/DivineVisibilitySelect";
 import DivineButton from "../divine/DivineButton";
-import DivineImageUpload from "../divine/DivineImageUpload";
+import DivineMasterImageUpload from "../divine/DivineMasterImageUpload";
 import { PlusIcon, CloseIcon } from "../divine/icons";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
@@ -162,6 +162,7 @@ export default function ServicePage() {
   const [deleting, setDeleting] = useState<Service | null>(null);
   const [createImage, setCreateImage] = useState<File | null>(null);
   const [editImage, setEditImage] = useState<File | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
 
   useEffect(() => {
     fetchOptions("/masters/general-ledgers").then(setGlOptions);
@@ -197,6 +198,7 @@ export default function ServicePage() {
     setEditing(null);
     reset(DEFAULT_VALUES);
     setCreateImage(null);
+    setImageRemoved(false);
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -228,6 +230,7 @@ export default function ServicePage() {
       status: service.status,
     });
     setEditImage(null);
+    setImageRemoved(false);
     update.setError(null);
     setDrawerOpen(true);
   }
@@ -246,6 +249,7 @@ export default function ServicePage() {
         visibility: undefined,
       },
       editing ? editImage : createImage,
+      { existingValue: editing?.image ?? null, imageRemoved }
     );
     const ok = editing ? await update.run(editing._id, payload) : await create.run(payload);
     if (ok !== undefined) {
@@ -626,10 +630,13 @@ export default function ServicePage() {
               )}
             />
           </div>
-          <DivineImageUpload
+          <DivineMasterImageUpload
             label="Service Image"
             value={editing?.image}
-            onChange={editing ? setEditImage : setCreateImage}
+            onChange={(file) => {
+              (editing ? setEditImage : setCreateImage)(file);
+              setImageRemoved(!file);
+            }}
           />
         </form>
       </FormDrawer>

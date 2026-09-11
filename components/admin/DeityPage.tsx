@@ -4,18 +4,20 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import DivineInput from "../divine/DivineInput";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
+import DivineMasterImageUpload from "../divine/DivineMasterImageUpload";
 import DivineButton from "../divine/DivineButton";
 import TamilNameField from "./TamilNameField";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
+import { withOptionalImage } from "../../lib/withOptionalImage";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
 import { usePageSize } from "../../lib/usePageSize";
 
@@ -27,6 +29,7 @@ export type Deity = {
   name: string;
   tamilName: string;
   printingGroup: Ref | null;
+  image: string | null;
   status: number;
   // Lower sorts first; deities sharing the same value fall back to
   // alphabetical by name (the backend does this sort, not the frontend —
@@ -63,6 +66,9 @@ export default function DeityPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Deity | null>(null);
   const [deleting, setDeleting] = useState<Deity | null>(null);
+  const [createImage, setCreateImage] = useState<File | null>(null);
+  const [editImage, setEditImage] = useState<File | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
 
   useEffect(() => {
     api
@@ -92,6 +98,8 @@ export default function DeityPage() {
   function openCreate() {
     setEditing(null);
     reset({ code: "", name: "", tamilName: "", printingGroup: "", status: 1, displayOrder: 0, printOrder: 0 });
+    setCreateImage(null);
+    setImageRemoved(false);
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -107,12 +115,18 @@ export default function DeityPage() {
       displayOrder: deity.displayOrder ?? 0,
       printOrder: deity.printOrder ?? 0,
     });
+    setEditImage(null);
+    setImageRemoved(false);
     update.setError(null);
     setDrawerOpen(true);
   }
 
   const submit = handleSubmit(async (values) => {
-    const ok = editing ? await update.run(editing._id, values) : await create.run(values);
+    const payload = withOptionalImage(values, editing ? editImage : createImage, {
+      existingValue: editing?.image ?? null,
+      imageRemoved,
+    });
+    const ok = editing ? await update.run(editing._id, payload) : await create.run(payload);
     if (ok !== undefined) {
       setDrawerOpen(false);
       if (editing) toast.updated("Deity updated successfully.");
@@ -121,6 +135,11 @@ export default function DeityPage() {
   });
 
   const columns: DataTableColumn<Deity>[] = [
+    {
+      key: "image",
+      label: "Image",
+      render: (d) => <MasterImageCell src={d.image} alt={d.name} />,
+    },
     {
       key: "displayOrder",
       label: "Display Order",
@@ -280,6 +299,14 @@ export default function DeityPage() {
               {...register("printOrder", { valueAsNumber: true })}
             />
           </div>
+          <DivineMasterImageUpload
+            label="Deity Image"
+            value={editing?.image}
+            onChange={(file) => {
+              (editing ? setEditImage : setCreateImage)(file);
+              setImageRemoved(!file);
+            }}
+          />
           <p className="-mt-3 text-[12.5px] text-ink-400">
             Display Order controls wherever deities are selected (deity mapping pickers, POS selection, this list).
             Print Order controls the order deities print in on a ticket — the two are independent. Either way,
