@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "../../../../lib/authStore";
 import { EmblemLoader } from "../../../../components/divine/EmblemLoader";
@@ -25,17 +25,19 @@ import { EmblemLoader } from "../../../../components/divine/EmblemLoader";
 function useHallMealAccessGuard() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const [ready, setReady] = useState(false);
 
+  // The redirect is a real external side effect (navigation), so it stays in
+  // an effect. Whether the guard has cleared is pure derived data — it needs
+  // no state/effect of its own, just recomputed from `user` on every render,
+  // which also means the page can render ready the same frame `user`
+  // populates instead of waiting an extra effect-then-setState cycle.
   useEffect(() => {
     if (user && user.hallMealAccess !== true) {
       router.replace("/admin/dashboard");
-      return;
     }
-    if (user) setReady(true);
   }, [user, router]);
 
-  return ready;
+  return Boolean(user && user.hallMealAccess === true);
 }
 
 export default function HallMealLayout({ children }: { children: React.ReactNode }) {
