@@ -7,6 +7,7 @@ import DivineListbox from "../../divine/DivineListbox";
 import DivineInput from "../../divine/DivineInput";
 import DivineTextarea from "../../divine/DivineTextarea";
 import DivineDatePicker from "../../divine/DivineDatePicker";
+import DivineTimePicker from "../../divine/DivineTimePicker";
 import DivineButton from "../../divine/DivineButton";
 import { EmblemLoader } from "../../divine/EmblemLoader";
 import { api, unwrap, type ApiEnvelope } from "../../../lib/api";
@@ -418,8 +419,8 @@ function RescheduleModal({ booking, onClose, onDone }: { booking: HallBookingDet
       <div className="space-y-4">
         <DivineDatePicker staticLabel label="New Event Date" value={eventDate} onChange={setEventDate} minDate={startOfToday()} />
         <div className="grid grid-cols-2 gap-4">
-          <DivineInput staticLabel label="New Start Time" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-          <DivineInput staticLabel label="New End Time" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+          <DivineTimePicker staticLabel label="New Start Time" value={startTime} onChange={setStartTime} />
+          <DivineTimePicker staticLabel label="New End Time" value={endTime} onChange={setEndTime} />
         </div>
         <DivineTextarea staticLabel label="Reschedule Reason" value={reason} onChange={(e) => setReason(e.target.value)} />
       </div>
@@ -477,7 +478,7 @@ function CancelModal({ bookingId, amountPaid, onClose, onDone }: { bookingId: st
 
 function RefundModal({ bookingId, refundableAmount, onClose, onDone }: { bookingId: string; refundableAmount: number; onClose: () => void; onDone: () => void }) {
   const [amount, setAmount] = useState(refundableAmount);
-  const [mode, setMode] = useState("");
+  const mode = "Cash";
   const [reference, setReference] = useState("");
   const [remarks, setRemarks] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -507,13 +508,13 @@ function RefundModal({ bookingId, refundableAmount, onClose, onDone }: { booking
       footer={
         <div className="flex justify-end gap-3">
           <DivineButton variant="ghost" fullWidth={false} type="button" onClick={onClose}>Cancel</DivineButton>
-          <DivineButton variant="flame" fullWidth={false} type="button" loading={submitting} disabled={!amount || !mode.trim()} onClick={submit}>Process Refund</DivineButton>
+          <DivineButton variant="flame" fullWidth={false} type="button" loading={submitting} disabled={!amount} onClick={submit}>Process Refund</DivineButton>
         </div>
       }
     >
       <div className="space-y-4">
         <DivineInput staticLabel label="Refund Amount" type="number" min={0} max={refundableAmount} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
-        <DivineInput staticLabel label="Refund Mode" value={mode} onChange={(e) => setMode(e.target.value)} />
+        <DivineInput staticLabel label="Refund Mode" value={mode} disabled readOnly />
         <DivineInput staticLabel label="Refund Reference" value={reference} onChange={(e) => setReference(e.target.value)} />
         <DivineTextarea staticLabel label="Remarks" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
       </div>

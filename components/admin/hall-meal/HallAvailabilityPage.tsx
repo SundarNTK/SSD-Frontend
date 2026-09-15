@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import DivineListbox from "../../divine/DivineListbox";
 import DivineDatePicker from "../../divine/DivineDatePicker";
-import DivineInput from "../../divine/DivineInput";
+import DivineTimePicker from "../../divine/DivineTimePicker";
 import DivineButton from "../../divine/DivineButton";
 import { api, unwrap, type ApiEnvelope } from "../../../lib/api";
 import { useApiResource } from "../../../lib/useApiResource";
@@ -113,8 +113,8 @@ export default function HallAvailabilityPage() {
         <DivineDatePicker staticLabel label="Event Date" value={eventDate} onChange={setEventDate} minDate={startOfToday()} />
 
         <div className="grid grid-cols-2 gap-4">
-          <DivineInput staticLabel label="Start Time" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-          <DivineInput staticLabel label="End Time" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+          <DivineTimePicker staticLabel label="Start Time" value={startTime} onChange={setStartTime} />
+          <DivineTimePicker staticLabel label="End Time" value={endTime} onChange={setEndTime} />
         </div>
 
         <DivineButton variant="flame" type="button" disabled={!canCheck} loading={checking} onClick={handleCheck}>

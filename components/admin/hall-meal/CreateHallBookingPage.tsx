@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import CustomerSearchSelect, { type SelectedCustomer } from "./CustomerSearchSelect";
 import DivineListbox from "../../divine/DivineListbox";
 import DivineDatePicker from "../../divine/DivineDatePicker";
+import DivineTimePicker from "../../divine/DivineTimePicker";
 import DivineInput from "../../divine/DivineInput";
 import DivineTextarea from "../../divine/DivineTextarea";
 import DivineToggle from "../../divine/DivineToggle";
@@ -311,8 +312,8 @@ export default function CreateHallBookingPage() {
               minDate={startOfToday()}
             />
             <div className="grid grid-cols-2 gap-4">
-              <DivineInput staticLabel label="Start Time" type="time" value={startTime} onChange={(e) => { setStartTime(e.target.value); resetAvailability(); }} />
-              <DivineInput staticLabel label="End Time" type="time" value={endTime} onChange={(e) => { setEndTime(e.target.value); resetAvailability(); }} />
+              <DivineTimePicker staticLabel label="Start Time" value={startTime} onChange={(v) => { setStartTime(v); resetAvailability(); }} />
+              <DivineTimePicker staticLabel label="End Time" value={endTime} onChange={(v) => { setEndTime(v); resetAvailability(); }} />
             </div>
           </Section>
 

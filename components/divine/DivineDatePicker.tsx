@@ -325,7 +325,7 @@ export default function DivineDatePicker({
                         onClick={() => pickMonth(index)}
                         className={`flex items-center justify-center rounded-lg text-[12.5px] transition-colors ${
                           index === view.getMonth()
-                            ? "bg-gradient-to-b from-gold-300 to-gold-600 font-semibold text-navy-950"
+                            ? "bg-gold-500 font-semibold text-navy-950 shadow-[0_2px_10px_-2px_rgba(212,175,55,0.7)]"
                             : index === today.getMonth() && view.getFullYear() === thisYear
                               ? "text-amber-600 hover:bg-gold-500/15"
                               : "text-ink-100 hover:bg-gold-500/15 hover:text-amber-700"
@@ -358,7 +358,7 @@ export default function DivineDatePicker({
                           onClick={() => pickYear(y)}
                           className={`h-9 shrink-0 rounded-lg text-[12.5px] tabular-nums transition-colors ${
                             y === view.getFullYear()
-                              ? "bg-gradient-to-b from-gold-300 to-gold-600 font-semibold text-navy-950"
+                              ? "bg-gold-500 font-semibold text-navy-950 shadow-[0_2px_10px_-2px_rgba(212,175,55,0.7)]"
                               : y === thisYear
                                 ? "text-amber-600 hover:bg-gold-500/15"
                                 : "text-ink-100 hover:bg-gold-500/15 hover:text-amber-700"
@@ -403,7 +403,7 @@ export default function DivineDatePicker({
                                 onClick={() => pick(date)}
                                 className={`relative h-8 rounded-lg text-[12.5px] tabular-nums transition-colors ${
                                   isSelected
-                                    ? "bg-gradient-to-b from-gold-300 to-gold-600 font-semibold text-navy-950"
+                                    ? "bg-gold-500 font-semibold text-navy-950 shadow-[0_2px_10px_-2px_rgba(212,175,55,0.7)]"
                                     : disabled
                                       ? "cursor-not-allowed text-ink-500/25"
                                       : outside
@@ -472,8 +472,10 @@ function HeaderPickerButton({
       onClick={onClick}
       aria-haspopup="listbox"
       aria-expanded={active}
-      className={`flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-accent text-[13.5px] tracking-wide transition-colors ${tabular ? "tabular-nums" : ""} ${
-        active ? "bg-gold-500/15 text-amber-600" : "text-amber-700 hover:bg-gold-500/10"
+      className={`flex items-center gap-1 rounded-md border px-2 py-1 font-accent text-[13.5px] tracking-wide transition-colors ${tabular ? "tabular-nums" : ""} ${
+        active
+          ? "border-gold-400/60 bg-gold-500/15 text-amber-600"
+          : "border-gold-500/20 text-amber-700 hover:border-gold-500/40 hover:bg-gold-500/10"
       }`}
     >
       {children}
@@ -499,7 +501,7 @@ function NavButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="flex h-7 w-7 items-center justify-center rounded-lg text-[15px] text-ink-500 transition-colors hover:bg-gold-500/10 hover:text-amber-600 disabled:pointer-events-none disabled:opacity-0"
+      className="flex h-7 w-7 items-center justify-center rounded-lg border border-gold-500/20 text-[15px] text-ink-500 transition-colors hover:border-gold-500/40 hover:bg-gold-500/10 hover:text-amber-600 disabled:pointer-events-none disabled:opacity-0"
     >
       {children}
     </button>

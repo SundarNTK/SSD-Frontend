@@ -12,6 +12,7 @@ import DivineTextarea from "../divine/DivineTextarea";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineMultiSelect from "../divine/DivineMultiSelect";
 import DivineDatePicker from "../divine/DivineDatePicker";
+import DivineTimePicker from "../divine/DivineTimePicker";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineOptionGroup from "../divine/DivineOptionGroup";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
@@ -559,15 +560,15 @@ export default function EventPage() {
                       {...register(`slotDetails.${index}.date`)}
                       className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
                     />
-                    <input
-                      type="time"
-                      {...register(`slotDetails.${index}.startTime`)}
-                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                    <Controller
+                      control={control}
+                      name={`slotDetails.${index}.startTime`}
+                      render={({ field }) => <DivineTimePicker label="Start Time" value={field.value} onChange={field.onChange} />}
                     />
-                    <input
-                      type="time"
-                      {...register(`slotDetails.${index}.endTime`)}
-                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] text-ink-100 outline-none focus:border-gold-400/60"
+                    <Controller
+                      control={control}
+                      name={`slotDetails.${index}.endTime`}
+                      render={({ field }) => <DivineTimePicker label="End Time" value={field.value} onChange={field.onChange} />}
                     />
                     <input
                       type="number"
