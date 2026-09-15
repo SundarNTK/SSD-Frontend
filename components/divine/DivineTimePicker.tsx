@@ -229,10 +229,10 @@ export default function DivineTimePicker({
               >
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-400/50 to-transparent" />
 
-                <div className="mb-2 grid grid-cols-3 gap-1 px-1 text-center text-[10px] uppercase tracking-wide text-ink-500">
+                <div className="mb-2 grid grid-cols-3 gap-1 px-1 text-center text-[10px] font-semibold uppercase tracking-wide text-maroon/70">
                   <span>Hour</span>
                   <span>Min</span>
-                  <span>&nbsp;</span>
+                  <span>AM/PM</span>
                 </div>
 
                 <div className="grid grid-cols-3 gap-1.5">
@@ -261,8 +261,8 @@ export default function DivineTimePicker({
                         onClick={() => pickPeriod(p)}
                         className={`h-9 shrink-0 rounded-lg text-[13px] font-semibold tracking-wide transition-colors ${
                           p === parsed?.period
-                            ? "bg-gold-500 text-navy-950 shadow-[0_2px_10px_-2px_rgba(212,175,55,0.7)]"
-                            : "text-ink-100 hover:bg-gold-500/15 hover:text-amber-700"
+                            ? "bg-maroon text-white shadow-[0_2px_10px_-2px_rgba(124,21,39,0.55)]"
+                            : "text-ink-100 hover:bg-maroon/10 hover:text-maroon"
                         }`}
                       >
                         {p}
@@ -285,7 +285,7 @@ export default function DivineTimePicker({
                   <button
                     type="button"
                     onClick={pickNow}
-                    className="rounded-lg px-2 py-1 text-[12px] text-amber-600 transition-colors hover:text-amber-700"
+                    className="rounded-lg px-2 py-1 text-[12px] font-medium text-maroon transition-colors hover:text-maroon-hover"
                   >
                     Now
                   </button>
@@ -334,8 +334,8 @@ function TimeColumn<T extends number>({
             onClick={() => onPick(item)}
             className={`h-8 shrink-0 rounded-lg text-[13px] tabular-nums transition-colors ${
               selected
-                ? "bg-gold-500 font-semibold text-navy-950 shadow-[0_2px_10px_-2px_rgba(212,175,55,0.7)]"
-                : "text-ink-100 hover:bg-gold-500/15 hover:text-amber-700"
+                ? "bg-maroon font-semibold text-white shadow-[0_2px_10px_-2px_rgba(124,21,39,0.55)]"
+                : "text-ink-100 hover:bg-maroon/10 hover:text-maroon"
             }`}
           >
             {format(item)}

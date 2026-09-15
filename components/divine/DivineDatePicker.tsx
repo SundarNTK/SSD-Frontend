@@ -325,10 +325,10 @@ export default function DivineDatePicker({
                         onClick={() => pickMonth(index)}
                         className={`flex items-center justify-center rounded-lg text-[12.5px] transition-colors ${
                           index === view.getMonth()
-                            ? "bg-gold-500 font-semibold text-navy-950 shadow-[0_2px_10px_-2px_rgba(212,175,55,0.7)]"
+                            ? "bg-maroon font-semibold text-white shadow-[0_2px_10px_-2px_rgba(124,21,39,0.55)]"
                             : index === today.getMonth() && view.getFullYear() === thisYear
-                              ? "text-amber-600 hover:bg-gold-500/15"
-                              : "text-ink-100 hover:bg-gold-500/15 hover:text-amber-700"
+                              ? "font-semibold text-maroon hover:bg-maroon/10"
+                              : "text-ink-100 hover:bg-maroon/10 hover:text-maroon"
                         }`}
                       >
                         {name.slice(0, 3)}
@@ -344,7 +344,7 @@ export default function DivineDatePicker({
                       value={yearQuery}
                       onChange={(e) => setYearQuery(e.target.value.replace(/\D/g, "").slice(0, 4))}
                       placeholder="Type a year…"
-                      className="mb-2 w-full rounded-lg border border-gold-500/20 bg-navy-800/60 px-3 py-1.5 text-[13px] text-ink-100 outline-none placeholder:text-ink-500 focus:border-gold-400/60"
+                      className="mb-2 w-full rounded-lg border border-gold-500/20 bg-navy-800/60 px-3 py-1.5 text-[13px] text-ink-100 outline-none placeholder:text-ink-500 focus:border-maroon/50"
                     />
                     <div ref={yearListRef} className="grid grid-cols-4 gap-1 overflow-y-auto pr-0.5" style={{ height: 152 }}>
                       {filteredYears.length === 0 && (
@@ -358,10 +358,10 @@ export default function DivineDatePicker({
                           onClick={() => pickYear(y)}
                           className={`h-9 shrink-0 rounded-lg text-[12.5px] tabular-nums transition-colors ${
                             y === view.getFullYear()
-                              ? "bg-gold-500 font-semibold text-navy-950 shadow-[0_2px_10px_-2px_rgba(212,175,55,0.7)]"
+                              ? "bg-maroon font-semibold text-white shadow-[0_2px_10px_-2px_rgba(124,21,39,0.55)]"
                               : y === thisYear
-                                ? "text-amber-600 hover:bg-gold-500/15"
-                                : "text-ink-100 hover:bg-gold-500/15 hover:text-amber-700"
+                                ? "font-semibold text-maroon hover:bg-maroon/10"
+                                : "text-ink-100 hover:bg-maroon/10 hover:text-maroon"
                           }`}
                         >
                           {y}
@@ -373,7 +373,7 @@ export default function DivineDatePicker({
                   <>
                     <div className="mb-1 grid grid-cols-7 gap-0.5">
                       {WEEKDAYS.map((d) => (
-                        <span key={d} className="py-1 text-center text-[10.5px] uppercase tracking-wide text-ink-500">
+                        <span key={d} className="py-1 text-center text-[10.5px] font-semibold uppercase tracking-wide text-maroon/70">
                           {d}
                         </span>
                       ))}
@@ -403,12 +403,12 @@ export default function DivineDatePicker({
                                 onClick={() => pick(date)}
                                 className={`relative h-8 rounded-lg text-[12.5px] tabular-nums transition-colors ${
                                   isSelected
-                                    ? "bg-gold-500 font-semibold text-navy-950 shadow-[0_2px_10px_-2px_rgba(212,175,55,0.7)]"
+                                    ? "bg-maroon font-semibold text-white shadow-[0_2px_10px_-2px_rgba(124,21,39,0.55)]"
                                     : disabled
                                       ? "cursor-not-allowed text-ink-500/25"
                                       : outside
                                         ? "text-ink-500/45 hover:bg-navy-800/70 hover:text-ink-300"
-                                        : "text-ink-100 hover:bg-gold-500/15 hover:text-amber-700"
+                                        : "text-ink-100 hover:bg-maroon/10 hover:text-maroon"
                                 }`}
                               >
                                 {date.getDate()}
@@ -439,7 +439,7 @@ export default function DivineDatePicker({
                     type="button"
                     disabled={isDisabled(today)}
                     onClick={() => pick(today)}
-                    className="rounded-lg px-2 py-1 text-[12px] text-amber-600 transition-colors hover:text-amber-700 disabled:opacity-40"
+                    className="rounded-lg px-2 py-1 text-[12px] font-medium text-maroon transition-colors hover:text-maroon-hover disabled:opacity-40"
                   >
                     Today
                   </button>
@@ -472,10 +472,10 @@ function HeaderPickerButton({
       onClick={onClick}
       aria-haspopup="listbox"
       aria-expanded={active}
-      className={`flex items-center gap-1 rounded-md border px-2 py-1 font-accent text-[13.5px] tracking-wide transition-colors ${tabular ? "tabular-nums" : ""} ${
+      className={`flex items-center gap-1 rounded-md border px-2.5 py-1 font-accent text-[14px] font-semibold tracking-wide transition-colors ${tabular ? "tabular-nums" : ""} ${
         active
-          ? "border-gold-400/60 bg-gold-500/15 text-amber-600"
-          : "border-gold-500/20 text-amber-700 hover:border-gold-500/40 hover:bg-gold-500/10"
+          ? "border-maroon/50 bg-maroon text-white shadow-[0_2px_10px_-2px_rgba(124,21,39,0.55)]"
+          : "border-maroon/25 bg-maroon/5 text-maroon hover:border-maroon/45 hover:bg-maroon/10"
       }`}
     >
       {children}
