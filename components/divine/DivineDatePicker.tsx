@@ -3,7 +3,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarIcon } from "./icons";
+import { CalendarIcon, ChevronIcon } from "./icons";
 import { FORM_CONTROL_ERROR, FORM_CONTROL_FOCUS, FORM_CONTROL_SHELL, FORM_LABEL, FORM_MUTED } from "./formFieldStyles";
 import {
   formatTempleDate,
@@ -89,15 +89,28 @@ export default function DivineDatePicker({
   const [view, setView] = useState(() => selected ?? today);
   const [direction, setDirection] = useState(0);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  // Clicking the month or year in the header swaps the day grid for one of
+  // these instead — jumping to a birth year (or any far-off year) one month
+  // arrow click at a time was the whole complaint this replaces.
+  const [activePicker, setActivePicker] = useState<"days" | "months" | "years">("days");
+  const [yearQuery, setYearQuery] = useState("");
 
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const yearListRef = useRef<HTMLDivElement>(null);
   const labelId = useId();
 
-  // Reopening on a different value should land on that value's month.
-  useEffect(() => {
-    if (open) setView(selected ?? today);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  // Opening should land on the selected value's month/year, on the day
+  // grid, every time — set directly in the click handler that flips `open`
+  // rather than in an effect keyed on it, since there's no reason to wait
+  // an extra render for a reset the click itself already knows to make.
+  function toggleOpen() {
+    if (!open) {
+      setView(selected ?? today);
+      setActivePicker("days");
+      setYearQuery("");
+    }
+    setOpen((v) => !v);
+  }
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
@@ -146,6 +159,35 @@ export default function DivineDatePicker({
   const isDisabled = (date: Date) => Boolean((minDate && date < minDate) || (maxDate && date > maxDate));
   const cells = buildMonthGrid(view.getFullYear(), view.getMonth());
 
+  // A generous default range (covers any date-of-birth field), narrowed to
+  // whatever minDate/maxDate actually allow so a constrained field — an
+  // Event Date restricted to "today onward" — never lists a year that would
+  // just land on an all-disabled month.
+  const thisYear = today.getFullYear();
+  const rangeStart = minDate ? minDate.getFullYear() : thisYear - 120;
+  const rangeEnd = maxDate ? maxDate.getFullYear() : thisYear + 15;
+  const allYears = Array.from({ length: rangeEnd - rangeStart + 1 }, (_, i) => rangeEnd - i);
+  const filteredYears = yearQuery.trim() ? allYears.filter((y) => String(y).includes(yearQuery.trim())) : allYears;
+
+  function pickYear(year: number) {
+    setView((v) => new Date(year, v.getMonth(), 1));
+    setActivePicker("days");
+    setYearQuery("");
+  }
+
+  function pickMonth(monthIndex: number) {
+    setView((v) => new Date(v.getFullYear(), monthIndex, 1));
+    setActivePicker("days");
+  }
+
+  // Land the picker on the currently-viewed year instead of wherever the
+  // list happens to start (the far end of a 120-year list otherwise).
+  useEffect(() => {
+    if (activePicker !== "years") return;
+    const el = yearListRef.current?.querySelector<HTMLButtonElement>(`[data-year="${view.getFullYear()}"]`);
+    el?.scrollIntoView({ block: "center" });
+  }, [activePicker, view]);
+
   // Same gradient-border scoping as DivineInput/DivineTextarea: staticLabel
   // marks an admin master-form field, which gets the two-layer gradient
   // border; POS (staticLabel off) keeps the original plain border.
@@ -173,7 +215,7 @@ export default function DivineDatePicker({
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-labelledby={labelId}
@@ -251,69 +293,136 @@ export default function DivineDatePicker({
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-400/50 to-transparent" />
 
                 <div className="mb-2 flex items-center justify-between px-1">
-                  <div className="flex items-center gap-0.5">
-                    <NavButton onClick={() => shiftMonth(-12)} label="Previous year">«</NavButton>
-                    <NavButton onClick={() => shiftMonth(-1)} label="Previous month">‹</NavButton>
-                  </div>
-                  <p className="font-accent text-[13.5px] tracking-wide text-amber-700">
-                    {MONTHS[view.getMonth()]} {view.getFullYear()}
-                  </p>
-                  <div className="flex items-center gap-0.5">
-                    <NavButton onClick={() => shiftMonth(1)} label="Next month">›</NavButton>
-                    <NavButton onClick={() => shiftMonth(12)} label="Next year">»</NavButton>
-                  </div>
-                </div>
-
-                <div className="mb-1 grid grid-cols-7 gap-0.5">
-                  {WEEKDAYS.map((d) => (
-                    <span key={d} className="py-1 text-center text-[10.5px] uppercase tracking-wide text-ink-500">
-                      {d}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="relative overflow-hidden" style={{ height: 198 }}>
-                  <AnimatePresence initial={false} custom={direction} mode="popLayout">
-                    <motion.div
-                      key={`${view.getFullYear()}-${view.getMonth()}`}
-                      custom={direction}
-                      initial={{ x: direction > 0 ? 40 : -40, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      exit={{ x: direction > 0 ? -40 : 40, opacity: 0 }}
-                      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                      className="absolute inset-0 grid grid-cols-7 gap-0.5 content-start"
+                  <NavButton onClick={() => shiftMonth(-1)} label="Previous month" disabled={activePicker !== "days"}>
+                    ‹
+                  </NavButton>
+                  <div className="flex items-center gap-1">
+                    <HeaderPickerButton
+                      active={activePicker === "months"}
+                      onClick={() => setActivePicker((p) => (p === "months" ? "days" : "months"))}
                     >
-                      {cells.map(({ date, outside }) => {
-                        const disabled = isDisabled(date);
-                        const isSelected = isSameDay(date, selected);
-                        const isToday = isSameDay(date, today);
-
-                        return (
-                          <button
-                            key={date.toISOString()}
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => pick(date)}
-                            className={`relative h-8 rounded-lg text-[12.5px] tabular-nums transition-colors ${
-                              isSelected
-                                ? "bg-gradient-to-b from-gold-300 to-gold-600 font-semibold text-navy-950"
-                                : disabled
-                                  ? "cursor-not-allowed text-ink-500/25"
-                                  : outside
-                                    ? "text-ink-500/45 hover:bg-navy-800/70 hover:text-ink-300"
-                                    : "text-ink-100 hover:bg-gold-500/15 hover:text-amber-700"
-                            }`}
-                          >
-                            {date.getDate()}
-                            {isToday && !isSelected && (
-                              <span className="absolute inset-x-0 bottom-1 mx-auto h-[3px] w-[3px] rounded-full bg-gold-400" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </motion.div>
-                  </AnimatePresence>
+                      {MONTHS[view.getMonth()]}
+                    </HeaderPickerButton>
+                    <HeaderPickerButton
+                      active={activePicker === "years"}
+                      tabular
+                      onClick={() => setActivePicker((p) => (p === "years" ? "days" : "years"))}
+                    >
+                      {view.getFullYear()}
+                    </HeaderPickerButton>
+                  </div>
+                  <NavButton onClick={() => shiftMonth(1)} label="Next month" disabled={activePicker !== "days"}>
+                    ›
+                  </NavButton>
                 </div>
+
+                {activePicker === "months" ? (
+                  <div className="grid grid-cols-3 gap-1" style={{ height: 190 }}>
+                    {MONTHS.map((name, index) => (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => pickMonth(index)}
+                        className={`flex items-center justify-center rounded-lg text-[12.5px] transition-colors ${
+                          index === view.getMonth()
+                            ? "bg-maroon font-semibold text-white shadow-[0_2px_10px_-2px_rgba(124,21,39,0.55)]"
+                            : index === today.getMonth() && view.getFullYear() === thisYear
+                              ? "font-semibold text-maroon hover:bg-maroon/10"
+                              : "text-ink-100 hover:bg-maroon/10 hover:text-maroon"
+                        }`}
+                      >
+                        {name.slice(0, 3)}
+                      </button>
+                    ))}
+                  </div>
+                ) : activePicker === "years" ? (
+                  <div className="flex flex-col">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoFocus
+                      value={yearQuery}
+                      onChange={(e) => setYearQuery(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      placeholder="Type a year…"
+                      className="mb-2 w-full rounded-lg border border-gold-500/20 bg-navy-800/60 px-3 py-1.5 text-[13px] text-ink-100 outline-none placeholder:text-ink-500 focus:border-maroon/50"
+                    />
+                    <div ref={yearListRef} className="grid grid-cols-4 gap-1 overflow-y-auto pr-0.5" style={{ height: 152 }}>
+                      {filteredYears.length === 0 && (
+                        <p className="col-span-4 py-6 text-center text-[12.5px] text-ink-500">No matching year.</p>
+                      )}
+                      {filteredYears.map((y) => (
+                        <button
+                          key={y}
+                          type="button"
+                          data-year={y}
+                          onClick={() => pickYear(y)}
+                          className={`h-9 shrink-0 rounded-lg text-[12.5px] tabular-nums transition-colors ${
+                            y === view.getFullYear()
+                              ? "bg-maroon font-semibold text-white shadow-[0_2px_10px_-2px_rgba(124,21,39,0.55)]"
+                              : y === thisYear
+                                ? "font-semibold text-maroon hover:bg-maroon/10"
+                                : "text-ink-100 hover:bg-maroon/10 hover:text-maroon"
+                          }`}
+                        >
+                          {y}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-1 grid grid-cols-7 gap-0.5">
+                      {WEEKDAYS.map((d) => (
+                        <span key={d} className="py-1 text-center text-[10.5px] font-semibold uppercase tracking-wide text-maroon/70">
+                          {d}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="relative overflow-hidden" style={{ height: 198 }}>
+                      <AnimatePresence initial={false} custom={direction} mode="popLayout">
+                        <motion.div
+                          key={`${view.getFullYear()}-${view.getMonth()}`}
+                          custom={direction}
+                          initial={{ x: direction > 0 ? 40 : -40, opacity: 0 }}
+                          animate={{ x: 0, opacity: 1 }}
+                          exit={{ x: direction > 0 ? -40 : 40, opacity: 0 }}
+                          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                          className="absolute inset-0 grid grid-cols-7 gap-0.5 content-start"
+                        >
+                          {cells.map(({ date, outside }) => {
+                            const disabled = isDisabled(date);
+                            const isSelected = isSameDay(date, selected);
+                            const isToday = isSameDay(date, today);
+
+                            return (
+                              <button
+                                key={date.toISOString()}
+                                type="button"
+                                disabled={disabled}
+                                onClick={() => pick(date)}
+                                className={`relative h-8 rounded-lg text-[12.5px] tabular-nums transition-colors ${
+                                  isSelected
+                                    ? "bg-maroon font-semibold text-white shadow-[0_2px_10px_-2px_rgba(124,21,39,0.55)]"
+                                    : disabled
+                                      ? "cursor-not-allowed text-ink-500/25"
+                                      : outside
+                                        ? "text-ink-500/45 hover:bg-navy-800/70 hover:text-ink-300"
+                                        : "text-ink-100 hover:bg-maroon/10 hover:text-maroon"
+                                }`}
+                              >
+                                {date.getDate()}
+                                {isToday && !isSelected && (
+                                  <span className="absolute inset-x-0 bottom-1 mx-auto h-[3px] w-[3px] rounded-full bg-gold-400" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
+                  </>
+                )}
 
                 <div className="mt-2 flex items-center justify-between border-t border-gold-500/10 pt-2">
                   <button
@@ -330,7 +439,7 @@ export default function DivineDatePicker({
                     type="button"
                     disabled={isDisabled(today)}
                     onClick={() => pick(today)}
-                    className="rounded-lg px-2 py-1 text-[12px] text-amber-600 transition-colors hover:text-amber-700 disabled:opacity-40"
+                    className="rounded-lg px-2 py-1 text-[12px] font-medium text-maroon transition-colors hover:text-maroon-hover disabled:opacity-40"
                   >
                     Today
                   </button>
@@ -345,21 +454,54 @@ export default function DivineDatePicker({
   );
 }
 
-function NavButton({
+/** The clickable "September" / "2025" pair in the header — same control for both, just what they open differs. */
+function HeaderPickerButton({
+  active,
+  tabular,
   onClick,
-  label,
   children,
 }: {
+  active: boolean;
+  tabular?: boolean;
   onClick: () => void;
-  label: string;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-haspopup="listbox"
+      aria-expanded={active}
+      className={`flex items-center gap-1 rounded-md border px-2.5 py-1 font-accent text-[14px] font-semibold tracking-wide transition-colors ${tabular ? "tabular-nums" : ""} ${
+        active
+          ? "border-maroon/50 bg-maroon text-white shadow-[0_2px_10px_-2px_rgba(124,21,39,0.55)]"
+          : "border-maroon/25 bg-maroon/5 text-maroon hover:border-maroon/45 hover:bg-maroon/10"
+      }`}
+    >
+      {children}
+      <ChevronIcon className={`h-3 w-3 transition-transform duration-200 ${active ? "rotate-180" : ""}`} />
+    </button>
+  );
+}
+
+function NavButton({
+  onClick,
+  label,
+  disabled,
+  children,
+}: {
+  onClick: () => void;
+  label: string;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
       aria-label={label}
-      className="flex h-7 w-7 items-center justify-center rounded-lg text-[15px] text-ink-500 transition-colors hover:bg-gold-500/10 hover:text-amber-600"
+      className="flex h-7 w-7 items-center justify-center rounded-lg border border-gold-500/20 text-[15px] text-ink-500 transition-colors hover:border-gold-500/40 hover:bg-gold-500/10 hover:text-amber-600 disabled:pointer-events-none disabled:opacity-0"
     >
       {children}
     </button>

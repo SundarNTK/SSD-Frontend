@@ -95,6 +95,37 @@ export function formatTempleDate(value: Date | null): string {
   return value ? longDateFormatter.format(value) : "";
 }
 
+/**
+ * Plain time-of-day values ("HH:mm", 24-hour) are handled as their own tiny
+ * format — not a Date, which would need a made-up calendar day attached to
+ * a value that is genuinely just "1:30 PM" (an Event's slot time, a Hall
+ * Booking's start/end). These three keep every time picker in the app
+ * agreeing on the same 24-hour storage format and 12-hour display, the same
+ * way toISODateString/parseISODateString do for dates.
+ */
+export type TimeOfDay = { hour12: number; minute: number; period: "AM" | "PM" };
+
+/** "13:05" -> { hour12: 1, minute: 5, period: "PM" }. Null for empty/invalid input. */
+export function parseHHMM(value: string | null | undefined): TimeOfDay | null {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value ?? "");
+  if (!match) return null;
+  const hour24 = Number(match[1]);
+  const minute = Number(match[2]);
+  return { hour12: hour24 % 12 || 12, minute, period: hour24 >= 12 ? "PM" : "AM" };
+}
+
+/** 12-hour parts -> 24-hour "HH:mm", the wire/storage format every consumer (Hall Booking, Events) validates against. */
+export function toHHMM(hour12: number, minute: number, period: "AM" | "PM"): string {
+  const hour24 = (hour12 % 12) + (period === "PM" ? 12 : 0);
+  return `${String(hour24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+/** "13:05" -> "1:05 PM", for showing a time-of-day value back to the user. Empty string for empty/invalid input. */
+export function formatHHMMDisplay(value: string | null | undefined): string {
+  const parsed = parseHHMM(value);
+  return parsed ? `${parsed.hour12}:${String(parsed.minute).padStart(2, "0")} ${parsed.period}` : "";
+}
+
 /** Midnight today, for "is this in the past" comparisons on date-only values. */
 export function startOfToday(): Date {
   const now = new Date();

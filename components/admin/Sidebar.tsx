@@ -118,6 +118,8 @@ const NAV_ITEMS: NavItem[] = [
       { label: "Hall Package", to: "/admin/hall-meal/hall-packages" },
       { label: "Food Menu Item", to: "/admin/hall-meal/food-menu-items" },
       { label: "Food Package", to: "/admin/hall-meal/food-packages" },
+      { label: "Hall Availability", to: "/admin/hall-meal/hall-availability" },
+      { label: "Hall Booking", to: "/admin/hall-meal/hall-bookings" },
     ],
   },
   { label: "Reports", icon: <ChartIcon /> },
