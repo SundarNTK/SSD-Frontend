@@ -215,6 +215,13 @@ function offeringDescriptors(
 const CARDS_PER_PAGE = 18;
 const PAGE_SIZE_OPTIONS = [18, 36, 60, 100];
 
+// Recent Transactions preview in the Customer panel: 3 up front, "Load more"
+// re-fetches at RECENT_BOOKINGS_ALL_LIMIT — the backend's own cap on
+// GET .../recent-bookings — standing in for "every confirmed booking this
+// customer has" without an unbounded query.
+const RECENT_BOOKINGS_PREVIEW_LIMIT = 3;
+const RECENT_BOOKINGS_ALL_LIMIT = 200;
+
 type DeityOption = { _id: string; name: string; tamilName: string };
 type NakshatraOption = { _id: string; name: string };
 
@@ -811,6 +818,8 @@ export default function PosPortalPage() {
 
   // ── recent transactions (repeat a past booking) ─────────────────────────
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
+  const [recentBookingsExpanded, setRecentBookingsExpanded] = useState(false);
+  const [loadingAllRecentBookings, setLoadingAllRecentBookings] = useState(false);
   const [viewingRecentBooking, setViewingRecentBooking] =
     useState<RecentBooking | null>(null);
   const [recheckingCart, setRecheckingCart] = useState(false);
@@ -822,6 +831,7 @@ export default function PosPortalPage() {
   >([]);
 
   useEffect(() => {
+    setRecentBookingsExpanded(false);
     if (!selectedCustomer) {
       setRecentBookings([]);
       return;
@@ -830,12 +840,29 @@ export default function PosPortalPage() {
       .get<ApiEnvelope<{ items: RecentBooking[] }>>(
         `/pos/booking/customers/${selectedCustomer._id}/recent-bookings`,
         {
-          params: { limit: 3 },
+          params: { limit: RECENT_BOOKINGS_PREVIEW_LIMIT },
         },
       )
       .then((r) => setRecentBookings(unwrap(r).items))
       .catch(() => setRecentBookings([]));
   }, [selectedCustomer]);
+
+  async function loadAllRecentBookings() {
+    if (!selectedCustomer) return;
+    setLoadingAllRecentBookings(true);
+    try {
+      const r = await api.get<ApiEnvelope<{ items: RecentBooking[] }>>(
+        `/pos/booking/customers/${selectedCustomer._id}/recent-bookings`,
+        { params: { limit: RECENT_BOOKINGS_ALL_LIMIT } },
+      );
+      setRecentBookings(unwrap(r).items);
+      setRecentBookingsExpanded(true);
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setLoadingAllRecentBookings(false);
+    }
+  }
 
   /** Re-adds a past booking's lines — checks live availability first via
    *  recheck-lines, then either adds everything straight to the cart or,
@@ -1738,6 +1765,27 @@ export default function PosPortalPage() {
                   </button>
                 );
               })}
+              {!recentBookingsExpanded &&
+                recentBookings.length >= RECENT_BOOKINGS_PREVIEW_LIMIT && (
+                  <button
+                    type="button"
+                    onClick={loadAllRecentBookings}
+                    disabled={loadingAllRecentBookings}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#7c1527]/30 bg-white py-2 text-[12px] font-semibold text-[#7c1527] shadow-sm transition-colors hover:bg-[#faf6f1] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {loadingAllRecentBookings ? (
+                      <>
+                        <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                          <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
+                        </svg>
+                        Loading…
+                      </>
+                    ) : (
+                      "Load more"
+                    )}
+                  </button>
+                )}
             </div>
           )}
           </div>
@@ -1802,7 +1850,7 @@ export default function PosPortalPage() {
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 pt-3">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 pt-3">
             {catalogueLoading && (
               <div className="flex justify-center py-10">
                 <EmblemLoader size="md" label="Loading catalogue…" />
@@ -3844,7 +3892,7 @@ function CatalogueCard({
 
   const footer = (
     <div
-      className={`mt-auto flex w-full min-w-0 items-center justify-between gap-1 rounded-full px-2 py-1 ${theme.rowBg}`}
+      className={`flex w-full min-w-0 items-center justify-between gap-1 rounded-full px-2 py-1 ${theme.rowBg}`}
     >
       <span className="flex min-w-0 items-center gap-1.5">
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_2px_6px_-2px_rgba(0,0,0,0.2)]">
@@ -3867,32 +3915,19 @@ function CatalogueCard({
       whileTap={disabled ? undefined : { scale: 0.98 }}
       className={`group relative self-start rounded-2xl border-2 ${theme.border} ${theme.bodyBg} text-left shadow-[0_10px_24px_-10px_rgba(0,0,0,0.45)] transition-shadow duration-200 hover:shadow-[0_16px_32px_-12px_rgba(0,0,0,0.5)] disabled:cursor-not-allowed disabled:opacity-60`}
     >
-      <div className={`flex h-full flex-col overflow-hidden rounded-[14px] ${theme.bodyBg}`}>
-        <div className={`relative shrink-0 overflow-hidden ${theme.banner} ${cover ? "h-20 sm:h-24 md:h-28" : "h-12"}`}>
+      <div className={`flex flex-col overflow-hidden rounded-[14px] ${theme.bodyBg}`}>
+        {/* Same fixed height and layout position whether or not there's a
+            cover photo — an icon-only card and a photo card must come out
+            exactly the same total height, so the photo is never allowed to
+            grow the banner past this, and the title always lives in the
+            text block below rather than overlaid on the photo. */}
+        <div className={`relative h-20 shrink-0 overflow-hidden sm:h-24 md:h-28 ${theme.banner}`}>
           {cover ? (
-            <>
-              <img
-                src={cover}
-                alt=""
-                className="absolute inset-0 h-full w-full object-contain object-center drop-shadow-[0_8px_18px_rgba(0,0,0,0.45)]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 px-2 pb-2 pt-10 text-center">
-                <p className="line-clamp-2 text-[13.5px] font-bold leading-tight text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.9),0_0_18px_rgba(0,0,0,0.55)]">
-                  {title}
-                </p>
-                {tamilName && (
-                  <p className="mt-0.5 line-clamp-1 text-[11px] text-white/95 [text-shadow:0_2px_8px_rgba(0,0,0,0.9)]">
-                    {tamilName}
-                  </p>
-                )}
-                {extraBadges && (
-                  <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1.5">
-                    {extraBadges}
-                  </div>
-                )}
-              </div>
-            </>
+            <img
+              src={cover}
+              alt=""
+              className="absolute inset-0 h-full w-full object-contain object-center drop-shadow-[0_6px_14px_rgba(0,0,0,0.35)]"
+            />
           ) : (
             <>
               <DotGrid className="bottom-1 left-1.5 h-7 w-7" />
@@ -3906,23 +3941,19 @@ function CatalogueCard({
             </>
           )}
         </div>
-        <div className="flex flex-1 flex-col items-start gap-1 px-2.5 py-2">
-          {!cover && (
-            <>
-              <div className="min-w-0 w-full">
-                <p className="truncate text-[13.5px] font-bold leading-tight text-ink-100">
-                  {title}
-                </p>
-                {tamilName && (
-                  <p className="truncate text-[10.5px] text-ink-500">{tamilName}</p>
-                )}
-              </div>
-              {extraBadges && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {extraBadges}
-                </div>
-              )}
-            </>
+        <div className="flex flex-col items-start gap-1 px-2.5 py-2">
+          <div className="w-full min-w-0">
+            <p className="truncate text-[13.5px] font-bold leading-tight text-ink-100">
+              {title}
+            </p>
+            {tamilName && (
+              <p className="truncate text-[10.5px] text-ink-500">{tamilName}</p>
+            )}
+          </div>
+          {extraBadges && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {extraBadges}
+            </div>
           )}
           {footer}
         </div>
@@ -3931,20 +3962,22 @@ function CatalogueCard({
   );
 }
 
-/** Page numbers to actually render for the numbered pager — every page when
- *  there are few, otherwise first/last plus a window around the current
- *  page with "ellipsis" markers for the gaps, so it doesn't grow unbounded
- *  when someone picks a small page size against a large catalogue. */
-function paginationWindow(current: number, total: number): (number | "ellipsis")[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const items: (number | "ellipsis")[] = [1];
-  const start = Math.max(2, current - 1);
-  const end = Math.min(total - 1, current + 1);
-  if (start > 2) items.push("ellipsis");
-  for (let p = start; p <= end; p++) items.push(p);
-  if (end < total - 1) items.push("ellipsis");
-  items.push(total);
-  return items;
+/**
+ * Which of PAGE_SIZE_OPTIONS are actually worth offering for a catalogue of
+ * this size — an option only changes anything if the previous, smaller one
+ * wouldn't already have fit everything on one page (e.g. with 11 cards,
+ * every size beyond the default 18 is a no-op, so only 18 is offered). The
+ * currently-selected size is always kept even if it's since stopped being
+ * meaningful for this particular view, so the dropdown never shows a value
+ * that isn't in its own option list.
+ */
+function meaningfulPageSizeOptions(total: number, current: number): number[] {
+  const meaningful = PAGE_SIZE_OPTIONS.filter(
+    (size, idx) => idx === 0 || total > PAGE_SIZE_OPTIONS[idx - 1],
+  );
+  return meaningful.includes(current)
+    ? meaningful
+    : [...meaningful, current].sort((a, b) => a - b);
 }
 
 /**
@@ -4021,72 +4054,45 @@ function CatalogueGrid({
         )}
       </div>
 
-      <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-2.5">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11.5px] font-medium text-ink-500">
-            Cards per page
-          </span>
-          {PAGE_SIZE_OPTIONS.map((size) => (
-            <button
-              key={size}
-              type="button"
-              onClick={() => onPageSizeChange(size)}
-              aria-pressed={size === pageSize}
-              className={`rounded-md border px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
-                size === pageSize
-                  ? "border-[#7c1527] bg-[#7c1527] text-white"
-                  : "border-[#7c1527]/25 bg-white text-ink-300 hover:border-[#7c1527]/50 hover:text-[#7c1527]"
-              }`}
-            >
-              {size}
-            </button>
-          ))}
-        </div>
-
-        {totalPages > 1 && (
-          <div className="flex flex-wrap items-center gap-1">
-            <button
-              type="button"
-              onClick={() => onPageChange(Math.max(1, safePage - 1))}
-              disabled={safePage <= 1}
-              className="rounded-lg border border-[#7c1527]/30 bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-[#7c1527] shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 enabled:hover:bg-[#faf6f1]"
-            >
-              Prev
-            </button>
-            {paginationWindow(safePage, totalPages).map((item, idx) =>
-              item === "ellipsis" ? (
-                <span
-                  key={`ellipsis-${idx}`}
-                  className="px-1 text-[12.5px] text-ink-400"
-                >
-                  …
-                </span>
-              ) : (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => onPageChange(item)}
-                  aria-current={item === safePage ? "page" : undefined}
-                  className={`min-w-[2rem] rounded-lg border px-2.5 py-1.5 text-[12.5px] font-semibold shadow-sm transition-colors ${
-                    item === safePage
-                      ? "border-[#7c1527] bg-[#7c1527] text-white"
-                      : "border-[#7c1527]/30 bg-white text-[#7c1527] hover:bg-[#faf6f1]"
-                  }`}
-                >
-                  {item}
-                </button>
-              ),
-            )}
-            <button
-              type="button"
-              onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
-              disabled={safePage >= totalPages}
-              className="rounded-lg border border-[#7c1527]/30 bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-[#7c1527] shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 enabled:hover:bg-[#faf6f1]"
-            >
-              Next
-            </button>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[12.5px] text-ink-500">
+        <span>
+          Page {safePage} of {totalPages} &middot; {descriptors.length} total
+        </span>
+        <div className="flex flex-wrap items-center gap-3">
+          {totalPages > 1 && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => onPageChange(Math.max(1, safePage - 1))}
+                disabled={safePage <= 1}
+                className="rounded-md bg-maroon px-3.5 py-1.5 font-medium text-white shadow-[0_2px_8px_-3px_rgba(124,21,39,0.5)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-maroon-hover hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-maroon disabled:hover:shadow-[0_2px_8px_-3px_rgba(124,21,39,0.5)]"
+              >
+                Prev
+              </button>
+              <button
+                type="button"
+                onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
+                disabled={safePage >= totalPages}
+                className="rounded-md bg-maroon px-3.5 py-1.5 font-medium text-white shadow-[0_2px_8px_-3px_rgba(124,21,39,0.5)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-maroon-hover hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-maroon disabled:hover:shadow-[0_2px_8px_-3px_rgba(124,21,39,0.5)]"
+              >
+                Next
+              </button>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5">
+            <span>Rows</span>
+            <DivineListbox
+              value={String(pageSize)}
+              onChange={(v) => onPageSizeChange(Number(v))}
+              options={meaningfulPageSizeOptions(descriptors.length, pageSize).map((n) => ({
+                value: String(n),
+                label: `${n} / page`,
+              }))}
+              className="w-32"
+              clearable={false}
+            />
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
