@@ -177,6 +177,44 @@ type Offering =
         salePrice: number;
       });
 
+// One entry in a paginated catalogue grid — either a Folder tile or an
+// Offering (Item/Service) tile. A single descriptor type lets the default
+// view (folders + uncategorized offerings mixed together), the folder view,
+// and the search view all share one pagination + grid-rendering path
+// instead of three near-duplicate ones.
+type CatalogueCardDescriptor =
+  | { kind: "folder"; key: string; folder: Folder }
+  | { kind: "offering"; key: string; offering: Offering };
+
+function offeringDescriptors(
+  items: PosItem[],
+  services: PosService[],
+): CatalogueCardDescriptor[] {
+  return [
+    ...items.map(
+      (i): CatalogueCardDescriptor => ({
+        kind: "offering",
+        key: `item-${i._id}`,
+        offering: { refType: "Item", ...i },
+      }),
+    ),
+    ...services.map(
+      (s): CatalogueCardDescriptor => ({
+        kind: "offering",
+        key: `service-${s._id}`,
+        offering: { refType: "Service", salePrice: s.defaultSalePrice, ...s },
+      }),
+    ),
+  ];
+}
+
+// 6 columns × 3 rows — the default page size, which fits on screen with no
+// vertical scrolling; numbered pages take over from scrolling at this size.
+// Picking a larger size (see PAGE_SIZE_OPTIONS) trades that off deliberately
+// — more cards per page, but the grid itself scrolls to fit them.
+const CARDS_PER_PAGE = 18;
+const PAGE_SIZE_OPTIONS = [18, 36, 60, 100];
+
 type DeityOption = { _id: string; name: string; tamilName: string };
 type NakshatraOption = { _id: string; name: string };
 
@@ -472,6 +510,40 @@ export default function PosPortalPage() {
   const visibleUncategorizedServices = selectedCategoryId
     ? uncategorizedServices.filter((s) => s.categoryId === selectedCategoryId)
     : uncategorizedServices;
+
+  // ── catalogue pagination ────────────────────────────────────────────────
+  // One page number + page size shared by whichever of the three views
+  // (default / folder / search) is currently showing — only one is ever
+  // visible at a time, and the reset effect below keys off exactly the same
+  // switches that decide which view that is (plus the page size itself,
+  // since changing it changes how many pages there are).
+  const [cataloguePage, setCataloguePage] = useState(1);
+  const [cataloguePageSize, setCataloguePageSize] = useState(CARDS_PER_PAGE);
+  useEffect(() => {
+    setCataloguePage(1);
+  }, [selectedCategoryId, activeFolder?.subCategoryId, offeringSearch, cataloguePageSize]);
+
+  const defaultCatalogueDescriptors = useMemo<CatalogueCardDescriptor[]>(
+    () => [
+      ...visibleFolders.map(
+        (f): CatalogueCardDescriptor => ({
+          kind: "folder",
+          key: `folder-${f.subCategoryId}`,
+          folder: f,
+        }),
+      ),
+      ...offeringDescriptors(visibleUncategorizedItems, visibleUncategorizedServices),
+    ],
+    [visibleFolders, visibleUncategorizedItems, visibleUncategorizedServices],
+  );
+  const folderCatalogueDescriptors = useMemo(
+    () => offeringDescriptors(folderItems, folderServices),
+    [folderItems, folderServices],
+  );
+  const searchCatalogueDescriptors = useMemo(
+    () => offeringDescriptors(searchItems, searchServices),
+    [searchItems, searchServices],
+  );
 
   function openFolder(folder: Folder) {
     setActiveFolder(folder);
@@ -1730,9 +1802,7 @@ export default function PosPortalPage() {
             </div>
           </div>
 
-          <SectionScreenDivider />
-
-          <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-3">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 pt-3">
             {catalogueLoading && (
               <div className="flex justify-center py-10">
                 <EmblemLoader size="md" label="Loading catalogue…" />
@@ -1746,21 +1816,18 @@ export default function PosPortalPage() {
                     <EmblemLoader size="sm" label="Searching…" />
                   </div>
                 )}
-                {!searchLoading &&
-                  searchItems.length === 0 &&
-                  searchServices.length === 0 && (
-                    <p className="py-8 text-center text-[13px] text-ink-500">
-                      No offerings match &ldquo;{offeringSearch}&rdquo;.
-                    </p>
-                  )}
-                {!searchLoading &&
-                  (searchItems.length > 0 || searchServices.length > 0) && (
-                    <OfferingGrid
-                      items={searchItems}
-                      services={searchServices}
-                      onPick={openAddModal}
-                    />
-                  )}
+                {!searchLoading && (
+                  <CatalogueGrid
+                    descriptors={searchCatalogueDescriptors}
+                    page={cataloguePage}
+                    onPageChange={setCataloguePage}
+                    pageSize={cataloguePageSize}
+                    onPageSizeChange={setCataloguePageSize}
+                    onPickOffering={openAddModal}
+                    onOpenFolder={openFolder}
+                    emptyMessage={`No offerings match "${offeringSearch}".`}
+                  />
+                )}
               </>
             )}
 
@@ -1768,8 +1835,8 @@ export default function PosPortalPage() {
               !showingSearch &&
               showingFolder &&
               activeFolder && (
-                <div>
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-1.5 text-[12.5px]">
                       <button
                         onClick={() => {
@@ -1797,60 +1864,31 @@ export default function PosPortalPage() {
                       <EmblemLoader size="sm" label="Loading…" />
                     </div>
                   ) : (
-                    <OfferingGrid
-                      items={folderItems}
-                      services={folderServices}
-                      onPick={openAddModal}
+                    <CatalogueGrid
+                      descriptors={folderCatalogueDescriptors}
+                      page={cataloguePage}
+                      onPageChange={setCataloguePage}
+                      pageSize={cataloguePageSize}
+                      onPageSizeChange={setCataloguePageSize}
+                      onPickOffering={openAddModal}
+                      onOpenFolder={openFolder}
+                      emptyMessage="Nothing here yet."
                     />
                   )}
                 </div>
               )}
 
             {!catalogueLoading && !showingSearch && !showingFolder && (
-              <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                {visibleFolders.map((f) => (
-                  <CatalogueCard
-                    key={f.subCategoryId}
-                    onClick={() => openFolder(f)}
-                    iconKind="folder"
-                    title={f.subCategoryName}
-                    tamilName={f.subCategoryTamilName ?? undefined}
-                    imageUrl={f.image}
-                    theme={CATALOGUE_CARD_THEME.folder}
-                    rowIcon={
-                      <ListRowIcon
-                        className={CATALOGUE_CARD_THEME.folder.rowText}
-                      />
-                    }
-                    rowLabel={`${f.total} ${f.total === 1 ? "offering" : "offerings"}`}
-                  />
-                ))}
-                {visibleUncategorizedServices.map((s) => (
-                  <OfferingCard
-                    key={s._id}
-                    offering={{
-                      refType: "Service",
-                      salePrice: s.defaultSalePrice,
-                      ...s,
-                    }}
-                    onPick={openAddModal}
-                  />
-                ))}
-                {visibleUncategorizedItems.map((i) => (
-                  <OfferingCard
-                    key={i._id}
-                    offering={{ refType: "Item", ...i }}
-                    onPick={openAddModal}
-                  />
-                ))}
-                {visibleFolders.length === 0 &&
-                  visibleUncategorizedItems.length === 0 &&
-                  visibleUncategorizedServices.length === 0 && (
-                    <p className="col-span-full py-12 text-center text-[13px] text-ink-500">
-                      No offerings in this category yet.
-                    </p>
-                  )}
-              </div>
+              <CatalogueGrid
+                descriptors={defaultCatalogueDescriptors}
+                page={cataloguePage}
+                onPageChange={setCataloguePage}
+                pageSize={cataloguePageSize}
+                onPageSizeChange={setCataloguePageSize}
+                onPickOffering={openAddModal}
+                onOpenFolder={openFolder}
+                emptyMessage="No offerings in this category yet."
+              />
             )}
           </div>
         </motion.div>
@@ -2849,25 +2887,6 @@ function DotGrid({ className = "" }: { className?: string }) {
   );
 }
 
-/**
- * Category / catalogue split — ornamental separator plate at a medium size.
- */
-function SectionScreenDivider() {
-  return (
-    <div
-      aria-hidden="true"
-      role="separator"
-      className="flex w-full shrink-0 justify-center px-6 py-1"
-    >
-      <img
-        src="/pos_separationLine.webp"
-        alt=""
-        className="h-[3.25rem] w-full max-w-2xl select-none object-cover object-center sm:h-[3.75rem]"
-      />
-    </div>
-  );
-}
-
 /** The little document glyph in a Folder card's "X offering(s)" row. */
 function ListRowIcon({ className = "" }: { className?: string }) {
   return (
@@ -3825,7 +3844,7 @@ function CatalogueCard({
 
   const footer = (
     <div
-      className={`flex w-full min-w-0 items-center justify-between gap-1 rounded-full px-2 py-1 ${theme.rowBg}`}
+      className={`mt-auto flex w-full min-w-0 items-center justify-between gap-1 rounded-full px-2 py-1 ${theme.rowBg}`}
     >
       <span className="flex min-w-0 items-center gap-1.5">
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_2px_6px_-2px_rgba(0,0,0,0.2)]">
@@ -3846,10 +3865,10 @@ function CatalogueCard({
       disabled={disabled}
       whileHover={disabled ? undefined : { y: -4, scale: 1.02 }}
       whileTap={disabled ? undefined : { scale: 0.98 }}
-      className={`group relative rounded-2xl border-2 ${theme.border} ${theme.bodyBg} text-left shadow-[0_10px_24px_-10px_rgba(0,0,0,0.45)] transition-shadow duration-200 hover:shadow-[0_16px_32px_-12px_rgba(0,0,0,0.5)] disabled:cursor-not-allowed disabled:opacity-60`}
+      className={`group relative self-start rounded-2xl border-2 ${theme.border} ${theme.bodyBg} text-left shadow-[0_10px_24px_-10px_rgba(0,0,0,0.45)] transition-shadow duration-200 hover:shadow-[0_16px_32px_-12px_rgba(0,0,0,0.5)] disabled:cursor-not-allowed disabled:opacity-60`}
     >
       <div className={`flex h-full flex-col overflow-hidden rounded-[14px] ${theme.bodyBg}`}>
-        <div className={`relative overflow-hidden ${theme.banner} ${cover ? "h-28 sm:h-32 md:h-[9.5rem]" : "h-14"}`}>
+        <div className={`relative shrink-0 overflow-hidden ${theme.banner} ${cover ? "h-20 sm:h-24 md:h-28" : "h-12"}`}>
           {cover ? (
             <>
               <img
@@ -3887,7 +3906,7 @@ function CatalogueCard({
             </>
           )}
         </div>
-        <div className="flex flex-col items-start gap-1 px-2.5 py-2">
+        <div className="flex flex-1 flex-col items-start gap-1 px-2.5 py-2">
           {!cover && (
             <>
               <div className="min-w-0 w-full">
@@ -3912,37 +3931,163 @@ function CatalogueCard({
   );
 }
 
-function OfferingGrid({
-  items,
-  services,
-  onPick,
+/** Page numbers to actually render for the numbered pager — every page when
+ *  there are few, otherwise first/last plus a window around the current
+ *  page with "ellipsis" markers for the gaps, so it doesn't grow unbounded
+ *  when someone picks a small page size against a large catalogue. */
+function paginationWindow(current: number, total: number): (number | "ellipsis")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const items: (number | "ellipsis")[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) items.push("ellipsis");
+  for (let p = start; p <= end; p++) items.push(p);
+  if (end < total - 1) items.push("ellipsis");
+  items.push(total);
+  return items;
+}
+
+/**
+ * Renders one page of the catalogue — 6 columns, with `pageSize` cards
+ * (PAGE_SIZE_OPTIONS) split across rows. At the default 18 (3 rows) that
+ * fills the space it's given with no vertical scrolling; a larger size
+ * trades that off deliberately — more cards per page, fewer page turns —
+ * so the grid scrolls internally instead once it no longer fits. A numbered
+ * pager plus a page-size picker sit underneath. Shared by the default,
+ * folder, and search views so pagination behaves identically in all three.
+ */
+function CatalogueGrid({
+  descriptors,
+  page,
+  onPageChange,
+  pageSize,
+  onPageSizeChange,
+  onPickOffering,
+  onOpenFolder,
+  emptyMessage,
 }: {
-  items: PosItem[];
-  services: PosService[];
-  onPick: (o: Offering) => void;
+  descriptors: CatalogueCardDescriptor[];
+  page: number;
+  onPageChange: (page: number) => void;
+  pageSize: number;
+  onPageSizeChange: (size: number) => void;
+  onPickOffering: (o: Offering) => void;
+  onOpenFolder: (f: Folder) => void;
+  emptyMessage: string;
 }) {
-  // Items first, then services — matches the requested list order.
+  if (descriptors.length === 0) {
+    return (
+      <p className="py-12 text-center text-[13px] text-ink-500">
+        {emptyMessage}
+      </p>
+    );
+  }
+
+  const totalPages = Math.max(1, Math.ceil(descriptors.length / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const pageDescriptors = descriptors.slice(
+    (safePage - 1) * pageSize,
+    safePage * pageSize,
+  );
+  const scrollable = pageSize > CARDS_PER_PAGE;
+
   return (
-    <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-      {items.map((i) => (
-        <OfferingCard
-          key={i._id}
-          offering={{ refType: "Item", ...i }}
-          onPick={onPick}
-        />
-      ))}
-      {services.map((s) => (
-        <OfferingCard
-          key={s._id}
-          offering={{ refType: "Service", salePrice: s.defaultSalePrice, ...s }}
-          onPick={onPick}
-        />
-      ))}
-      {items.length === 0 && services.length === 0 && (
-        <p className="col-span-full py-8 text-center text-[13px] text-ink-500">
-          Nothing here yet.
-        </p>
-      )}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div
+        className={`grid flex-1 content-start auto-rows-auto grid-cols-2 gap-2 sm:gap-2.5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 ${scrollable ? "min-h-0 overflow-y-auto pr-1" : ""}`}
+      >
+        {pageDescriptors.map((d) =>
+          d.kind === "folder" ? (
+            <CatalogueCard
+              key={d.key}
+              onClick={() => onOpenFolder(d.folder)}
+              iconKind="folder"
+              title={d.folder.subCategoryName}
+              tamilName={d.folder.subCategoryTamilName ?? undefined}
+              imageUrl={d.folder.image}
+              theme={CATALOGUE_CARD_THEME.folder}
+              rowIcon={
+                <ListRowIcon className={CATALOGUE_CARD_THEME.folder.rowText} />
+              }
+              rowLabel={`${d.folder.total} ${d.folder.total === 1 ? "offering" : "offerings"}`}
+            />
+          ) : (
+            <OfferingCard
+              key={d.key}
+              offering={d.offering}
+              onPick={onPickOffering}
+            />
+          ),
+        )}
+      </div>
+
+      <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-2.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11.5px] font-medium text-ink-500">
+            Cards per page
+          </span>
+          {PAGE_SIZE_OPTIONS.map((size) => (
+            <button
+              key={size}
+              type="button"
+              onClick={() => onPageSizeChange(size)}
+              aria-pressed={size === pageSize}
+              className={`rounded-md border px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
+                size === pageSize
+                  ? "border-[#7c1527] bg-[#7c1527] text-white"
+                  : "border-[#7c1527]/25 bg-white text-ink-300 hover:border-[#7c1527]/50 hover:text-[#7c1527]"
+              }`}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
+
+        {totalPages > 1 && (
+          <div className="flex flex-wrap items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onPageChange(Math.max(1, safePage - 1))}
+              disabled={safePage <= 1}
+              className="rounded-lg border border-[#7c1527]/30 bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-[#7c1527] shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 enabled:hover:bg-[#faf6f1]"
+            >
+              Prev
+            </button>
+            {paginationWindow(safePage, totalPages).map((item, idx) =>
+              item === "ellipsis" ? (
+                <span
+                  key={`ellipsis-${idx}`}
+                  className="px-1 text-[12.5px] text-ink-400"
+                >
+                  …
+                </span>
+              ) : (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => onPageChange(item)}
+                  aria-current={item === safePage ? "page" : undefined}
+                  className={`min-w-[2rem] rounded-lg border px-2.5 py-1.5 text-[12.5px] font-semibold shadow-sm transition-colors ${
+                    item === safePage
+                      ? "border-[#7c1527] bg-[#7c1527] text-white"
+                      : "border-[#7c1527]/30 bg-white text-[#7c1527] hover:bg-[#faf6f1]"
+                  }`}
+                >
+                  {item}
+                </button>
+              ),
+            )}
+            <button
+              type="button"
+              onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
+              disabled={safePage >= totalPages}
+              className="rounded-lg border border-[#7c1527]/30 bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-[#7c1527] shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 enabled:hover:bg-[#faf6f1]"
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
