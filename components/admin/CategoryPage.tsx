@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
+import ImportExportBar from "./ImportExportBar";
+import ImportReviewModal from "./ImportReviewModal";
 import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineColorPicker from "../divine/DivineColorPicker";
@@ -56,7 +58,9 @@ export default function CategoryPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.categories, "fullAccess");
   const canEdit = can(MODULES.categories, "edit");
+  const canView = can(MODULES.categories, "view");
   const { items, total, list, create, update, remove } = useApiResource<Category>(api, "/masters/categories");
+  const [importOpen, setImportOpen] = useState(false);
 
   const [createImage, setCreateImage] = useState<File | null>(null);
   const [editImage, setEditImage] = useState<File | null>(null);
@@ -208,12 +212,36 @@ export default function CategoryPage() {
         onCreate={canCreate ? openCreate : undefined}
         createLabel="Add Category"
         emptyMessage="No categories yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/masters/categories"
+            entityLabel="Category"
+            canExport={canView}
+            canImport={canCreate}
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(c) => (
           <div className="flex justify-end gap-2">
             {canEdit && <EditIconButton onClick={() => openEdit(c)} />}
             {canCreate && <DeleteIconButton onClick={() => setDeleting(c)} />}
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/masters/categories"
+        entityLabel="Category"
+        previewFields={[
+          { key: "code", label: "Code" },
+          { key: "name", label: "Name" },
+          { key: "color", label: "Color" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog

@@ -141,9 +141,9 @@ export function BoxIcon() {
   );
 }
 
-export function ChartIcon() {
+export function ChartIcon({ className = "h-[18px] w-[18px]" }: { className?: string } = {}) {
   return (
-    <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M4 20V10M11 20V4M18 20v-7" strokeLinecap="round" />
     </svg>
   );
@@ -299,6 +299,17 @@ export function SaveIcon({ className = "h-[16px] w-[16px]" }: { className?: stri
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M5 4.5h11l3.5 3.5v11.5a.5.5 0 01-.5.5H5a.5.5 0 01-.5-.5V5a.5.5 0 01.5-.5z" strokeLinejoin="round" />
       <path d="M8 4.5v5h7v-5M8 20v-6h8v6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Arrow-into-tray "download" glyph — the Sample Excel button (see ImportExportBar) uses this instead of a plain arrow. */
+export function DownloadIcon({ className = "h-[16px] w-[16px]" }: { className?: string } = {}) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M12 3.5v11" strokeLinecap="round" />
+      <path d="M8 11l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4.5 16.5v2.5a1.5 1.5 0 001.5 1.5h12a1.5 1.5 0 001.5-1.5v-2.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

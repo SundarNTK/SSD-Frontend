@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes } from "react";
 
 type DivineButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   loading?: boolean;
-  variant?: "primary" | "ghost" | "marigold" | "flame";
+  variant?: "primary" | "ghost" | "marigold" | "flame" | "leaf";
   /**
    * Full-bleed by default — right for a standalone page CTA (Sign In,
    * Reset Password). A Cancel/Save pair inside a modal footer is a
@@ -78,6 +78,32 @@ export default function DivineButton({
           <span
             aria-hidden="true"
             className="absolute inset-0 -z-0 animate-[shimmer-sweep_2.6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/50 to-transparent opacity-0 group-hover:opacity-100"
+          />
+        )}
+      </button>
+    );
+  }
+
+  if (variant === "leaf") {
+    return (
+      <button
+        className={`group relative ${fullWidth ? "w-full" : "w-auto"} overflow-hidden rounded-md border border-emerald-700/30 bg-emerald-600 ${sizing} font-accent font-bold tracking-wide text-white shadow-[0_3px_8px_-2px_rgba(0,0,0,0.15),0_10px_26px_-10px_rgba(4,120,87,0.55)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-[0_4px_10px_-2px_rgba(0,0,0,0.2),0_16px_34px_-8px_rgba(4,120,87,0.7)] active:translate-y-0 active:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.15),0_10px_26px_-10px_rgba(4,120,87,0.55)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-emerald-600 disabled:hover:shadow-[0_3px_8px_-2px_rgba(0,0,0,0.15),0_10px_26px_-10px_rgba(4,120,87,0.55)] ${className}`}
+        disabled={disabled || loading}
+        {...rest}
+      >
+        <span className="relative z-10 flex items-center justify-center gap-2">
+          {loading && (
+            <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
+            </svg>
+          )}
+          {children}
+        </span>
+        {!disabled && !loading && (
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 -z-0 animate-[shimmer-sweep_2.6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 group-hover:opacity-100"
           />
         )}
       </button>

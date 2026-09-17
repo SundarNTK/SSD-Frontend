@@ -28,6 +28,7 @@ export const MODULES = {
   adminBooking: "admin-booking",
   posTransactions: "pos-transactions",
   posOrderConfirmation: "pos-order-confirmation",
+  reports: "reports",
 } as const;
 
 /**

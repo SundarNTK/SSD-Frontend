@@ -122,7 +122,13 @@ const NAV_ITEMS: NavItem[] = [
       { label: "Hall Booking", to: "/admin/hall-meal/hall-bookings" },
     ],
   },
-  { label: "Reports", icon: <ChartIcon /> },
+  {
+    label: "Reports",
+    icon: <ChartIcon />,
+    children: [
+      { label: "Custom Reports", to: "/admin/reports/custom", module: MODULES.reports },
+    ],
+  },
 ];
 
 type SidebarProps = {

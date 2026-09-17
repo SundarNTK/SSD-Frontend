@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
+import ImportExportBar from "./ImportExportBar";
+import ImportReviewModal from "./ImportReviewModal";
 import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
@@ -160,7 +162,9 @@ export default function PrintingGroupPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.printingGroups, "fullAccess");
   const canEdit = can(MODULES.printingGroups, "edit");
+  const canView = can(MODULES.printingGroups, "view");
   const { items, total, list, create, update, remove } = useApiResource<PrintingGroup>(api, "/masters/printing-groups");
+  const [importOpen, setImportOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -271,12 +275,35 @@ export default function PrintingGroupPage() {
         onCreate={canCreate ? openCreate : undefined}
         createLabel="Add Group"
         emptyMessage="No printing groups yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/masters/printing-groups"
+            entityLabel="Printing Group"
+            canExport={canView}
+            canImport={canCreate}
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(g) => (
           <div className="flex justify-end gap-2">
             {canEdit && <EditIconButton onClick={() => openEdit(g)} />}
             {canCreate && <DeleteIconButton onClick={() => setDeleting(g)} />}
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/masters/printing-groups"
+        entityLabel="Printing Group"
+        previewFields={[
+          { key: "code", label: "Code" },
+          { key: "name", label: "Name" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog

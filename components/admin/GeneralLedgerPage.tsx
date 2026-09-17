@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
+import ImportExportBar from "./ImportExportBar";
+import ImportReviewModal from "./ImportReviewModal";
 import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
@@ -71,7 +73,9 @@ export default function GeneralLedgerPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.generalLedgers, "fullAccess");
   const canEdit = can(MODULES.generalLedgers, "edit");
+  const canView = can(MODULES.generalLedgers, "view");
   const { items, total, list, create, update, remove } = useApiResource<GeneralLedger>(api, "/masters/general-ledgers");
+  const [importOpen, setImportOpen] = useState(false);
 
   const [level1Options, setLevel1Options] = useState<ListboxOption[]>([]);
   const [level2Options, setLevel2Options] = useState<ListboxOption[]>([]);
@@ -215,12 +219,36 @@ export default function GeneralLedgerPage() {
         onCreate={canCreate ? openCreate : undefined}
         createLabel="Add GL Account"
         emptyMessage="No GL accounts yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/masters/general-ledgers"
+            entityLabel="General Ledger"
+            canExport={canView}
+            canImport={canCreate}
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(g) => (
           <div className="flex justify-end gap-2">
             {canEdit && <EditIconButton onClick={() => openEdit(g)} />}
             {canCreate && <DeleteIconButton onClick={() => setDeleting(g)} />}
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/masters/general-ledgers"
+        entityLabel="General Ledger"
+        previewFields={[
+          { key: "code", label: "Code" },
+          { key: "name", label: "Name" },
+          { key: "groupLevel1", label: "Group Level 1" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog

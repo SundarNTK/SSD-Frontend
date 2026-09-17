@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
+import ImportExportBar from "./ImportExportBar";
+import ImportReviewModal from "./ImportReviewModal";
 import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
@@ -40,7 +42,9 @@ export default function UnitPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.units, "fullAccess");
   const canEdit = can(MODULES.units, "edit");
+  const canView = can(MODULES.units, "view");
   const { items, total, list, create, update, remove } = useApiResource<Unit>(api, "/masters/units");
+  const [importOpen, setImportOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -130,12 +134,35 @@ export default function UnitPage() {
         onCreate={canCreate ? openCreate : undefined}
         createLabel="Add Unit"
         emptyMessage="No units yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/masters/units"
+            entityLabel="Unit"
+            canExport={canView}
+            canImport={canCreate}
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(u) => (
           <div className="flex justify-end gap-2">
             {canEdit && <EditIconButton onClick={() => openEdit(u)} />}
             {canCreate && <DeleteIconButton onClick={() => setDeleting(u)} />}
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/masters/units"
+        entityLabel="Unit"
+        previewFields={[
+          { key: "unitCode", label: "Unit Code" },
+          { key: "unitName", label: "Unit Name" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog

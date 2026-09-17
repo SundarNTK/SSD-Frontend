@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
+import ImportExportBar from "./ImportExportBar";
+import ImportReviewModal from "./ImportReviewModal";
 import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
@@ -173,7 +175,9 @@ export default function ItemPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.items, "fullAccess");
   const canEdit = can(MODULES.items, "edit");
+  const canView = can(MODULES.items, "view");
   const { items, total, list, create, update, remove } = useApiResource<Item>(api, "/masters/items");
+  const [importOpen, setImportOpen] = useState(false);
 
   const [glOptions, setGlOptions] = useState<ListboxOption[]>([]);
   const [deityOptions, setDeityOptions] = useState<ListboxOption[]>([]);
@@ -352,12 +356,37 @@ export default function ItemPage() {
         onCreate={canCreate ? openCreate : undefined}
         createLabel="Add Item"
         emptyMessage="No items yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/masters/items"
+            entityLabel="Item"
+            canExport={canView}
+            canImport={canCreate}
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(i) => (
           <div className="flex justify-end gap-2">
             {canEdit && <EditIconButton onClick={() => openEdit(i)} />}
             {canCreate && <DeleteIconButton onClick={() => setDeleting(i)} />}
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/masters/items"
+        entityLabel="Item"
+        previewFields={[
+          { key: "code", label: "Code" },
+          { key: "name", label: "Name" },
+          { key: "generalLedger", label: "General Ledger" },
+          { key: "category", label: "Category" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog

@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "../DataTable";
 import FormDrawer from "../FormDrawer";
 import ConfirmDialog from "../ConfirmDialog";
+import ImportExportBar from "../ImportExportBar";
+import ImportReviewModal from "../ImportReviewModal";
 import DivineInput from "../../divine/DivineInput";
 import DivineTextarea from "../../divine/DivineTextarea";
 import DivineListbox from "../../divine/DivineListbox";
@@ -66,6 +68,7 @@ const refName = (r: Ref | string) => (typeof r === "string" ? r : r.name);
 /** Reachable only by a Super Admin — see hall-meal/layout.tsx and the API's superAdminOnly middleware. */
 export default function HallPackagePage() {
   const { items, total, list, create, update, remove } = useApiResource<HallPackage>(api, "/hall-meal/hall-packages");
+  const [importOpen, setImportOpen] = useState(false);
   const purposeResource = useApiResource<Ref>(api, "/hall-meal/hall-purposes");
   const hallResource = useApiResource<Ref>(api, "/hall-meal/halls");
   const serviceResource = useApiResource<Ref>(api, "/hall-meal/additional-services");
@@ -212,12 +215,37 @@ export default function HallPackagePage() {
         onCreate={openCreate}
         createLabel="Add Hall Package"
         emptyMessage="No Hall Packages yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/hall-meal/hall-packages"
+            entityLabel="Hall Package"
+            canExport
+            canImport
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(r) => (
           <div className="flex justify-end gap-2">
             <EditIconButton onClick={() => openEdit(r)} />
             <DeleteIconButton onClick={() => setDeleting(r)} />
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/hall-meal/hall-packages"
+        entityLabel="Hall Package"
+        previewFields={[
+          { key: "name", label: "Name" },
+          { key: "hallPurpose", label: "Hall Purpose" },
+          { key: "halls", label: "Halls" },
+          { key: "packagePrice", label: "Package Price" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog

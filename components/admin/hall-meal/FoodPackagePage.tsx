@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "../DataTable";
 import FormDrawer from "../FormDrawer";
 import ConfirmDialog from "../ConfirmDialog";
+import ImportExportBar from "../ImportExportBar";
+import ImportReviewModal from "../ImportReviewModal";
 import DivineInput from "../../divine/DivineInput";
 import DivineTextarea from "../../divine/DivineTextarea";
 import DivineMultiSelect from "../../divine/DivineMultiSelect";
@@ -54,6 +56,7 @@ const menuItemName = (m: MenuItemRef) => (typeof m.menuItem === "string" ? m.men
 /** Reachable only by a Super Admin — see hall-meal/layout.tsx and the API's superAdminOnly middleware. */
 export default function FoodPackagePage() {
   const { items, total, list, create, update, remove } = useApiResource<FoodPackage>(api, "/hall-meal/food-packages");
+  const [importOpen, setImportOpen] = useState(false);
   const menuItemResource = useApiResource<MenuItemOption>(api, "/hall-meal/food-menu-items");
 
   useEffect(() => {
@@ -167,12 +170,36 @@ export default function FoodPackagePage() {
         onCreate={openCreate}
         createLabel="Add Food Package"
         emptyMessage="No Food Packages yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/hall-meal/food-packages"
+            entityLabel="Food Package"
+            canExport
+            canImport
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(r) => (
           <div className="flex justify-end gap-2">
             <EditIconButton onClick={() => openEdit(r)} />
             <DeleteIconButton onClick={() => setDeleting(r)} />
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/hall-meal/food-packages"
+        entityLabel="Food Package"
+        previewFields={[
+          { key: "name", label: "Name" },
+          { key: "packagePricePerPax", label: "Price Per Pax" },
+          { key: "menuItems", label: "Menu Items" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog

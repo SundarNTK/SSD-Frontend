@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
+import ImportExportBar from "./ImportExportBar";
+import ImportReviewModal from "./ImportReviewModal";
 import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
@@ -145,7 +147,9 @@ export default function ServicePage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.services, "fullAccess");
   const canEdit = can(MODULES.services, "edit");
+  const canView = can(MODULES.services, "view");
   const { items, total, list, create, update, remove } = useApiResource<Service>(api, "/masters/services");
+  const [importOpen, setImportOpen] = useState(false);
 
   const [glOptions, setGlOptions] = useState<ListboxOption[]>([]);
   const [deityOptions, setDeityOptions] = useState<ListboxOption[]>([]);
@@ -323,12 +327,37 @@ export default function ServicePage() {
         onCreate={canCreate ? openCreate : undefined}
         createLabel="Add Service"
         emptyMessage="No services yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/masters/services"
+            entityLabel="Service"
+            canExport={canView}
+            canImport={canCreate}
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(s) => (
           <div className="flex justify-end gap-2">
             {canEdit && <EditIconButton onClick={() => openEdit(s)} />}
             {canCreate && <DeleteIconButton onClick={() => setDeleting(s)} />}
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/masters/services"
+        entityLabel="Service"
+        previewFields={[
+          { key: "code", label: "Code" },
+          { key: "name", label: "Name" },
+          { key: "generalLedger", label: "General Ledger" },
+          { key: "category", label: "Category" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog
