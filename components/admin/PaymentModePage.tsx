@@ -7,8 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusPill, StatusToggleCell, EditIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import DivineTextarea from "../divine/DivineTextarea";
-import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
+import DivineVisibilitySelect from "../divine/DivineVisibilitySelect";
 import DivineButton from "../divine/DivineButton";
 import { EyeIcon } from "../divine/icons";
 import { api } from "../../lib/api";
@@ -16,31 +16,27 @@ import { useApiResource } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { flagsToVisibility, visibilityToFlags } from "../../lib/visibility";
+import VisibilityPills from "./VisibilityPills";
 import { usePageSize } from "../../lib/usePageSize";
 
 export type PaymentMode = {
   _id: string;
   name: string;
   description: string;
+  // posAvailability gates the actual Temple POS payment-mode boxes (see
+  // SSD-Backend's controllers/pos listPaymentModes); publicAvailability is
+  // the same gate for the Customer Portal's own checkout, once that's
+  // built. Same Temple POS / Customer POS pairing every other master with
+  // a public-facing side uses (see lib/visibility.ts).
+  posAvailability: boolean;
   publicAvailability: boolean;
   status: number;
 };
 
-function AvailabilityPill({ available }: { available: boolean }) {
-  return available ? (
-    <span className="inline-flex items-center rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11.5px] font-medium text-emerald-700">
-      Yes
-    </span>
-  ) : (
-    <span className="inline-flex items-center rounded-md border border-slate-400/30 bg-slate-100 px-2 py-0.5 text-[11.5px] font-medium text-slate-500">
-      No
-    </span>
-  );
-}
-
 const schema = z.object({
   description: z.string().trim().max(500),
-  publicAvailability: z.boolean(),
+  visibility: z.array(z.string()),
   status: z.number(),
 });
 
@@ -73,13 +69,23 @@ export default function PaymentModePage() {
 
   function openEdit(mode: PaymentMode) {
     setEditing(mode);
-    reset({ description: mode.description, publicAvailability: mode.publicAvailability, status: mode.status });
+    reset({
+      description: mode.description,
+      visibility: flagsToVisibility(mode.posAvailability, mode.publicAvailability),
+      status: mode.status,
+    });
     update.setError(null);
   }
 
   const submit = handleSubmit(async (values) => {
     if (!editing) return;
-    const ok = await update.run(editing._id, values);
+    const { pos, portal } = visibilityToFlags(values.visibility);
+    const ok = await update.run(editing._id, {
+      description: values.description,
+      status: values.status,
+      posAvailability: pos,
+      publicAvailability: portal,
+    });
     if (ok !== undefined) {
       setEditing(null);
       toast.updated("Payment mode updated successfully.");
@@ -90,9 +96,9 @@ export default function PaymentModePage() {
     { key: "name", label: "Payment Mode", render: (m) => <span className="font-medium">{m.name}</span> },
     { key: "description", label: "Description", render: (m) => <span className="text-ink-500">{m.description || "—"}</span> },
     {
-      key: "publicAvailability",
-      label: "Public Availability",
-      render: (m) => <AvailabilityPill available={m.publicAvailability} />,
+      key: "visibility",
+      label: "Visibility",
+      render: (m) => <VisibilityPills pos={m.posAvailability} portal={m.publicAvailability} />,
     },
     { key: "status", label: "Status", render: (m) => (
       <StatusToggleCell status={m.status} canEdit={canEdit} onChange={(status) => patchMasterStatus(update, m._id, status, "Payment mode")} />
@@ -164,9 +170,9 @@ export default function PaymentModePage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-amber-600">Public Availability</p>
+              <p className="text-[11px] uppercase tracking-wide text-amber-600">Visibility</p>
               <div className="mt-1.5">
-                <AvailabilityPill available={Boolean(viewing?.publicAvailability)} />
+                <VisibilityPills pos={viewing?.posAvailability} portal={viewing?.publicAvailability} />
               </div>
             </div>
             <div>
@@ -205,9 +211,9 @@ export default function PaymentModePage() {
           <div className="grid grid-cols-2 gap-4">
             <Controller
               control={control}
-              name="publicAvailability"
+              name="visibility"
               render={({ field }) => (
-                <DivineRadioGroup label="Public Availability" value={field.value} onChange={field.onChange} />
+                <DivineVisibilitySelect values={field.value} onChange={field.onChange} error={errors.visibility?.message} />
               )}
             />
             <Controller
@@ -218,6 +224,10 @@ export default function PaymentModePage() {
               )}
             />
           </div>
+          <p className="-mt-2 pl-1 text-[11.5px] text-ink-500">
+            Temple POS controls whether this payment mode appears at the counter payment screen. Customer POS is
+            reserved for the customer portal&rsquo;s own checkout, which isn&rsquo;t built yet.
+          </p>
         </form>
       </FormDrawer>
     </>

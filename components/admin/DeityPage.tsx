@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
+import ImportExportBar from "./ImportExportBar";
+import ImportReviewModal from "./ImportReviewModal";
 import DivineInput from "../divine/DivineInput";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
@@ -56,7 +58,9 @@ export default function DeityPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.deities, "fullAccess");
   const canEdit = can(MODULES.deities, "edit");
+  const canView = can(MODULES.deities, "view");
   const { items, total, list, create, update, remove } = useApiResource<Deity>(api, "/masters/deities");
+  const [importOpen, setImportOpen] = useState(false);
 
   const [printingGroups, setPrintingGroups] = useState<ListboxOption[]>([]);
   const [search, setSearch] = useState("");
@@ -194,12 +198,36 @@ export default function DeityPage() {
         onCreate={canCreate ? openCreate : undefined}
         createLabel="Add Deity"
         emptyMessage="No deities yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/masters/deities"
+            entityLabel="Deity"
+            canExport={canView}
+            canImport={canCreate}
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(d) => (
           <div className="flex justify-end gap-2">
             {canEdit && <EditIconButton onClick={() => openEdit(d)} />}
             {canCreate && <DeleteIconButton onClick={() => setDeleting(d)} />}
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/masters/deities"
+        entityLabel="Deity"
+        previewFields={[
+          { key: "code", label: "Code" },
+          { key: "name", label: "Name" },
+          { key: "printingGroup", label: "Printing Group" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog

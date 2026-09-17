@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "../DataTable";
 import FormDrawer from "../FormDrawer";
 import ConfirmDialog from "../ConfirmDialog";
+import ImportExportBar from "../ImportExportBar";
+import ImportReviewModal from "../ImportReviewModal";
 import DivineInput from "../../divine/DivineInput";
 import DivineTextarea from "../../divine/DivineTextarea";
 import DivineStatusSelect from "../../divine/DivineStatusSelect";
@@ -38,6 +40,7 @@ type FormValues = z.infer<typeof schema>;
 /** Reachable only by a Super Admin — see hall-meal/layout.tsx and the API's superAdminOnly middleware. */
 export default function HallPurposePage() {
   const { items, total, list, create, update, remove } = useApiResource<HallPurpose>(api, "/hall-meal/hall-purposes");
+  const [importOpen, setImportOpen] = useState(false);
 
   const [image, setImage] = useState<File | null>(null);
   const [imageRemoved, setImageRemoved] = useState(false);
@@ -125,12 +128,32 @@ export default function HallPurposePage() {
         onCreate={openCreate}
         createLabel="Add Hall Purpose"
         emptyMessage="No Hall Purposes yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/hall-meal/hall-purposes"
+            entityLabel="Hall Purpose"
+            canExport
+            canImport
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(r) => (
           <div className="flex justify-end gap-2">
             <EditIconButton onClick={() => openEdit(r)} />
             <DeleteIconButton onClick={() => setDeleting(r)} />
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/hall-meal/hall-purposes"
+        entityLabel="Hall Purpose"
+        previewFields={[{ key: "name", label: "Name" }]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog

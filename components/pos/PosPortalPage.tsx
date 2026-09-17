@@ -67,6 +67,7 @@ import {
   PrinterIcon,
   LockIcon,
   HomeIcon,
+  RefreshIcon,
 } from "../divine/icons";
 
 // Shared by every text/select/date field on the counter screen — search
@@ -1692,9 +1693,11 @@ export default function PosPortalPage() {
                 </p>
               )}
               <button
+                type="button"
                 onClick={clearCustomer}
-                className="text-[11.5px] text-crimson-500 hover:underline"
+                className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-crimson-500/40 bg-crimson-500/5 px-3 py-1.5 text-[11.5px] font-semibold text-crimson-500 shadow-sm transition-colors duration-200 hover:border-crimson-500 hover:bg-crimson-500 hover:text-white"
               >
+                <RefreshIcon className="h-3.5 w-3.5" />
                 Change customer
               </button>
             </div>
@@ -1850,7 +1853,7 @@ export default function PosPortalPage() {
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 pt-3">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 pt-3">
             {catalogueLoading && (
               <div className="flex justify-center py-10">
                 <EmblemLoader size="md" label="Loading catalogue…" />
@@ -4022,39 +4025,41 @@ function CatalogueGrid({
     (safePage - 1) * pageSize,
     safePage * pageSize,
   );
-  const scrollable = pageSize > CARDS_PER_PAGE;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div
-        className={`grid flex-1 content-start auto-rows-auto grid-cols-2 gap-2 sm:gap-2.5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 ${scrollable ? "min-h-0 overflow-y-auto pr-1" : ""}`}
-      >
-        {pageDescriptors.map((d) =>
-          d.kind === "folder" ? (
-            <CatalogueCard
-              key={d.key}
-              onClick={() => onOpenFolder(d.folder)}
-              iconKind="folder"
-              title={d.folder.subCategoryName}
-              tamilName={d.folder.subCategoryTamilName ?? undefined}
-              imageUrl={d.folder.image}
-              theme={CATALOGUE_CARD_THEME.folder}
-              rowIcon={
-                <ListRowIcon className={CATALOGUE_CARD_THEME.folder.rowText} />
-              }
-              rowLabel={`${d.folder.total} ${d.folder.total === 1 ? "offering" : "offerings"}`}
-            />
-          ) : (
-            <OfferingCard
-              key={d.key}
-              offering={d.offering}
-              onPick={onPickOffering}
-            />
-          ),
-        )}
+      {/* Only the cards scroll — the pager below stays fixed in place
+          (not part of this scroll region) rather than sticky-positioned,
+          so it's never scrolled out of view regardless of viewport height. */}
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        <div className="grid content-start auto-rows-auto grid-cols-2 gap-2 sm:gap-2.5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          {pageDescriptors.map((d) =>
+            d.kind === "folder" ? (
+              <CatalogueCard
+                key={d.key}
+                onClick={() => onOpenFolder(d.folder)}
+                iconKind="folder"
+                title={d.folder.subCategoryName}
+                tamilName={d.folder.subCategoryTamilName ?? undefined}
+                imageUrl={d.folder.image}
+                theme={CATALOGUE_CARD_THEME.folder}
+                rowIcon={
+                  <ListRowIcon className={CATALOGUE_CARD_THEME.folder.rowText} />
+                }
+                rowLabel={`${d.folder.total} ${d.folder.total === 1 ? "offering" : "offerings"}`}
+              />
+            ) : (
+              <OfferingCard
+                key={d.key}
+                offering={d.offering}
+                onPick={onPickOffering}
+              />
+            ),
+          )}
+        </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[12.5px] text-ink-500">
+      <div className="relative z-10 mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-black/10 bg-white pt-3 text-[12.5px] text-ink-500 shadow-[0_-8px_16px_-10px_rgba(0,0,0,0.25)]">
         <span>
           Page {safePage} of {totalPages} &middot; {descriptors.length} total
         </span>

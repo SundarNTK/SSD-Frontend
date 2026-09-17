@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, type DataTableColumn } from "../DataTable";
 import FormDrawer from "../FormDrawer";
 import ConfirmDialog from "../ConfirmDialog";
+import ImportExportBar from "../ImportExportBar";
+import ImportReviewModal from "../ImportReviewModal";
 import DivineInput from "../../divine/DivineInput";
 import DivineListbox from "../../divine/DivineListbox";
 import DivineStatusSelect from "../../divine/DivineStatusSelect";
@@ -115,6 +117,7 @@ function MediaGalleryField({
 /** Reachable only by a Super Admin — see hall-meal/layout.tsx and the API's superAdminOnly middleware. */
 export default function HallPage() {
   const { items, total, list, create, update, remove } = useApiResource<Hall>(api, "/hall-meal/halls");
+  const [importOpen, setImportOpen] = useState(false);
   const categoryResource = useApiResource<HallCategory>(api, "/hall-meal/hall-categories");
 
   useEffect(() => {
@@ -319,12 +322,36 @@ export default function HallPage() {
         onCreate={openCreate}
         createLabel="Add Hall"
         emptyMessage="No Halls yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/hall-meal/halls"
+            entityLabel="Hall"
+            canExport
+            canImport
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(r) => (
           <div className="flex justify-end gap-2">
             <EditIconButton onClick={() => openEdit(r)} />
             <DeleteIconButton onClick={() => setDeleting(r)} />
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/hall-meal/halls"
+        entityLabel="Hall"
+        previewFields={[
+          { key: "code", label: "Code" },
+          { key: "name", label: "Name" },
+          { key: "category", label: "Hall Category" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog

@@ -141,6 +141,9 @@ type DataTableProps<T> = {
   createLabel?: string;
   rowActions?: (row: T) => ReactNode;
   emptyMessage?: string;
+  /** Extra buttons rendered beside the Add button — e.g. a master's
+   *  Import/Export/Sample-template controls (see ImportExportBar). */
+  toolbarActions?: ReactNode;
 };
 
 /**
@@ -171,6 +174,7 @@ export default function DataTable<T>({
   createLabel = "Create",
   rowActions,
   emptyMessage = "Nothing here yet.",
+  toolbarActions,
 }: DataTableProps<T>) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -192,7 +196,10 @@ export default function DataTable<T>({
             <h1 className="font-display text-[28px] font-bold text-ink-100">{title}</h1>
             {subtitle && <p className="mt-1 text-[13px] text-ink-500">{subtitle}</p>}
           </div>
-          {addButton}
+          <div className="flex flex-wrap items-center gap-2">
+            {toolbarActions}
+            {addButton}
+          </div>
         </div>
       )}
 
@@ -222,6 +229,7 @@ export default function DataTable<T>({
             it — its own <h1> sits above the tabs instead), the button has
             nowhere else to live, so it joins the filter row instead of
             sitting alone above it. */}
+        {!title && toolbarActions}
         {!title && addButton}
       </div>
 

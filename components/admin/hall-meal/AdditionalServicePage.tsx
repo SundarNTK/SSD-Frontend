@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "../DataTable";
 import FormDrawer from "../FormDrawer";
 import ConfirmDialog from "../ConfirmDialog";
+import ImportExportBar from "../ImportExportBar";
+import ImportReviewModal from "../ImportReviewModal";
 import DivineInput from "../../divine/DivineInput";
 import DivineTextarea from "../../divine/DivineTextarea";
 import DivineStatusSelect from "../../divine/DivineStatusSelect";
@@ -40,6 +42,7 @@ type FormValues = z.infer<typeof schema>;
 /** Reachable only by a Super Admin — see hall-meal/layout.tsx and the API's superAdminOnly middleware. */
 export default function AdditionalServicePage() {
   const { items, total, list, create, update, remove } = useApiResource<AdditionalService>(api, "/hall-meal/additional-services");
+  const [importOpen, setImportOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -128,12 +131,35 @@ export default function AdditionalServicePage() {
         onCreate={openCreate}
         createLabel="Add Service"
         emptyMessage="No Additional Services yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/hall-meal/additional-services"
+            entityLabel="Additional Service"
+            canExport
+            canImport
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(r) => (
           <div className="flex justify-end gap-2">
             <EditIconButton onClick={() => openEdit(r)} />
             <DeleteIconButton onClick={() => setDeleting(r)} />
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/hall-meal/additional-services"
+        entityLabel="Additional Service"
+        previewFields={[
+          { key: "code", label: "Code" },
+          { key: "name", label: "Name" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog

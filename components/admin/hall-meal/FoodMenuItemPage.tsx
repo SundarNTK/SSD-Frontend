@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "../DataTable";
 import FormDrawer from "../FormDrawer";
 import ConfirmDialog from "../ConfirmDialog";
+import ImportExportBar from "../ImportExportBar";
+import ImportReviewModal from "../ImportReviewModal";
 import DivineInput from "../../divine/DivineInput";
 import DivineTextarea from "../../divine/DivineTextarea";
 import DivineListbox from "../../divine/DivineListbox";
@@ -54,6 +56,7 @@ type FormValues = z.infer<typeof schema>;
 /** Reachable only by a Super Admin — see hall-meal/layout.tsx and the API's superAdminOnly middleware. */
 export default function FoodMenuItemPage() {
   const { items, total, list, create, update, remove } = useApiResource<FoodMenuItem>(api, "/hall-meal/food-menu-items");
+  const [importOpen, setImportOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -145,12 +148,36 @@ export default function FoodMenuItemPage() {
         onCreate={openCreate}
         createLabel="Add Menu Item"
         emptyMessage="No Food Menu Items yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/hall-meal/food-menu-items"
+            entityLabel="Food Menu Item"
+            canExport
+            canImport
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(r) => (
           <div className="flex justify-end gap-2">
             <EditIconButton onClick={() => openEdit(r)} />
             <DeleteIconButton onClick={() => setDeleting(r)} />
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/hall-meal/food-menu-items"
+        entityLabel="Food Menu Item"
+        previewFields={[
+          { key: "name", label: "Name" },
+          { key: "itemCategory", label: "Item Category" },
+          { key: "pricingBasis", label: "Pricing Basis" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog

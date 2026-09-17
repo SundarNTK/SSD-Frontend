@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
+import ImportExportBar from "./ImportExportBar";
+import ImportReviewModal from "./ImportReviewModal";
 import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineColorPicker from "../divine/DivineColorPicker";
@@ -67,7 +69,9 @@ export default function SubCategoryPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.subCategories, "fullAccess");
   const canEdit = can(MODULES.subCategories, "edit");
+  const canView = can(MODULES.subCategories, "view");
   const { items, total, list, create, update, remove } = useApiResource<SubCategory>(api, "/masters/sub-categories");
+  const [importOpen, setImportOpen] = useState(false);
 
   const [categoryOptions, setCategoryOptions] = useState<ListboxOption[]>([]);
 
@@ -225,12 +229,36 @@ export default function SubCategoryPage() {
         onCreate={canCreate ? openCreate : undefined}
         createLabel="Add Sub Category"
         emptyMessage="No sub categories yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/masters/sub-categories"
+            entityLabel="Sub Category"
+            canExport={canView}
+            canImport={canCreate}
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(s) => (
           <div className="flex justify-end gap-2">
             {canEdit && <EditIconButton onClick={() => openEdit(s)} />}
             {canCreate && <DeleteIconButton onClick={() => setDeleting(s)} />}
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/masters/sub-categories"
+        entityLabel="Sub Category"
+        previewFields={[
+          { key: "code", label: "Code" },
+          { key: "name", label: "Name" },
+          { key: "category", label: "Category" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog

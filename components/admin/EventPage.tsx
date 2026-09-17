@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
+import ImportExportBar from "./ImportExportBar";
+import ImportReviewModal from "./ImportReviewModal";
 import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
@@ -148,7 +150,9 @@ export default function EventPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.events, "fullAccess");
   const canEdit = can(MODULES.events, "edit");
+  const canView = can(MODULES.events, "view");
   const { items, total, list, create, update, remove } = useApiResource<Event>(api, "/masters/events");
+  const [importOpen, setImportOpen] = useState(false);
 
   const [categoryOptions, setCategoryOptions] = useState<ListboxOption[]>([]);
   const [subCategoryOptions, setSubCategoryOptions] = useState<ListboxOption[]>([]);
@@ -308,12 +312,37 @@ export default function EventPage() {
         onCreate={canCreate ? openCreate : undefined}
         createLabel="Add Event"
         emptyMessage="No events yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/masters/events"
+            entityLabel="Event"
+            canExport={canView}
+            canImport={canCreate}
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(e) => (
           <div className="flex justify-end gap-2">
             {canEdit && <EditIconButton onClick={() => openEdit(e)} />}
             {canCreate && <DeleteIconButton onClick={() => setDeleting(e)} />}
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/masters/events"
+        entityLabel="Event"
+        previewFields={[
+          { key: "code", label: "Code" },
+          { key: "name", label: "Name" },
+          { key: "category", label: "Category" },
+          { key: "startDate", label: "Start Date" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog
