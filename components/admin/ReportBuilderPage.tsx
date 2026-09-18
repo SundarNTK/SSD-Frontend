@@ -9,7 +9,7 @@ import DivineInput from "../divine/DivineInput";
 import ConfirmDialog from "./ConfirmDialog";
 import FormDrawer from "./FormDrawer";
 import { EmblemLoader } from "../divine/EmblemLoader";
-import { CheckIcon, ChartIcon, SaveIcon, TrashIcon, DownloadIcon, PlusIcon, CloseIcon } from "../divine/icons";
+import { CheckIcon, ChartIcon, SaveIcon, TrashIcon, PencilIcon, DownloadIcon, PlusIcon, CloseIcon } from "../divine/icons";
 import { api, unwrap, extractErrorMessage, type ApiEnvelope } from "../../lib/api";
 import { downloadFile } from "../../lib/downloadFile";
 import { toast } from "../../lib/toastStore";
@@ -50,6 +50,7 @@ type SavedReport = {
   conditions: Condition[];
   grouping: { groupBy: string; aggregations: { field: string | null; fn: AggFn }[] } | null;
   sort: { field: string; dir: "asc" | "desc" }[];
+  createdAt?: string;
   updatedAt?: string;
 };
 
@@ -97,12 +98,43 @@ function operatorsForField(field: ReportField | undefined): string[] {
   return field.options ? OPTIONS_FIELD_OPERATORS : OPERATORS_BY_TYPE[field.type];
 }
 
+/** DD/MM/YYYY, fixed — not `toLocaleDateString()`, whose format (and whether it's D/M/Y or M/D/Y) depends on the visitor's own browser locale. Report data (event dates, payment dates, DOB…) is a plain calendar date with no meaningful time-of-day, so this reads it as stored, not shifted through any timezone conversion. */
+function formatDMY(value: unknown): string {
+  const d = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(d.getTime())) return "—";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
+// Unlike report data (a calendar date with no real time-of-day — see
+// formatDMY above), createdAt/updatedAt are genuine moments in time, so
+// these ARE shown in the temple's own timezone (see lib/datetime.ts's
+// TEMPLE_TIME_ZONE comment on why that's always explicit, never the
+// browser's local zone or a manual UTC offset).
+const AUDIT_DATE_FORMATTER = new Intl.DateTimeFormat("en-SG", {
+  timeZone: "Asia/Singapore",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+const AUDIT_TIME_FORMATTER = new Intl.DateTimeFormat("en-SG", {
+  timeZone: "Asia/Singapore",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: true,
+});
+
+/** DD/MM/YYYY, HH:MM AM/PM — always in the temple's own (Singapore) time, regardless of the viewer's own timezone, for a genuine timestamp like createdAt/updatedAt. */
+function formatDMYTime(value: unknown): string {
+  const d = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(d.getTime())) return "—";
+  return `${AUDIT_DATE_FORMATTER.format(d)}, ${AUDIT_TIME_FORMATTER.format(d).toUpperCase()}`;
+}
+
 function formatCell(value: unknown, type: FieldType): string {
   if (value === null || value === undefined || value === "") return "—";
-  if (type === "date") {
-    const d = new Date(String(value));
-    return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
-  }
+  if (type === "date") return formatDMY(value);
   if (type === "boolean") return value ? "Yes" : "No";
   if (type === "number") return typeof value === "number" ? value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : String(value);
   return String(value);
@@ -367,13 +399,18 @@ export default function ReportBuilderPage() {
     }
   }
 
+  // Opening Save while a saved report is loaded (activeSavedId set) offers
+  // to UPDATE that same report — pre-filling its current name — rather
+  // than always creating a new one. `submitSave`'s own "Save as New"
+  // button covers the case where the admin wants a separate copy instead.
   function openSaveDrawer() {
-    setSaveName("");
+    const editing = savedReports.find((r) => r._id === activeSavedId);
+    setSaveName(editing?.name ?? "");
     setSaveError(null);
     setSaveDrawerOpen(true);
   }
 
-  async function submitSave() {
+  async function submitSave(forceNew = false) {
     if (!source) return;
     if (!saveName.trim()) {
       setSaveError("Give this report a name.");
@@ -383,15 +420,22 @@ export default function ReportBuilderPage() {
     setSaveError(null);
     try {
       const payload = buildPayload(1);
-      await api.post("/reports/definitions", {
+      const body = {
         name: saveName.trim(),
         sourceKey: payload.sourceKey,
         fields: payload.fields,
         conditions: payload.conditions,
         grouping: payload.grouping,
         sort: payload.sort,
-      });
-      toast.created("Report saved successfully.");
+      };
+      if (activeSavedId && !forceNew) {
+        await api.put(`/reports/definitions/${activeSavedId}`, body);
+        toast.updated("Report updated successfully.");
+      } else {
+        const res = await api.post<ApiEnvelope<SavedReport>>("/reports/definitions", body);
+        setActiveSavedId(unwrap(res)._id);
+        toast.created("Report saved successfully.");
+      }
       setSaveDrawerOpen(false);
       loadSavedReports();
     } catch (err) {
@@ -461,7 +505,7 @@ export default function ReportBuilderPage() {
             actually active) so this short panel travels down alongside
             the builder's much taller right column instead of scrolling
             out of view and leaving a tall stretch of bare page beside it. */}
-        <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+        <div className="min-w-0 space-y-3 lg:sticky lg:top-4 lg:self-start">
           <Panel title={`My Reports${savedReports.length ? ` (${savedReports.length})` : ""}`}>
             {savedLoading ? (
               <EmblemLoader size="sm" />
@@ -488,18 +532,34 @@ export default function ReportBuilderPage() {
                       <button type="button" onClick={() => void loadAndRunSaved(r)} className="min-w-0 flex-1 text-left">
                         <span className="block truncate font-medium text-ink-100">{r.name}</span>
                         <span className="mt-0.5 block truncate text-[11.5px] text-ink-500">{detail}</span>
+                        {r.createdAt && (
+                          <span className="mt-0.5 block text-[10.5px] text-ink-400">Created {formatDMYTime(r.createdAt)}</span>
+                        )}
                         {r.updatedAt && (
-                          <span className="mt-0.5 block text-[10.5px] text-ink-400">Updated {new Date(r.updatedAt).toLocaleDateString()}</span>
+                          <span className="block text-[10.5px] text-ink-400">Updated {formatDMYTime(r.updatedAt)}</span>
                         )}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeletingReport(r)}
-                        aria-label={`Delete ${r.name}`}
-                        className="mt-0.5 shrink-0 text-red-500 opacity-60 transition-opacity hover:opacity-100"
-                      >
-                        <TrashIcon className="h-[15px] w-[15px]" />
-                      </button>
+                      {canSave && (
+                        <div className="mt-0.5 flex shrink-0 items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => void loadAndRunSaved(r)}
+                            aria-label={`Edit ${r.name}`}
+                            title="Load into the builder to edit and update"
+                            className="text-blue-600 opacity-60 transition-opacity hover:opacity-100"
+                          >
+                            <PencilIcon className="h-[15px] w-[15px]" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeletingReport(r)}
+                            aria-label={`Delete ${r.name}`}
+                            className="text-red-500 opacity-60 transition-opacity hover:opacity-100"
+                          >
+                            <TrashIcon className="h-[15px] w-[15px]" />
+                          </button>
+                        </div>
+                      )}
                     </li>
                   );
                 })}
@@ -509,12 +569,22 @@ export default function ReportBuilderPage() {
         </div>
 
         {/* ---- Builder ---- */}
-        <div className="space-y-5">
+        {/* `min-w-0` is load-bearing, not decorative: a CSS Grid item's
+            default min-width is `auto` (its content's own min-content
+            size), which can make the item refuse to shrink to its
+            assigned `1fr` track — and this page's shell wraps <main> in
+            `overflow-x-hidden` (see app/admin/(dashboard)/layout.tsx),
+            so an item that refuses to shrink doesn't scroll into view,
+            it gets silently clipped. `overflow-x-auto` is the belt on
+            top of that suspender — if anything inside is STILL wider
+            than the shrunk column on a narrow screen, it scrolls locally
+            within this column instead of vanishing off-page. */}
+        <div className="min-w-0 space-y-5 overflow-x-auto">
           <Panel title="1. Report Type">
             {sourcesLoading ? (
               <EmblemLoader size="sm" />
             ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                 {sources.map((s) => (
                   <button
                     key={s.key}
@@ -542,7 +612,7 @@ export default function ReportBuilderPage() {
               {/* Step 2: select + arrange fields (hidden while grouping is on — grouped output is Group By + aggregations only) */}
               {!groupingEnabled && (
                 <Panel title="2. Select &amp; Arrange Fields">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                     <div>
                       <div className="mb-2 flex items-center justify-between">
                         <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-500">Available Fields</span>
@@ -773,7 +843,7 @@ export default function ReportBuilderPage() {
                 </DivineButton>
                 {canSave && (
                   <DivineButton variant="ghost" fullWidth={false} onClick={openSaveDrawer}>
-                    <SaveIcon className="h-4 w-4" /> Save Report
+                    <SaveIcon className="h-4 w-4" /> {activeSavedId ? "Update Report" : "Save Report"}
                   </DivineButton>
                 )}
                 <DivineButton variant="leaf" fullWidth={false} loading={exporting} disabled={!hasRun || total === 0} onClick={() => void handleExport()}>
@@ -861,16 +931,21 @@ export default function ReportBuilderPage() {
       <FormDrawer
         open={saveDrawerOpen}
         onClose={() => setSaveDrawerOpen(false)}
-        title="Save Report"
+        title={activeSavedId ? "Update Report" : "Save Report"}
         subtitle={source ? `${source.label}${groupingEnabled ? " · grouped" : ` · ${selectedFields.length} field(s)`}` : ""}
         error={saveError}
         footer={
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-wrap justify-end gap-3">
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setSaveDrawerOpen(false)}>
               Cancel
             </DivineButton>
+            {activeSavedId && (
+              <DivineButton variant="ghost" fullWidth={false} type="button" loading={saving} onClick={() => void submitSave(true)}>
+                Save as New
+              </DivineButton>
+            )}
             <DivineButton variant="flame" fullWidth={false} type="submit" form="save-report-form" loading={saving}>
-              Save
+              {activeSavedId ? "Update" : "Save"}
             </DivineButton>
           </div>
         }
@@ -885,7 +960,9 @@ export default function ReportBuilderPage() {
         >
           <DivineInput staticLabel label="Report Name" value={saveName} onChange={(e) => setSaveName(e.target.value)} />
           <p className="text-[12px] text-ink-500">
-            Saves the report type, fields, filters, sort and grouping — running it later always re-reads live data.
+            {activeSavedId
+              ? "Updates this saved report's name, fields, filters, sort and grouping in place. Use “Save as New” instead to keep the original and create a separate copy."
+              : "Saves the report type, fields, filters, sort and grouping — running it later always re-reads live data."}
           </p>
         </form>
       </FormDrawer>
