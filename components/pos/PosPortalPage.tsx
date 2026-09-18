@@ -50,6 +50,7 @@ import { EmblemLoader, EmblemLoaderOverlay } from "../divine/EmblemLoader";
 import { resolveImageUrl } from "../../lib/imageUrl";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineDatePicker from "../divine/DivineDatePicker";
+import DevoteeNameField from "./DevoteeNameField";
 import { FORM_LABEL } from "../divine/formFieldStyles";
 import {
   SearchIcon,
@@ -224,7 +225,7 @@ const RECENT_BOOKINGS_PREVIEW_LIMIT = 3;
 const RECENT_BOOKINGS_ALL_LIMIT = 200;
 
 type DeityOption = { _id: string; name: string; tamilName: string };
-type NakshatraOption = { _id: string; name: string };
+type NakshatraOption = { _id: string; name: string; tamilName?: string };
 
 type Devotee = { name: string; nakshatra: string };
 
@@ -632,7 +633,13 @@ export default function PosPortalPage() {
       )
       .then((r) =>
         setNakshatraOptions(
-          unwrap(r).items.map((n) => ({ value: n.name, label: n.name })),
+          unwrap(r).items.map((n) => ({
+            // Keep English `name` as the stored value so existing bookings
+            // and print enrichment (Nakshathiram.name → tamilName) stay in
+            // sync; the cashier only sees Tamil in the list.
+            value: n.name,
+            label: n.tamilName?.trim() || n.name,
+          })),
         ),
       )
       .catch(() => {});
@@ -4439,35 +4446,19 @@ function AddToCartModal({
                     className="grid grid-cols-[minmax(0,1fr)_minmax(9.5rem,11rem)_auto] items-start gap-2"
                   >
                     <div>
-                      <DivineInput
-                        staticLabel
+                      <DevoteeNameField
                         label={`Devotee ${idx + 1}`}
-                        placeholder="Enter name"
                         value={devotee.name}
-                        onChange={(e) => {
+                        onChange={(name) => {
                           const updated = [...devotees];
-                          updated[idx] = {
-                            ...updated[idx],
-                            name: e.target.value,
-                          };
+                          updated[idx] = { ...updated[idx], name };
                           onDevoteesChange(updated);
                         }}
-                        autoComplete="off"
+                        historyChips={suggestionsForRow(devotee).map((s) => ({
+                          name: s.name,
+                          onPick: () => fillDevoteeRow(idx, s),
+                        }))}
                       />
-                      {suggestionsForRow(devotee).length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap gap-1.5">
-                          {suggestionsForRow(devotee).map((s) => (
-                            <button
-                              key={s.name}
-                              type="button"
-                              onClick={() => fillDevoteeRow(idx, s)}
-                              className="rounded-full border border-gold-500/30 bg-white px-2.5 py-0.5 text-[11.5px] font-medium text-amber-700 transition-colors hover:border-gold-400/60 hover:bg-gold-500/5"
-                            >
-                              + {s.name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
                     <DivineListbox
                       label="Nakshatra"
