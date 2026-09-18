@@ -406,7 +406,7 @@ function NavLeafLink({
       href={to}
       onClick={onNavigate}
       title={collapsed ? label : undefined}
-      className={`flex items-center gap-3 rounded-xl border-l-[3px] py-2.5 pl-[9px] pr-3 text-[13.5px] transition-[background-color,color,box-shadow] duration-200 ${collapsed ? "md:justify-center" : ""} ${
+      className={`flex items-center gap-3 rounded-xl border-l-[3px] py-2.5 pl-[9px] pr-3 text-[13.5px] font-semibold transition-[background-color,color,box-shadow] duration-200 ${collapsed ? "md:justify-center" : ""} ${
         isActive ? ACTIVE_NAV_CLASS : INACTIVE_NAV_CLASS
       }`}
     >

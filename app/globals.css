@@ -1276,6 +1276,173 @@ select option {
   animation: ldr-slide-x 1.5s ease-in-out infinite;
 }
 
+/* Dashboard welcome — waving hand next to the greeting */
+@keyframes dash-wave {
+  0% {
+    transform: rotate(0deg);
+  }
+  10% {
+    transform: rotate(14deg);
+  }
+  20% {
+    transform: rotate(-8deg);
+  }
+  30% {
+    transform: rotate(14deg);
+  }
+  40% {
+    transform: rotate(-4deg);
+  }
+  50%,
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.dash-wave-hand {
+  display: inline-block;
+  transform-origin: 70% 70%;
+  animation: dash-wave 2.4s ease-in-out 0.85s 3;
+}
+
+/* Cinematic ambient wash + light sweep across the dashboard */
+.dash-cinema {
+  isolation: isolate;
+}
+.dash-cinema-wash {
+  background:
+    radial-gradient(ellipse 70% 80% at 12% 0%, rgba(124, 21, 39, 0.07), transparent 60%),
+    radial-gradient(ellipse 55% 70% at 88% 8%, rgba(212, 175, 55, 0.14), transparent 55%);
+  animation: dash-wash-in 1.4s ease-out both;
+}
+.dash-cinema-sweep {
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 248, 235, 0.55) 48%,
+    transparent 62%
+  );
+  transform: translateX(-120%);
+  animation: dash-light-sweep 1.8s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+}
+@keyframes dash-wash-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes dash-light-sweep {
+  from {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.9;
+  }
+  to {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+.dash-panel-enter {
+  animation: dash-panel-lift 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes dash-panel-lift {
+  from {
+    box-shadow: 0 0 0 transparent;
+  }
+  to {
+    box-shadow: 0 16px 40px -18px rgba(80, 40, 20, 0.28);
+  }
+}
+
+.dash-card-sheen {
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.55) 45%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  animation: none;
+}
+.group:hover .dash-card-sheen {
+  animation: dash-card-sheen 0.85s ease-out;
+}
+@keyframes dash-card-sheen {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(120%);
+  }
+}
+
+/* Dashboard panels — soft colored left accent + clearer edge */
+.dash-panel {
+  position: relative;
+  overflow: hidden;
+}
+.dash-panel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 2px 0 0 2px;
+}
+.dash-panel--maroon::before {
+  background: linear-gradient(180deg, #7c1527, #b3273f);
+}
+.dash-panel--gold::before {
+  background: linear-gradient(180deg, #d4af37, #a67420);
+}
+.dash-panel--flame::before {
+  background: linear-gradient(180deg, #e67e22, #c45c12);
+}
+.dash-panel--olive::before {
+  background: linear-gradient(180deg, #6b8e23, #5a6e2b);
+}
+
+/* Bar chart shine sweep on entrance */
+@keyframes dash-bar-shine {
+  0% {
+    transform: translateY(110%);
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+}
+.dash-bar-shine {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.45) 45%,
+    transparent 100%
+  );
+  animation: dash-bar-shine 1.25s ease-out 0.45s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-wave-hand,
+  .dash-cinema-wash,
+  .dash-cinema-sweep,
+  .dash-panel-enter,
+  .dash-bar-shine,
+  .group:hover .dash-card-sheen {
+    animation: none !important;
+  }
+}
+
 @media print {
   @page {
     size: A4 portrait;
