@@ -108,7 +108,7 @@ function TicketPaper({ ticket }: { ticket: SampleTicket }) {
 
       {ticket.devotees.length > 0 && (
         <>
-          <p className="text-center font-bold">Name - Star</p>
+          <p className="text-center font-bold">பெயர் - நட்சத்திரம்</p>
           <div className="my-1 border-t border-dashed border-black" />
           {ticket.devotees.map((d, i) => (
             <p key={i} className="text-left">
