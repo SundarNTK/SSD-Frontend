@@ -1302,7 +1302,7 @@ select option {
 .dash-wave-hand {
   display: inline-block;
   transform-origin: 70% 70%;
-  animation: dash-wave 2.4s ease-in-out 0.85s 3;
+  animation: dash-wave 2.2s ease-in-out 0.35s 2;
 }
 
 /* Cinematic ambient wash + light sweep across the dashboard */

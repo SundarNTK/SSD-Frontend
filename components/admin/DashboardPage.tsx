@@ -102,38 +102,105 @@ function formatWhen(iso: string) {
 }
 
 const EASE_CINEMA = [0.16, 1, 0.3, 1] as const;
+const DASH_CACHE_KEY = "ssd_dashboard_overview_v1";
+
+const EMPTY_KPIS: Kpis = {
+  todayCollections: 0,
+  todayPosSales: 0,
+  todayOnlineBookings: 0,
+  cashCollection: 0,
+  netsCollection: 0,
+  paynowCollection: 0,
+  totalGstCollected: 0,
+  pendingCancellations: 0,
+  pendingRefunds: 0,
+  lowStockItems: 0,
+  activeCustomers: 0,
+  activeServices: 0,
+  activeItems: 0,
+};
+
+function emptyWeekSeries(): DayPoint[] {
+  const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (6 - i));
+    return {
+      date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+      label: labels[d.getDay()],
+      amount: 0,
+    };
+  });
+}
+
+const EMPTY_CHARTS: OverviewPayload["charts"] = {
+  dailyCollection: emptyWeekSeries(),
+  collectionTrendPct: 0,
+  paymentBreakdown: [
+    { mode: "Cash", amount: 0, percent: 0, color: "#7c1527" },
+    { mode: "NETS", amount: 0, percent: 0, color: "#e67e22" },
+    { mode: "PayNow", amount: 0, percent: 0, color: "#6b8e23" },
+  ],
+};
+
+const EMPTY_FEEDS: OverviewPayload["feeds"] = {
+  recentPosTransactions: [],
+  recentPortalBookings: [],
+  lowStockAlerts: [],
+  pendingCancellations: [],
+};
+
+function readDashCache(): OverviewPayload | null {
+  try {
+    const raw = sessionStorage.getItem(DASH_CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as OverviewPayload;
+  } catch {
+    return null;
+  }
+}
+
+function writeDashCache(payload: OverviewPayload) {
+  try {
+    sessionStorage.setItem(DASH_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    /* ignore quota */
+  }
+}
 
 const pageVariants = {
   hidden: {},
   show: {
-    transition: { staggerChildren: 0.14, delayChildren: 0.05 },
+    transition: { staggerChildren: 0.08, delayChildren: 0 },
   },
 };
 
 const sceneVariants = {
-  hidden: { opacity: 0, y: 42, scale: 0.97 },
+  hidden: { opacity: 0, y: 22, scale: 0.985 },
   show: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.95, ease: EASE_CINEMA },
+    transition: { duration: 0.45, ease: EASE_CINEMA },
   },
 };
 
 const kpiGridVariants = {
   hidden: {},
   show: {
-    transition: { staggerChildren: 0.05, delayChildren: 0.1 },
+    transition: { staggerChildren: 0.03, delayChildren: 0.04 },
   },
 };
 
 const kpiItemVariants = {
-  hidden: { opacity: 0, y: 32, scale: 0.9 },
+  hidden: { opacity: 0, y: 16, scale: 0.96 },
   show: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.7, ease: EASE_CINEMA },
+    transition: { duration: 0.35, ease: EASE_CINEMA },
   },
 };
 
@@ -142,10 +209,9 @@ export default function DashboardPage() {
   const firstName = user?.name?.split(" ")[0] ?? "there";
 
   const [data, setData] = useState<OverviewPayload | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [ready, setReady] = useState(false);
 
   const load = useCallback(async (soft = false) => {
     if (soft) setRefreshing(true);
@@ -153,28 +219,34 @@ export default function DashboardPage() {
     setError(null);
     try {
       const res = await api.get<ApiEnvelope<OverviewPayload>>("/dashboard/overview");
-      setData(unwrap(res));
-      setReady(true);
+      const payload = unwrap(res);
+      setData(payload);
+      writeDashCache(payload);
     } catch (err) {
       setError(extractErrorMessage(err));
-      setReady(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
+  // Instant paint from cache, then refresh in background — no skeleton wait.
   useEffect(() => {
-    void load();
+    const cached = readDashCache();
+    if (cached) {
+      setData(cached);
+      void load(true);
+    } else {
+      void load(false);
+    }
   }, [load]);
 
-  const kpis = data?.kpis;
-  const charts = data?.charts;
-  const feeds = data?.feeds;
-  const sceneKey = data?.generatedAt ?? "boot";
+  const kpis = data?.kpis ?? EMPTY_KPIS;
+  const charts = data?.charts ?? EMPTY_CHARTS;
+  const feeds = data?.feeds ?? EMPTY_FEEDS;
+  const hasLiveData = !!data;
 
   const kpiCards = useMemo(() => {
-    if (!kpis) return [];
     return [
       {
         key: "collections",
@@ -288,7 +360,7 @@ export default function DashboardPage() {
       className="dash-cinema relative space-y-6 pb-8"
       variants={pageVariants}
       initial="hidden"
-      animate={ready ? "show" : "hidden"}
+      animate="show"
     >
       <div className="dash-cinema-wash pointer-events-none absolute -inset-x-4 -top-6 h-64 sm:-inset-x-6" aria-hidden />
       <div className="dash-cinema-sweep pointer-events-none absolute inset-x-0 top-0 h-[70%]" aria-hidden />
@@ -306,9 +378,9 @@ export default function DashboardPage() {
         />
         <div className="relative z-10">
           <motion.p
-            initial={{ opacity: 0, letterSpacing: "0.4em", y: 10 }}
+            initial={{ opacity: 0, letterSpacing: "0.28em", y: 6 }}
             animate={{ opacity: 1, letterSpacing: "0.18em", y: 0 }}
-            transition={{ duration: 1, ease: EASE_CINEMA, delay: 0.12 }}
+            transition={{ duration: 0.45, ease: EASE_CINEMA, delay: 0.02 }}
             className="font-accent text-[12px] uppercase text-amber-600"
           >
             Dashboard Overview
@@ -320,9 +392,9 @@ export default function DashboardPage() {
             </span>
           </h1>
           <motion.p
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.62, ease: EASE_CINEMA }}
+            transition={{ duration: 0.4, delay: 0.22, ease: EASE_CINEMA }}
             className="mt-1.5 text-[13.5px] text-ink-500"
           >
             Here&apos;s what&apos;s happening at the temple today.
@@ -344,7 +416,7 @@ export default function DashboardPage() {
         </motion.button>
       </motion.header>
 
-      {error && !data ? (
+      {error && !hasLiveData ? (
         <motion.div
           variants={sceneVariants}
           className="rounded-2xl border-2 border-crimson-500/30 bg-white px-5 py-8 text-center"
@@ -361,27 +433,24 @@ export default function DashboardPage() {
       ) : null}
 
       <motion.div
-        key={`kpi-${sceneKey}`}
         variants={kpiGridVariants}
-        initial="hidden"
-        animate={ready && (!loading || !!data) ? "show" : "hidden"}
-        className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+        className={`grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ${
+          loading && !hasLiveData ? "opacity-80" : ""
+        }`}
       >
-        {loading && !data
-          ? Array.from({ length: 13 }).map((_, i) => <KpiSkeleton key={i} delay={i * 0.03} />)
-          : kpiCards.map((card) => (
-              <motion.div key={card.key} variants={kpiItemVariants}>
-                <KpiCard {...card} />
-              </motion.div>
-            ))}
+        {kpiCards.map((card) => (
+          <motion.div key={card.key} variants={kpiItemVariants}>
+            <KpiCard {...card} />
+          </motion.div>
+        ))}
       </motion.div>
 
       <motion.div variants={sceneVariants} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <motion.section
-          initial={{ opacity: 0, x: -36 }}
+          initial={{ opacity: 0, x: -20 }}
           whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 1, ease: EASE_CINEMA }}
+          viewport={{ once: true, amount: 0.15 }}
+          transition={{ duration: 0.5, ease: EASE_CINEMA }}
           className="dash-panel dash-panel--maroon dash-panel-enter rounded-2xl border-2 border-maroon/25 bg-white p-5 shadow-[0_16px_40px_-18px_rgba(124,21,39,0.42)]"
         >
           <div className="mb-4 flex items-start justify-between gap-3">
@@ -389,45 +458,23 @@ export default function DashboardPage() {
               <h2 className="text-[15px] font-semibold text-ink-100">Daily Collection</h2>
               <p className="text-[12px] text-ink-500">Last 7 days</p>
             </div>
-            {charts ? (
-              <TrendBadge pct={charts.collectionTrendPct} />
-            ) : (
-              <div className="h-6 w-14 animate-pulse rounded-full bg-ivory-100" />
-            )}
+            <TrendBadge pct={charts.collectionTrendPct} />
           </div>
-          {loading && !charts ? (
-            <div className="flex h-52 items-end gap-2 px-2">
-              {Array.from({ length: 7 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex-1 animate-pulse rounded-t-md bg-ivory-100"
-                  style={{ height: `${40 + ((i * 17) % 50)}%` }}
-                />
-              ))}
-            </div>
-          ) : (
-            <BarChart key={`bars-${sceneKey}`} series={charts?.dailyCollection ?? []} />
-          )}
+          <BarChart series={charts.dailyCollection} />
         </motion.section>
 
         <motion.section
-          initial={{ opacity: 0, x: 36 }}
+          initial={{ opacity: 0, x: 20 }}
           whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 1, delay: 0.12, ease: EASE_CINEMA }}
+          viewport={{ once: true, amount: 0.15 }}
+          transition={{ duration: 0.5, delay: 0.06, ease: EASE_CINEMA }}
           className="dash-panel dash-panel--gold dash-panel-enter rounded-2xl border-2 border-amber-500/30 bg-white p-5 shadow-[0_16px_40px_-18px_rgba(166,116,32,0.38)]"
         >
           <div className="mb-4">
             <h2 className="text-[15px] font-semibold text-ink-100">Payment Mode Breakdown</h2>
             <p className="text-[12px] text-ink-500">Today&apos;s paid collections</p>
           </div>
-          {loading && !charts ? (
-            <div className="flex h-52 items-center justify-center">
-              <div className="h-36 w-36 animate-pulse rounded-full border-[14px] border-ivory-100" />
-            </div>
-          ) : (
-            <DonutChart key={`donut-${sceneKey}`} slices={charts?.paymentBreakdown ?? []} />
-          )}
+          <DonutChart slices={charts.paymentBreakdown} />
         </motion.section>
       </motion.div>
 
@@ -472,10 +519,10 @@ export default function DashboardPage() {
             href="/admin/transactions/pos-transactions"
             accent="maroon"
             delay={0}
-            loading={loading && !feeds}
-            empty={!feeds?.recentPosTransactions?.length}
+            loading={false}
+            empty={!feeds.recentPosTransactions.length}
           >
-            {feeds?.recentPosTransactions.map((row, i) => (
+            {feeds.recentPosTransactions.map((row, i) => (
               <FeedRow
                 key={row.id}
                 delay={i * 0.07}
@@ -492,10 +539,10 @@ export default function DashboardPage() {
             href="/admin/inventory/low-stock"
             accent="orange"
             delay={0.1}
-            loading={loading && !feeds}
-            empty={!feeds?.lowStockAlerts?.length}
+            loading={false}
+            empty={!feeds.lowStockAlerts.length}
           >
-            {feeds?.lowStockAlerts.map((row, i) => (
+            {feeds.lowStockAlerts.map((row, i) => (
               <FeedRow
                 key={row.id}
                 delay={i * 0.07}
@@ -513,10 +560,10 @@ export default function DashboardPage() {
             href="/admin/transactions/admin-booking"
             accent="gold"
             delay={0.06}
-            loading={loading && !feeds}
-            empty={!feeds?.recentPortalBookings?.length}
+            loading={false}
+            empty={!feeds.recentPortalBookings.length}
           >
-            {feeds?.recentPortalBookings.map((row, i) => (
+            {feeds.recentPortalBookings.map((row, i) => (
               <FeedRow
                 key={row.id}
                 delay={i * 0.07}
@@ -538,10 +585,10 @@ export default function DashboardPage() {
             href="/admin/hall-meal/hall-bookings"
             accent="olive"
             delay={0.14}
-            loading={loading && !feeds}
-            empty={!feeds?.pendingCancellations?.length}
+            loading={false}
+            empty={!feeds.pendingCancellations.length}
           >
-            {feeds?.pendingCancellations.map((row, i) => (
+            {feeds.pendingCancellations.map((row, i) => (
               <FeedRow
                 key={row.id}
                 delay={i * 0.07}
@@ -565,9 +612,9 @@ function WelcomeTitle({ firstName }: { firstName: string }) {
       {words.map((word, i) => (
         <motion.span
           key={`${word}-${i}`}
-          initial={{ opacity: 0, y: 22, filter: "blur(8px)" }}
+          initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.8, delay: 0.28 + i * 0.14, ease: EASE_CINEMA }}
+          transition={{ duration: 0.4, delay: 0.05 + i * 0.06, ease: EASE_CINEMA }}
           className="mr-[0.28em] inline-block last:mr-0"
         >
           {word}
@@ -644,24 +691,13 @@ function KpiCard({
   );
 }
 
-function KpiSkeleton({ delay }: { delay: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay }}
-      className="h-[76px] animate-pulse rounded-2xl border-2 border-maroon/15 bg-white"
-    />
-  );
-}
-
 function TrendBadge({ pct }: { pct: number }) {
   const up = pct >= 0;
   return (
     <motion.span
-      initial={{ opacity: 0, scale: 0.7, y: -8 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 340, damping: 16, delay: 0.7 }}
+      initial={{ opacity: 0, scale: 0.85 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", stiffness: 400, damping: 18, delay: 0.2 }}
       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold ${
         up ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
       }`}
@@ -681,9 +717,9 @@ function BarChart({ series }: { series: DayPoint[] }) {
         return (
           <div key={d.date} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
             <motion.span
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.85 + i * 0.08, duration: 0.4, ease: EASE_CINEMA }}
+              transition={{ delay: 0.35 + i * 0.04, duration: 0.25, ease: EASE_CINEMA }}
               className="text-[10px] font-semibold tabular-nums text-maroon/80"
             >
               {d.amount > 0 ? formatCurrency(d.amount) : ""}
@@ -694,8 +730,8 @@ function BarChart({ series }: { series: DayPoint[] }) {
                 initial={{ scaleY: 0, opacity: 0 }}
                 animate={{ scaleY: 1, opacity: 1 }}
                 transition={{
-                  duration: 1.05,
-                  delay: 0.2 + i * 0.1,
+                  duration: 0.55,
+                  delay: 0.08 + i * 0.05,
                   ease: EASE_CINEMA,
                 }}
                 style={{ height: `${h}%`, transformOrigin: "bottom center" }}
@@ -705,9 +741,9 @@ function BarChart({ series }: { series: DayPoint[] }) {
               </motion.div>
             </div>
             <motion.span
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.45 + i * 0.07 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 + i * 0.04 }}
               className="text-[11px] font-medium text-ink-500"
             >
               {d.label}
@@ -726,9 +762,9 @@ function AnimatedTotal({ value }: { value: number }) {
 
   useEffect(() => {
     const controls = animate(mv, value, {
-      duration: 1.35,
+      duration: 0.7,
       ease: EASE_CINEMA,
-      delay: 0.35,
+      delay: 0.1,
     });
     const unsub = rounded.on("change", setText);
     return () => {
@@ -757,9 +793,9 @@ function DonutChart({ slices }: { slices: PaymentSlice[] }) {
   return (
     <div className="flex flex-col items-center gap-5 sm:flex-row sm:justify-center sm:gap-8">
       <motion.div
-        initial={{ opacity: 0, scale: 0.55, rotate: -48 }}
+        initial={{ opacity: 0, scale: 0.75, rotate: -20 }}
         animate={{ opacity: 1, scale: 1, rotate: 0 }}
-        transition={{ duration: 1.15, ease: EASE_CINEMA }}
+        transition={{ duration: 0.55, ease: EASE_CINEMA }}
         className="relative h-44 w-44"
       >
         <svg viewBox="0 0 140 140" className="h-full w-full -rotate-90">
@@ -776,7 +812,7 @@ function DonutChart({ slices }: { slices: PaymentSlice[] }) {
               strokeDasharray={c}
               initial={{ strokeDashoffset: c }}
               animate={{ strokeDashoffset: c * 0.92 }}
-              transition={{ duration: 1.2, ease: EASE_CINEMA }}
+              transition={{ duration: 0.7, ease: EASE_CINEMA }}
             />
           ) : (
             arcs.map((a, i) => (
@@ -793,8 +829,8 @@ function DonutChart({ slices }: { slices: PaymentSlice[] }) {
                 initial={{ strokeDasharray: `0 ${c}`, opacity: 0 }}
                 animate={{ strokeDasharray: `${a.dash} ${a.gap}`, opacity: 1 }}
                 transition={{
-                  duration: 1.2,
-                  delay: 0.28 + i * 0.22,
+                  duration: 0.65,
+                  delay: 0.1 + i * 0.1,
                   ease: EASE_CINEMA,
                 }}
               />
@@ -811,13 +847,13 @@ function DonutChart({ slices }: { slices: PaymentSlice[] }) {
             strokeDasharray={`${c * 0.14} ${c * 0.86}`}
             initial={{ strokeDashoffset: c, opacity: 0 }}
             animate={{ strokeDashoffset: -c * 1.05, opacity: [0, 0.85, 0] }}
-            transition={{ duration: 1.7, delay: 0.2, ease: "easeInOut" }}
+            transition={{ duration: 1, delay: 0.05, ease: "easeInOut" }}
           />
         </svg>
         <motion.div
-          initial={{ opacity: 0, scale: 0.7 }}
+          initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.7, duration: 0.55, ease: EASE_CINEMA }}
+          transition={{ delay: 0.25, duration: 0.3, ease: EASE_CINEMA }}
           className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
         >
           <span className="text-[11px] uppercase tracking-wide text-ink-500">Total</span>
@@ -828,16 +864,13 @@ function DonutChart({ slices }: { slices: PaymentSlice[] }) {
         {slices.map((s, i) => (
           <motion.li
             key={s.mode}
-            initial={{ opacity: 0, x: 18 }}
+            initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.55 + i * 0.12, duration: 0.5, ease: EASE_CINEMA }}
+            transition={{ delay: 0.2 + i * 0.06, duration: 0.3, ease: EASE_CINEMA }}
             className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-1.5 py-1 text-[13px] transition hover:border-gold-500/25 hover:bg-ivory-50"
           >
             <span className="flex items-center gap-2 text-ink-300">
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.65 + i * 0.12, type: "spring", stiffness: 380, damping: 14 }}
+              <span
                 className="h-2.5 w-2.5 rounded-full ring-2 ring-white"
                 style={{ background: s.color, boxShadow: `0 0 0 1px ${s.color}` }}
               />
