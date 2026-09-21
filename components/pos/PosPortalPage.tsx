@@ -1182,20 +1182,13 @@ export default function PosPortalPage() {
     printTicketForBooking(booking);
   }
 
-  // NETS and Credit Card both already print on their own inside the EXE the
-  // moment the terminal approves (index.js's confirmAndPrintNetsPayment,
-  // which fires for any genuinely-approved terminal payment regardless of
-  // paymentType/isCreditTxn) — asking again here would just be a wasted
-  // duplicate round trip, so both are skipped. Cash and PayNow have no such
-  // hook today; this is the only place their ticket ever gets printed.
+  // Print the ticket for any confirmed booking regardless of payment mode.
   // Fire-and-forget and silent on failure (EXE not running, no printer yet,
   // socket not connected) — the booking itself already succeeded and must
   // never be blocked or alarmed by a printing hiccup; the EXE's own
   // pending-print queue picks up a "no printer configured" case
   // automatically once one is set up.
   function printTicketForBooking(booking: BookingConfirmation) {
-    const modeName = booking.paymentModeName.toLowerCase();
-    if (modeName === "nets" || modeName === "credit card") return;
     void (async () => {
       try {
         const res = await api.get<ApiEnvelope<unknown>>(`/pos/booking/bookings/${booking._id}/ticket-groups`);

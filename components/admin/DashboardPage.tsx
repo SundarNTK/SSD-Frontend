@@ -25,6 +25,7 @@ type Kpis = {
   todayOnlineBookings: number;
   cashCollection: number;
   netsCollection: number;
+  creditCardCollection: number;
   paynowCollection: number;
   totalGstCollected: number;
   pendingCancellations: number;
@@ -71,7 +72,6 @@ type OverviewPayload = {
   kpis: Kpis;
   charts: {
     dailyCollection: DayPoint[];
-    collectionTrendPct: number;
     paymentBreakdown: PaymentSlice[];
   };
   feeds: {
@@ -110,6 +110,7 @@ const EMPTY_KPIS: Kpis = {
   todayOnlineBookings: 0,
   cashCollection: 0,
   netsCollection: 0,
+  creditCardCollection: 0,
   paynowCollection: 0,
   totalGstCollected: 0,
   pendingCancellations: 0,
@@ -137,11 +138,12 @@ function emptyWeekSeries(): DayPoint[] {
 
 const EMPTY_CHARTS: OverviewPayload["charts"] = {
   dailyCollection: emptyWeekSeries(),
-  collectionTrendPct: 0,
   paymentBreakdown: [
     { mode: "Cash", amount: 0, percent: 0, color: "#7c1527" },
     { mode: "NETS", amount: 0, percent: 0, color: "#e67e22" },
+    { mode: "Credit Card", amount: 0, percent: 0, color: "#2f6f9f" },
     { mode: "PayNow", amount: 0, percent: 0, color: "#6b8e23" },
+    { mode: "Other", amount: 0, percent: 0, color: "#8a7a6a" },
   ],
 };
 
@@ -250,6 +252,7 @@ export default function DashboardPage() {
     return [
       {
         key: "collections",
+        hint: "All paid POS + admin transactions today (every payment mode)",
         label: "Today's Collections",
         value: formatCurrency(kpis.todayCollections),
         href: "/admin/transactions/pos-transactions",
@@ -258,6 +261,7 @@ export default function DashboardPage() {
       },
       {
         key: "pos",
+        hint: "Paid POS transactions today",
         label: "Today's POS Sales",
         value: formatCurrency(kpis.todayPosSales),
         href: "/admin/transactions/pos-transactions",
@@ -266,6 +270,7 @@ export default function DashboardPage() {
       },
       {
         key: "online",
+        hint: "Grand total of today's non-cancelled admin/customer-portal bookings, paid or not",
         label: "Today's Online Bookings",
         value: formatCurrency(kpis.todayOnlineBookings),
         href: "/admin/transactions/admin-booking",
@@ -274,6 +279,7 @@ export default function DashboardPage() {
       },
       {
         key: "cash",
+        hint: "Paid transactions today with payment mode Cash",
         label: "Cash Collection",
         value: formatCurrency(kpis.cashCollection),
         href: "/admin/transactions/pos-transactions",
@@ -282,6 +288,7 @@ export default function DashboardPage() {
       },
       {
         key: "nets",
+        hint: "Paid transactions today with payment mode NETS",
         label: "NETS Collection",
         value: formatCurrency(kpis.netsCollection),
         href: "/admin/transactions/pos-transactions",
@@ -289,7 +296,17 @@ export default function DashboardPage() {
         icon: <span className="text-[11px] font-bold">N</span>,
       },
       {
+        key: "creditCard",
+        hint: "Paid transactions today with payment mode Credit Card (separate from NETS)",
+        label: "Credit Card Collection",
+        value: formatCurrency(kpis.creditCardCollection),
+        href: "/admin/transactions/pos-transactions",
+        tone: "gold" as const,
+        icon: <span className="text-[11px] font-bold">C</span>,
+      },
+      {
         key: "paynow",
+        hint: "Paid transactions today with payment mode PayNow",
         label: "PayNow Collection",
         value: formatCurrency(kpis.paynowCollection),
         href: "/admin/transactions/pos-transactions",
@@ -298,6 +315,7 @@ export default function DashboardPage() {
       },
       {
         key: "gst",
+        hint: "GST on today's non-cancelled POS + portal bookings",
         label: "Total GST Collected",
         value: formatCurrency(kpis.totalGstCollected),
         href: "/admin/masters/gst",
@@ -306,6 +324,7 @@ export default function DashboardPage() {
       },
       {
         key: "cancel",
+        hint: "Hall bookings cancelled and not yet fully refunded",
         label: "Pending Cancellations",
         value: String(kpis.pendingCancellations),
         href: "/admin/hall-meal/hall-bookings",
@@ -314,6 +333,7 @@ export default function DashboardPage() {
       },
       {
         key: "refund",
+        hint: "Hall bookings with a refund still pending",
         label: "Pending Refunds",
         value: String(kpis.pendingRefunds),
         href: "/admin/hall-meal/hall-bookings",
@@ -322,6 +342,7 @@ export default function DashboardPage() {
       },
       {
         key: "stock",
+        hint: "Active inventory items whose stock is below their threshold",
         label: "Low-Stock Items",
         value: String(kpis.lowStockItems),
         href: "/admin/inventory/low-stock",
@@ -330,6 +351,7 @@ export default function DashboardPage() {
       },
       {
         key: "customers",
+        hint: "Customers with active status",
         label: "Active Customers",
         value: String(kpis.activeCustomers),
         href: "/admin/customers",
@@ -338,6 +360,7 @@ export default function DashboardPage() {
       },
       {
         key: "services",
+        hint: "Services with active status",
         label: "Active Services",
         value: String(kpis.activeServices),
         href: "/admin/masters/services",
@@ -346,6 +369,7 @@ export default function DashboardPage() {
       },
       {
         key: "items",
+        hint: "Items with active status",
         label: "Active Items",
         value: String(kpis.activeItems),
         href: "/admin/masters/items",
@@ -457,8 +481,10 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-[15px] font-semibold text-ink-100">Daily Collection</h2>
               <p className="text-[12px] text-ink-500">Last 7 days</p>
+              <p className="mt-0.5 text-[11px] text-ink-500/80">
+                Paid POS + admin transactions per day (Singapore time). Hall booking payments are not included.
+              </p>
             </div>
-            <TrendBadge pct={charts.collectionTrendPct} />
           </div>
           <BarChart series={charts.dailyCollection} />
         </motion.section>
@@ -473,6 +499,10 @@ export default function DashboardPage() {
           <div className="mb-4">
             <h2 className="text-[15px] font-semibold text-ink-100">Payment Mode Breakdown</h2>
             <p className="text-[12px] text-ink-500">Today&apos;s paid collections</p>
+            <p className="mt-0.5 text-[11px] text-ink-500/80">
+              Paid POS + admin transactions grouped by payment mode. Total equals Today&apos;s Collections; % is each
+              mode&apos;s share of that total.
+            </p>
           </div>
           <DonutChart slices={charts.paymentBreakdown} />
         </motion.section>
@@ -662,7 +692,9 @@ function KpiCard({
   href,
   tone,
   icon,
+  hint,
 }: {
+  hint?: string;
   label: string;
   value: string;
   href: string;
@@ -672,6 +704,7 @@ function KpiCard({
   return (
     <Link
       href={href}
+      title={hint}
       className={`group relative block overflow-hidden rounded-2xl border-2 bg-white p-3.5 transition duration-300 hover:-translate-y-1.5 hover:shadow-[0_16px_32px_-14px_rgba(124,21,39,0.38)] ${TONE_BORDER[tone]}`}
     >
       <span className="dash-card-sheen pointer-events-none absolute inset-0 opacity-0 transition duration-500 group-hover:opacity-100" />
@@ -685,26 +718,10 @@ function KpiCard({
         <div className="min-w-0">
           <p className="truncate text-[11px] font-medium uppercase tracking-wide text-ink-500">{label}</p>
           <p className="mt-1 truncate text-[18px] font-bold tabular-nums leading-none text-ink-100">{value}</p>
+          {hint ? <p className="mt-1.5 line-clamp-2 text-[10.5px] leading-snug text-ink-500/80">{hint}</p> : null}
         </div>
       </div>
     </Link>
-  );
-}
-
-function TrendBadge({ pct }: { pct: number }) {
-  const up = pct >= 0;
-  return (
-    <motion.span
-      initial={{ opacity: 0, scale: 0.85 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: "spring", stiffness: 400, damping: 18, delay: 0.2 }}
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-semibold ${
-        up ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
-      }`}
-    >
-      {up ? "+" : ""}
-      {pct}%
-    </motion.span>
   );
 }
 
