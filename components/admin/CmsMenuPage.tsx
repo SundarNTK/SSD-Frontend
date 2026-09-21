@@ -81,6 +81,13 @@ const DEFAULT_VALUES: FormValues = {
   status: 1,
 };
 
+/** One-line explanation of each "Opens" choice, shown under the field. */
+const LINK_HELP: Record<string, string> = {
+  "CMS Page": "Opens a page you wrote in CMS Pages, at /customer/pages/<its slug>. Edit the page there and the menu picks up the change; if the page is deactivated the menu disappears from the portal.",
+  "Portal Page": "Opens a built-in part of the portal — a section of the home page (Events, Services, Items) or the sign-in / register screen.",
+  "External URL": "Opens another website. Consider switching on Open in New Tab so visitors keep the portal open.",
+};
+
 const toOptions = (values: string[]): ListboxOption[] => values.map((v) => ({ value: v, label: v }));
 
 /** What a row's link points at, in words the admin recognises. */
@@ -347,13 +354,19 @@ export default function CmsMenuPage() {
               <DivineListbox
                 label="Opens"
                 value={field.value}
-                onChange={field.onChange}
+                onChange={(v) => {
+                  field.onChange(v);
+                  // An external website can't be login-gated (see the server rule), so clear it.
+                  if (v === "External URL") setValue("loginRequired", false);
+                }}
                 options={toOptions(meta.linkTypes)}
                 clearable={false}
                 error={errors.linkType?.message}
               />
             )}
           />
+
+          <p className="-mt-2 rounded-lg bg-ivory-50 px-3 py-2 text-[12px] leading-5 text-ink-500">{LINK_HELP[linkType]}</p>
 
           {linkType === "CMS Page" && (
             <Controller
@@ -397,12 +410,26 @@ export default function CmsMenuPage() {
               name="openInNewTab"
               render={({ field }) => <DivineToggle boxed label="Open in New Tab" checked={field.value} onChange={field.onChange} onLabel="Yes" offLabel="No" />}
             />
-            <Controller
-              control={control}
-              name="loginRequired"
-              render={({ field }) => <DivineToggle boxed label="Login Required" checked={field.value} onChange={field.onChange} onLabel="Yes" offLabel="No" />}
-            />
+            {linkType === "External URL" ? (
+              <div className="flex flex-col justify-end">
+                <p className="rounded-lg bg-ivory-50 px-3 py-2.5 text-[12px] leading-5 text-ink-500">Login Required isn&apos;t available for an external website.</p>
+              </div>
+            ) : (
+              <Controller
+                control={control}
+                name="loginRequired"
+                render={({ field }) => <DivineToggle boxed label="Login Required" checked={field.value} onChange={field.onChange} onLabel="Yes" offLabel="No" />}
+              />
+            )}
           </div>
+          <ul className="-mt-2 space-y-1 rounded-lg bg-ivory-50 px-3 py-2 text-[12px] leading-5 text-ink-500">
+            <li>
+              <strong className="text-ink-300">Open in New Tab</strong> — Yes opens this link in a separate browser tab and leaves the portal open behind it.
+            </li>
+            <li>
+              <strong className="text-ink-300">Login Required</strong> — Yes marks the link with a padlock. A visitor who isn&apos;t signed in is taken to sign in first and brought back to it afterwards. Sub-menus of a login-only menu are login-only too.
+            </li>
+          </ul>
 
           <Controller
             control={control}

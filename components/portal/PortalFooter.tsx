@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { DEFAULT_LOGO, type FooterInfo, type MenuNode, type SiteInfo } from "../../lib/portalApi";
+import FooterLinks from "./FooterLinks";
 import { FacebookIcon, InstagramIcon, YoutubeIcon } from "./PortalIcons";
 
 /** Flattens the footer menu — a footer has no dropdowns, so a parent and its children are all just links. */
@@ -59,21 +59,7 @@ export default function PortalFooter({ menus, site, info }: { menus: MenuNode[];
 
         <div>
           <h3 className="font-portal text-[18px] font-bold text-gold-300">{info.linksTitle}</h3>
-          <ul className="mt-4 space-y-2.5 text-[13.5px]">
-            {links.map((l) => (
-              <li key={l.id}>
-                {l.href?.startsWith("/") ? (
-                  <Link href={l.href} className="transition hover:text-white hover:underline">
-                    {l.name}
-                  </Link>
-                ) : (
-                  <a href={l.href ?? "#"} target={l.openInNewTab ? "_blank" : undefined} rel="noopener noreferrer" className="transition hover:text-white hover:underline">
-                    {l.name}
-                  </a>
-                )}
-              </li>
-            ))}
-          </ul>
+          <FooterLinks links={links} />
         </div>
 
         <div>

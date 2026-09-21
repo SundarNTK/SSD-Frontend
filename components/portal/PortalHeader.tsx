@@ -7,35 +7,9 @@ import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-
 import { useAuthStore } from "../../lib/authStore";
 import { USER_TYPES } from "../../lib/userTypes";
 import { useIsClient } from "../../lib/useIsClient";
+import MenuAnchor from "./MenuAnchor";
 import { DEFAULT_LOGO, type MenuNode, type SiteInfo } from "../../lib/portalApi";
 import { ChevronDownIcon, ClockIcon, CloseIcon, MailIcon, MenuIcon, PhoneIcon, UserIcon } from "./PortalIcons";
-
-/** A menu entry's anchor — site paths use next/link, anything else opens as a plain (optionally new-tab) link. */
-function NavLink({
-  node,
-  className,
-  onNavigate,
-  children,
-}: {
-  node: MenuNode;
-  className: string;
-  onNavigate?: () => void;
-  children: React.ReactNode;
-}) {
-  const href = node.href ?? "#";
-  if (href.startsWith("/")) {
-    return (
-      <Link href={href} className={className} onClick={onNavigate} target={node.openInNewTab ? "_blank" : undefined}>
-        {children}
-      </Link>
-    );
-  }
-  return (
-    <a href={href} className={className} onClick={onNavigate} target={node.openInNewTab ? "_blank" : undefined} rel="noopener noreferrer">
-      {children}
-    </a>
-  );
-}
 
 const pathOf = (href: string | null) => (href ?? "").split("#")[0].split("?")[0];
 
@@ -52,8 +26,9 @@ export default function PortalHeader({ menus, site }: { menus: MenuNode[]; site:
   useMotionValueEvent(scrollY, "change", (y) => setScrolled(y > 24));
 
   const customer = isClient && user?.userType === USER_TYPES.CUSTOMER ? user : null;
-  // "Login required" entries only appear once a devotee is signed in.
-  const visible = menus.filter((m) => !m.loginRequired || customer);
+  // Login Required entries stay in the menu, marked with a lock: for a visitor who isn't signed in
+  // they lead to sign-in and back (see MenuAnchor / useMenuLink), rather than silently vanishing.
+  const visible = menus;
 
   const isActive = (node: MenuNode) => {
     const own = pathOf(node.href);
@@ -165,13 +140,13 @@ export default function PortalHeader({ menus, site }: { menus: MenuNode[]; site:
                       >
                         {node.children.map((child) => (
                           <li key={child.id}>
-                            <NavLink
+                            <MenuAnchor
                               node={child}
                               onNavigate={() => setOpenId(null)}
                               className="block px-4 py-2.5 text-[13.5px] text-ink-300 transition hover:bg-ivory-50 hover:text-maroon"
                             >
                               {child.name}
-                            </NavLink>
+                            </MenuAnchor>
                           </li>
                         ))}
                       </motion.ul>
@@ -179,7 +154,7 @@ export default function PortalHeader({ menus, site }: { menus: MenuNode[]; site:
                   </AnimatePresence>
                 </div>
               ) : (
-                <NavLink
+                <MenuAnchor
                   key={node.id}
                   node={node}
                   className={`rounded-md px-3 py-2 text-[14px] font-medium transition hover:bg-maroon/8 hover:text-maroon ${
@@ -187,7 +162,7 @@ export default function PortalHeader({ menus, site }: { menus: MenuNode[]; site:
                   }`}
                 >
                   {node.name}
-                </NavLink>
+                </MenuAnchor>
               )
             )}
           </nav>
@@ -218,20 +193,20 @@ export default function PortalHeader({ menus, site }: { menus: MenuNode[]; site:
               <ul className="mx-auto max-w-6xl space-y-0.5 px-4 py-3">
                 {visible.map((node) => (
                   <li key={node.id}>
-                    <NavLink
+                    <MenuAnchor
                       node={node}
                       onNavigate={() => setMobileOpen(false)}
                       className={`block rounded-md px-3 py-2.5 text-[15px] font-medium ${isActive(node) ? "bg-maroon/8 text-maroon" : "text-ink-300"}`}
                     >
                       {node.name}
-                    </NavLink>
+                    </MenuAnchor>
                     {node.children.length > 0 && (
                       <ul className="ml-3 border-l border-gold-500/30 pl-2">
                         {node.children.map((child) => (
                           <li key={child.id}>
-                            <NavLink node={child} onNavigate={() => setMobileOpen(false)} className="block rounded-md px-3 py-2 text-[14px] text-ink-500">
+                            <MenuAnchor node={child} onNavigate={() => setMobileOpen(false)} className="block rounded-md px-3 py-2 text-[14px] text-ink-500">
                               {child.name}
-                            </NavLink>
+                            </MenuAnchor>
                           </li>
                         ))}
                       </ul>

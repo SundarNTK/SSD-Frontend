@@ -98,6 +98,12 @@ export const CheckIcon = (p: IconProps) => (
     <path d="m5 12.5 4.5 4.5L19 7.5" />
   </Svg>
 );
+export const LockIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="5" y="11" width="14" height="9" rx="2" />
+    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+  </Svg>
+);
 export const SearchIcon = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="11" cy="11" r="6.5" />
