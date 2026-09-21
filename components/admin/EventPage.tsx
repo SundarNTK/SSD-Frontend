@@ -21,7 +21,7 @@ import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineButton from "../divine/DivineButton";
 import DivineMasterImageUpload from "../divine/DivineMasterImageUpload";
 import TamilNameField from "./TamilNameField";
-import { withOptionalImage } from "../../lib/withOptionalImage";
+import { withOptionalImages } from "../../lib/withOptionalImage";
 import { PlusIcon, CalendarIcon, CloseIcon } from "../divine/icons";
 import { formatTempleDate, parseISODateString } from "../../lib/datetime";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
@@ -60,6 +60,8 @@ export type Event = {
   publicVisibility: boolean;
   status: number;
   image: string | null;
+  /** Wide banner shown in the Customer Portal's slider and event cards. */
+  sliderImage: string | null;
 };
 
 const GST_CLASSIFICATION_OPTIONS = [
@@ -168,6 +170,9 @@ export default function EventPage() {
   const [createImage, setCreateImage] = useState<File | null>(null);
   const [editImage, setEditImage] = useState<File | null>(null);
   const [imageRemoved, setImageRemoved] = useState(false);
+  const [createSlider, setCreateSlider] = useState<File | null>(null);
+  const [editSlider, setEditSlider] = useState<File | null>(null);
+  const [sliderRemoved, setSliderRemoved] = useState(false);
 
   useEffect(() => {
     fetchOptions("/masters/categories").then(setCategoryOptions);
@@ -202,6 +207,8 @@ export default function EventPage() {
     reset(DEFAULT_VALUES);
     setCreateImage(null);
     setImageRemoved(false);
+    setCreateSlider(null);
+    setSliderRemoved(false);
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -236,19 +243,23 @@ export default function EventPage() {
     });
     setEditImage(null);
     setImageRemoved(false);
+    setEditSlider(null);
+    setSliderRemoved(false);
     update.setError(null);
     setDrawerOpen(true);
   }
 
   const submit = handleSubmit(async (values) => {
-    const payload = withOptionalImage(
+    const payload = withOptionalImages(
       {
         ...values,
         subCategory: values.subCategory || null,
         slotDetails: values.isSlotRequired ? values.slotDetails : [],
       },
-      editing ? editImage : createImage,
-      { existingValue: editing?.image ?? null, imageRemoved },
+      [
+        { fieldName: "image", file: editing ? editImage : createImage, existingValue: editing?.image ?? null, removed: imageRemoved },
+        { fieldName: "sliderImage", file: editing ? editSlider : createSlider, existingValue: editing?.sliderImage ?? null, removed: sliderRemoved },
+      ],
     );
     const ok = editing ? await update.run(editing._id, payload) : await create.run(payload);
     if (ok !== undefined) {
@@ -531,6 +542,17 @@ export default function EventPage() {
             onChange={(file) => {
               (editing ? setEditImage : setCreateImage)(file);
               setImageRemoved(!file);
+            }}
+          />
+
+          <DivineMasterImageUpload
+            label="Slider Image"
+            value={editing?.sliderImage}
+            maxBytes={300 * 1024}
+            hint="Wide banner for the Customer Portal — shown as the slider background and on the event card. Recommended 1920 × 800 · JPG, PNG or WebP · up to 300 KB"
+            onChange={(file) => {
+              (editing ? setEditSlider : setCreateSlider)(file);
+              setSliderRemoved(!file);
             }}
           />
 

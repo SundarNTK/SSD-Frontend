@@ -46,3 +46,45 @@ export function withOptionalImage(
   if (image) form.append(fieldName, image);
   return form;
 }
+
+export type ImageSlot = {
+  /** The multipart field name, e.g. "image" or "sliderImage". */
+  fieldName: string;
+  /** A newly picked file, if any. */
+  file: File | null;
+  /** The URL currently saved on the record (edit mode). */
+  existingValue?: string | null;
+  /** The person explicitly deleted this image. */
+  removed?: boolean;
+};
+
+/**
+ * `withOptionalImage` for a form with more than one image. The write goes
+ * multipart as soon as ANY slot has a new file or a removal; every slot then
+ * carries its `existing<Field>` companion so the server (see SSD-Backend's
+ * `makeMultiImageUpload`) keeps an untouched image instead of clearing it.
+ */
+export function withOptionalImages(values: Record<string, unknown>, slots: ImageSlot[]): WriteBody {
+  if (!slots.some((s) => s.file || s.removed)) return values;
+
+  const form = new FormData();
+  Object.entries(values).forEach(([key, val]) => {
+    if (val === undefined) return;
+    if (val === null) {
+      form.append(key, "null");
+      return;
+    }
+    if (typeof val === "object") {
+      form.append(key, JSON.stringify(val));
+      return;
+    }
+    form.append(key, String(val));
+  });
+
+  slots.forEach(({ fieldName, file, existingValue, removed }) => {
+    const existingFieldName = `existing${fieldName.charAt(0).toUpperCase()}${fieldName.slice(1)}`;
+    form.append(existingFieldName, removed ? "" : existingValue ?? "");
+    if (file) form.append(fieldName, file);
+  });
+  return form;
+}

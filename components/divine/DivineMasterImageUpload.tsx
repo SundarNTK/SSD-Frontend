@@ -13,9 +13,11 @@ type DivineMasterImageUploadProps = {
   onChange: (file: File | null) => void;
   hint?: string;
   error?: string;
+  /** Size cap in bytes — 100 KB unless a master needs larger artwork (Event's wide slider image). */
+  maxBytes?: number;
 };
 
-const MAX_BYTES = 100 * 1024;
+const DEFAULT_MAX_BYTES = 100 * 1024;
 const ACCEPTED = "image/jpeg,image/png,image/webp";
 
 /**
@@ -33,7 +35,7 @@ const ACCEPTED = "image/jpeg,image/png,image/webp";
  * persisted server-side (see SSD-Backend's `makeImageUpload`, which reads
  * a matching `existing<Field>` value the request carries alongside it).
  */
-export default function DivineMasterImageUpload({ label, value, onChange, hint, error }: DivineMasterImageUploadProps) {
+export default function DivineMasterImageUpload({ label, value, onChange, hint, error, maxBytes = DEFAULT_MAX_BYTES }: DivineMasterImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -66,8 +68,8 @@ export default function DivineMasterImageUpload({ label, value, onChange, hint, 
       onChange(null);
       return;
     }
-    if (file.size > MAX_BYTES) {
-      setLocalError("Image must be 100 KB or smaller.");
+    if (file.size > maxBytes) {
+      setLocalError(`Image must be ${Math.round(maxBytes / 1024)} KB or smaller.`);
       setPreview(null);
       onChange(null);
       return;
@@ -123,7 +125,7 @@ export default function DivineMasterImageUpload({ label, value, onChange, hint, 
             onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
           />
         </label>
-        <p className="mt-1.5 text-[11.5px] text-ink-500">{hint ?? "Single file · JPG, PNG or WebP · up to 100 KB"}</p>
+        <p className="mt-1.5 text-[11.5px] text-ink-500">{hint ?? `Single file · JPG, PNG or WebP · up to ${Math.round(maxBytes / 1024)} KB`}</p>
       </div>
 
       {(localError || error) && <p className="mt-1.5 pl-1 text-[12.5px] text-crimson-500">{localError || error}</p>}

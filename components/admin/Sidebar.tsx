@@ -12,6 +12,7 @@ import {
   ChartIcon,
   CheckIcon,
   ChevronIcon,
+  FolderIcon,
   GridIcon,
   HomeIcon,
   ShieldIcon,
@@ -79,6 +80,14 @@ const NAV_ITEMS: NavItem[] = [
       { label: "Event", to: "/admin/masters/events", module: MODULES.events },
       { label: "Nakshathiram", to: "/admin/masters/nakshathirams", module: MODULES.nakshathirams },
       { label: "Payment Mode", to: "/admin/masters/payment-modes", module: MODULES.paymentModes },
+    ],
+  },
+  {
+    label: "CMS",
+    icon: <FolderIcon className="h-[18px] w-[18px]" />,
+    children: [
+      { label: "CMS Menu", to: "/admin/cms/menus", module: MODULES.cmsMenus },
+      { label: "CMS Pages", to: "/admin/cms/pages", module: MODULES.cmsPages },
     ],
   },
   {

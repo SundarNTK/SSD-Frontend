@@ -108,8 +108,10 @@ export function endSession(reason: SessionEndReason = "signed-out"): void {
   // surfaces are gated differently (posAccess, on top of the usual admin
   // check), and landing a counter session on /admin/login would be a wrong
   // screen at exactly the moment someone's mid-transaction.
-  const isPos = window.location.pathname.startsWith("/pos");
-  window.location.replace(isPos ? "/pos/login" : "/admin/login");
+  const path = window.location.pathname;
+  const isPos = path.startsWith("/pos");
+  const isCustomer = path.startsWith("/customer");
+  window.location.replace(isPos ? "/pos/login" : isCustomer ? "/customer/login" : "/admin/login");
 }
 
 /** Reads and consumes the reason, so it's announced once and not on every later visit. */
