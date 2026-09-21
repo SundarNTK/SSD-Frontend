@@ -24,6 +24,8 @@ export const MODULES = {
   events: "events",
   nakshathirams: "nakshathirams",
   paymentModes: "payment-modes",
+  cmsMenus: "cms-menus",
+  cmsPages: "cms-pages",
   inventory: "inventory",
   adminBooking: "admin-booking",
   posTransactions: "pos-transactions",

@@ -5,8 +5,21 @@ import { useEffect, useRef } from "react";
 /**
  * POS sign-in: customer_login_bg.webp fills the viewport, with falling
  * marigold petals only — no rotating rays.
+ *
+ * `image` swaps the backdrop (the Customer Portal sign-in reuses the petals
+ * over its own artwork); `slowZoom` adds a gentle Ken Burns drift. Both
+ * default to the POS look, so the POS login is unchanged.
  */
-export default function PosLoginBackground() {
+export default function PosLoginBackground({
+  image = "/customer_login_bg.webp",
+  slowZoom = false,
+  shiftLeft = false,
+}: {
+  image?: string;
+  slowZoom?: boolean;
+  /** Enlarges the artwork a touch and slides it left, so the subject sits left of centre. */
+  shiftLeft?: boolean;
+} = {}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -96,11 +109,17 @@ export default function PosLoginBackground() {
 
   return (
     <div className="absolute inset-0 z-0 overflow-hidden bg-[#2a1408]" aria-hidden="true">
-      <img
-        src="/customer_login_bg.webp"
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover object-center max-md:object-[center_45%]"
-      />
+      {/* The shift lives on a wrapper so it doesn't fight the Ken Burns
+          transform on the image itself. */}
+      <div className={`absolute inset-0 ${shiftLeft ? "origin-left -translate-x-[3.5%] scale-[1.08]" : ""}`}>
+        <img
+          src={image}
+          alt=""
+          className={`absolute inset-0 h-full w-full object-cover object-center max-md:object-[center_45%] ${
+            slowZoom ? "animate-portal-kenburns" : ""
+          }`}
+        />
+      </div>
 
       <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
     </div>
