@@ -2,31 +2,30 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useToastStore } from "../../lib/toastStore";
-import { PlusIcon, TrashIcon } from "../divine/icons";
+import { TrashIcon } from "../divine/icons";
 
 const TONE_CARD = {
-  create: "bg-gold-500 text-navy-950 shadow-[0_10px_28px_-10px_rgba(212,175,55,0.55)]",
+  create: "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white ring-1 ring-white/20 shadow-[0_12px_30px_-10px_rgba(5,150,105,0.6)]",
   update: "bg-blue-600 text-white shadow-[0_10px_28px_-10px_rgba(37,99,235,0.45)]",
   delete: "bg-crimson-600 text-white shadow-[0_10px_28px_-10px_rgba(179,39,63,0.5)]",
   error: "bg-crimson-600 text-white shadow-[0_10px_28px_-10px_rgba(179,39,63,0.5)]",
 } as const;
 
 const TONE_ICON_BG = {
-  create: "bg-navy-950/10",
+  create: "bg-white/25",
   update: "bg-white/20",
   delete: "bg-white/20",
   error: "bg-white/20",
 } as const;
 
 const TONE_DISMISS = {
-  create: "text-navy-950/50 hover:text-navy-950",
+  create: "text-white/70 hover:text-white",
   update: "text-white/70 hover:text-white",
   delete: "text-white/70 hover:text-white",
   error: "text-white/70 hover:text-white",
 } as const;
 
 function ToastIcon({ tone }: { tone: keyof typeof TONE_CARD }) {
-  if (tone === "create") return <PlusIcon />;
   if (tone === "delete") return <TrashIcon />;
   if (tone === "error") {
     return (
