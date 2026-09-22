@@ -210,12 +210,10 @@ function offeringDescriptors(
   ];
 }
 
-// 6 columns × 3 rows — the default page size, which fits on screen with no
-// vertical scrolling; numbered pages take over from scrolling at this size.
-// Picking a larger size (see PAGE_SIZE_OPTIONS) trades that off deliberately
-// — more cards per page, but the grid itself scrolls to fit them.
-const CARDS_PER_PAGE = 18;
-const PAGE_SIZE_OPTIONS = [18, 36, 60, 100];
+// auto-fill grid — default fits ~3 rows at a typical 5-column width; larger
+// sizes are offered so a big screen can load more cards without extra page turns.
+const CARDS_PER_PAGE = 30;
+const PAGE_SIZE_OPTIONS = [30, 60, 100, 150];
 
 // Recent Transactions preview in the Customer panel: 3 up front, "Load more"
 // re-fetches at RECENT_BOOKINGS_ALL_LIMIT — the backend's own cap on
@@ -461,6 +459,9 @@ export default function PosPortalPage() {
   const [catalogueLoading, setCatalogueLoading] = useState(true);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [activeFolder, setActiveFolder] = useState<Folder | null>(null);
+
+  // Derived: the full CategoryTab record for the active tab (null = "All Categories")
+  const selectedCategory = categories.find((c) => c._id === selectedCategoryId) ?? null;
   const [folderItems, setFolderItems] = useState<PosItem[]>([]);
   const [folderServices, setFolderServices] = useState<PosService[]>([]);
   const [folderLoading, setFolderLoading] = useState(false);
@@ -1542,7 +1543,7 @@ export default function PosPortalPage() {
 
   return (
     <PosShell user={user} onNewTransaction={startNewTransaction} displayCode={displayCode} displayError={displayError}>
-      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-2 sm:gap-4 sm:p-3 md:grid-cols-2 lg:h-full lg:grid-cols-[minmax(180px,0.7fr)_minmax(0,2.5fr)_minmax(210px,0.78fr)] lg:overflow-hidden lg:p-4 xl:grid-cols-[minmax(200px,240px)_minmax(0,1fr)_minmax(230px,300px)]">
+      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-2 sm:gap-4 sm:p-3 md:grid-cols-2 lg:h-full lg:grid-cols-[minmax(200px,1fr)_minmax(0,3fr)_minmax(220px,1fr)] lg:overflow-hidden lg:p-4 xl:grid-cols-[minmax(240px,1.1fr)_minmax(0,3.5fr)_minmax(260px,1.1fr)] 2xl:grid-cols-[minmax(280px,1.2fr)_minmax(0,4fr)_minmax(300px,1.2fr)]">
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, x: -48, rotateY: 14 }}
@@ -1853,7 +1854,10 @@ export default function PosPortalPage() {
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 pt-3">
+          <div
+            className="flex min-h-0 flex-1 flex-col overflow-visible p-4 pt-3 transition-colors duration-300"
+            style={{ backgroundColor: selectedCategory?.color ? `${selectedCategory.color}18` : "transparent" }}
+          >
             {catalogueLoading && (
               <div className="flex justify-center py-10">
                 <EmblemLoader size="md" label="Loading catalogue…" />
@@ -3871,6 +3875,7 @@ function CatalogueCard({
   rowLabel,
   extraBadges,
   imageUrl,
+  accentColor,
 }: {
   onClick: () => void;
   disabled?: boolean;
@@ -3882,8 +3887,21 @@ function CatalogueCard({
   rowLabel: string;
   extraBadges?: React.ReactNode;
   imageUrl?: string | null;
+  /** Optional hex/rgb color from the record — overrides the static theme's
+   *  banner, border, and footer pill with the folder's own stored color. */
+  accentColor?: string | null;
 }) {
   const cover = resolveImageUrl(imageUrl);
+
+  // When the folder record carries its own color, derive inline styles for
+  // the banner, border, and footer pill so each sub-category looks distinct.
+  // The body background is a very faint tint (10% opacity) of the same hue.
+  const accentBanner  = accentColor ? { backgroundColor: accentColor } : undefined;
+  const accentBorder  = accentColor ? { borderColor: accentColor } : undefined;
+  const accentPill    = accentColor ? { backgroundColor: `${accentColor}33` } : undefined;
+  const accentPillTxt = accentColor ? { color: accentColor } : undefined;
+  const accentBodyBg  = accentColor ? { backgroundColor: `${accentColor}0f` } : undefined;
+
   const bigIcon =
     iconKind === "folder" ? (
       <FolderIcon large color={theme.iconColor} />
@@ -3895,17 +3913,23 @@ function CatalogueCard({
 
   const footer = (
     <div
-      className={`flex w-full min-w-0 items-center justify-between gap-1 rounded-full px-2 py-1 ${theme.rowBg}`}
+      className={`flex w-full min-w-0 items-center justify-between gap-1 rounded-full px-2 py-1 ${accentPill ? "" : theme.rowBg}`}
+      style={accentPill}
     >
       <span className="flex min-w-0 items-center gap-1.5">
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_2px_6px_-2px_rgba(0,0,0,0.2)]">
           {rowIcon}
         </span>
-        <span className={`truncate whitespace-nowrap text-[11px] font-semibold ${theme.rowText}`}>
+        <span
+          className={`truncate whitespace-nowrap text-[11px] font-semibold ${accentPillTxt ? "" : theme.rowText}`}
+          style={accentPillTxt}
+        >
           {rowLabel}
         </span>
       </span>
-      <ChevronIcon className={`-rotate-90 shrink-0 ${theme.rowText}`} />
+      <span style={accentPillTxt} className={`shrink-0 ${accentPillTxt ? "" : theme.rowText}`}>
+        <ChevronIcon className="-rotate-90" />
+      </span>
     </div>
   );
 
@@ -3914,17 +3938,24 @@ function CatalogueCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      whileHover={disabled ? undefined : { y: -4, scale: 1.02 }}
-      whileTap={disabled ? undefined : { scale: 0.98 }}
-      className={`group relative self-start rounded-2xl border-2 ${theme.border} ${theme.bodyBg} text-left shadow-[0_10px_24px_-10px_rgba(0,0,0,0.45)] transition-shadow duration-200 hover:shadow-[0_16px_32px_-12px_rgba(0,0,0,0.5)] disabled:cursor-not-allowed disabled:opacity-60`}
+      whileHover={disabled ? undefined : { y: -4 }}
+      whileTap={disabled ? undefined : { scale: 0.97 }}
+      className={`group relative self-start rounded-2xl border-2 ${accentBorder ? "" : theme.border} ${accentBodyBg ? "" : theme.bodyBg} text-left shadow-[0_10px_24px_-10px_rgba(0,0,0,0.45)] transition-shadow duration-200 hover:shadow-[0_16px_32px_-12px_rgba(0,0,0,0.5)] disabled:cursor-not-allowed disabled:opacity-60`}
+      style={{ ...accentBorder, ...accentBodyBg }}
     >
-      <div className={`flex flex-col overflow-hidden rounded-[14px] ${theme.bodyBg}`}>
+      <div
+        className={`flex flex-col overflow-hidden rounded-[14px] ${accentBodyBg ? "" : theme.bodyBg}`}
+        style={accentBodyBg}
+      >
         {/* Same fixed height and layout position whether or not there's a
             cover photo — an icon-only card and a photo card must come out
             exactly the same total height, so the photo is never allowed to
             grow the banner past this, and the title always lives in the
             text block below rather than overlaid on the photo. */}
-        <div className={`relative h-20 shrink-0 overflow-hidden sm:h-24 md:h-28 ${theme.banner}`}>
+        <div
+          className={`relative h-20 shrink-0 overflow-hidden sm:h-24 md:h-28 lg:h-24 xl:h-28 2xl:h-32 ${accentBanner ? "" : theme.banner}`}
+          style={accentBanner}
+        >
           {cover ? (
             <img
               src={cover}
@@ -3946,12 +3977,12 @@ function CatalogueCard({
         </div>
         <div className="flex flex-col items-start gap-1 px-2.5 py-2">
           <div className="w-full min-w-0">
-            <p className="truncate text-[13.5px] font-bold leading-tight text-ink-100">
+            {tamilName && (
+              <p className="truncate text-[13.5px] font-bold leading-tight text-ink-100">{tamilName}</p>
+            )}
+            <p className="truncate text-[10.5px] text-ink-500">
               {title}
             </p>
-            {tamilName && (
-              <p className="truncate text-[10.5px] text-ink-500">{tamilName}</p>
-            )}
           </div>
           {extraBadges && (
             <div className="flex flex-wrap items-center gap-1.5">
@@ -3984,13 +4015,12 @@ function meaningfulPageSizeOptions(total: number, current: number): number[] {
 }
 
 /**
- * Renders one page of the catalogue — 6 columns, with `pageSize` cards
- * (PAGE_SIZE_OPTIONS) split across rows. At the default 18 (3 rows) that
- * fills the space it's given with no vertical scrolling; a larger size
- * trades that off deliberately — more cards per page, fewer page turns —
- * so the grid scrolls internally instead once it no longer fits. A numbered
- * pager plus a page-size picker sit underneath. Shared by the default,
- * folder, and search views so pagination behaves identically in all three.
+ * Renders one page of the catalogue — auto-fill columns sized at 140 px min,
+ * so the browser packs as many columns as the container allows. With `pageSize`
+ * cards split across rows the grid scrolls internally once it no longer fits.
+ * A numbered pager plus a page-size picker sit underneath. Shared by the
+ * default, folder, and search views so pagination behaves identically in all
+ * three.
  */
 function CatalogueGrid({
   descriptors,
@@ -4031,8 +4061,8 @@ function CatalogueGrid({
       {/* Only the cards scroll — the pager below stays fixed in place
           (not part of this scroll region) rather than sticky-positioned,
           so it's never scrolled out of view regardless of viewport height. */}
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-        <div className="grid content-start auto-rows-auto grid-cols-2 gap-2 sm:gap-2.5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-1 pt-2">
+        <div className="grid content-start auto-rows-auto gap-2 sm:gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
           {pageDescriptors.map((d) =>
             d.kind === "folder" ? (
               <CatalogueCard
@@ -4042,6 +4072,7 @@ function CatalogueGrid({
                 title={d.folder.subCategoryName}
                 tamilName={d.folder.subCategoryTamilName ?? undefined}
                 imageUrl={d.folder.image}
+                accentColor={d.folder.color}
                 theme={CATALOGUE_CARD_THEME.folder}
                 rowIcon={
                   <ListRowIcon className={CATALOGUE_CARD_THEME.folder.rowText} />
