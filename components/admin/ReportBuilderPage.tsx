@@ -9,7 +9,7 @@ import DivineInput from "../divine/DivineInput";
 import ConfirmDialog from "./ConfirmDialog";
 import FormDrawer from "./FormDrawer";
 import { EmblemLoader } from "../divine/EmblemLoader";
-import { CheckIcon, ChartIcon, SaveIcon, TrashIcon, PencilIcon, DownloadIcon, PlusIcon, CloseIcon } from "../divine/icons";
+import { CheckIcon, ChartIcon, SaveIcon, TrashIcon, PencilIcon, DownloadIcon, PrinterIcon, PlusIcon, CloseIcon } from "../divine/icons";
 import { api, unwrap, extractErrorMessage, type ApiEnvelope } from "../../lib/api";
 import { downloadFile } from "../../lib/downloadFile";
 import { toast } from "../../lib/toastStore";
@@ -140,6 +140,56 @@ function formatCell(value: unknown, type: FieldType): string {
   return String(value);
 }
 
+const HTML_ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
+}
+
+/** Opens a plain, self-contained print view (no app chrome, no external assets to wait
+ * on) with every matching row — not just the page currently on screen — and triggers the
+ * browser's print dialog on it. Returns false if the popup was blocked. */
+function openPrintWindow(title: string, columns: ReportColumn[], rows: ReportRow[]): boolean {
+  const win = window.open("", "_blank", "width=1024,height=768");
+  if (!win) return false;
+
+  const headerCells = columns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join("");
+  const bodyRows = rows
+    .map((row) => `<tr>${columns.map((c) => `<td class="${c.type === "number" ? "num" : ""}">${escapeHtml(formatCell(row[c.key], c.type))}</td>`).join("")}</tr>`)
+    .join("");
+
+  win.document.write(`<!doctype html>
+<html>
+<head>
+<title>${escapeHtml(title)}</title>
+<meta charset="utf-8" />
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; color: #1f2933; padding: 24px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p.meta { font-size: 12px; color: #64748b; margin: 0 0 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; }
+  td.num { text-align: right; }
+  th { background: #7c1527; color: #fff; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  <p class="meta">${rows.length.toLocaleString()} record${rows.length === 1 ? "" : "s"} &middot; printed ${escapeHtml(new Date().toLocaleString())}</p>
+  <table>
+    <thead><tr>${headerCells}</tr></thead>
+    <tbody>${bodyRows}</tbody>
+  </table>
+</body>
+</html>`);
+  win.document.close();
+  win.onafterprint = () => win.close();
+  win.focus();
+  window.setTimeout(() => win.print(), 150);
+  return true;
+}
+
 /**
  * The Report Builder — pick a report type (source), choose and arrange
  * fields, filter, sort, optionally group/aggregate, run it, and optionally
@@ -183,6 +233,7 @@ export default function ReportBuilderPage() {
   const [deletingReport, setDeletingReport] = useState<SavedReport | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const dragIndexRef = useRef<number | null>(null);
 
@@ -479,6 +530,33 @@ export default function ReportBuilderPage() {
       toast.error(err instanceof Error ? err.message : "Could not export the report.");
     } finally {
       setExporting(false);
+    }
+  }
+
+  /** Same full, unpaginated row set as Export (via ?format=json on the same endpoint) —
+   * printing only the current on-screen page would silently drop every other page. */
+  async function handlePrint() {
+    if (!source) return;
+    setPrinting(true);
+    try {
+      const payload = buildPayload(1);
+      const config = JSON.stringify({
+        sourceKey: payload.sourceKey,
+        fields: payload.fields,
+        conditions: payload.conditions,
+        grouping: payload.grouping,
+        sort: payload.sort,
+      });
+      const params = new URLSearchParams({ config, format: "json" });
+      const res = await api.get<ApiEnvelope<{ rows: ReportRow[]; columns: ReportColumn[]; truncated: boolean }>>(`/reports/export?${params.toString()}`);
+      const { rows: allRows, columns: allColumns } = unwrap(res);
+      if (!openPrintWindow(source.label, allColumns, allRows)) {
+        toast.error("Your browser blocked the print window — allow pop-ups for this site and try again.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not prepare the report for printing.");
+    } finally {
+      setPrinting(false);
     }
   }
 
@@ -851,6 +929,9 @@ export default function ReportBuilderPage() {
                     <SaveIcon className="h-4 w-4" /> {activeSavedId ? "Update Report" : "Save Report"}
                   </DivineButton>
                 )}
+                <DivineButton variant="ghost" fullWidth={false} loading={printing} disabled={!hasRun || total === 0} onClick={() => void handlePrint()}>
+                  <PrinterIcon /> Print
+                </DivineButton>
                 <DivineButton variant="leaf" fullWidth={false} loading={exporting} disabled={!hasRun || total === 0} onClick={() => void handleExport()}>
                   <DownloadIcon className="h-4 w-4" /> Export
                 </DivineButton>
