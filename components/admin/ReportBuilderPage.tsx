@@ -590,7 +590,7 @@ export default function ReportBuilderPage() {
                     key={s.key}
                     type="button"
                     onClick={() => chooseSource(s.key)}
-                    className={`rounded-xl border p-3 text-left transition-colors ${
+                    className={`rounded-xl border px-4 py-4 text-left transition-colors ${
                       sourceKey === s.key
                         ? "border-maroon bg-maroon text-white shadow-[0_8px_18px_-8px_rgba(124,21,39,0.6)]"
                         : "border-[#f0b4a0] bg-white text-ink-100 hover:border-maroon/50 hover:bg-[#faf6f1]"
@@ -600,7 +600,6 @@ export default function ReportBuilderPage() {
                       <ChartIcon className="h-4 w-4 shrink-0" />
                       {s.label}
                     </span>
-                    <span className={`mt-1 block text-[12px] ${sourceKey === s.key ? "text-white/85" : "text-ink-500"}`}>{s.description}</span>
                   </button>
                 ))}
               </div>
