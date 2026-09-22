@@ -769,7 +769,11 @@ export default function ReportBuilderPage() {
                 )}
               </Panel>
 
-              {/* Step 5: grouping */}
+              {/* Step 5: grouping — disabled for now (was confusing in the UI). Collapses rows
+                  into one summary row per Group By value; aggregation isn't optional, it's
+                  required to turn grouping on, since a group with no aggregations has no number
+                  to show. Code kept intact behind this guard in case it's re-enabled later. */}
+              {false && (
               <Panel
                 title="5. Grouping (optional)"
                 action={
@@ -787,14 +791,15 @@ export default function ReportBuilderPage() {
                 }
               >
                 {!groupingEnabled ? (
-                  <p className="text-[12.5px] text-ink-500">Off — the report shows one row per record.</p>
+                  // <p className="text-[12.5px] text-ink-500">Off — the report shows one row per record.</p>
+                  null
                 ) : (
                   <div className="space-y-3">
                     <DivineListbox
                       label="Group By"
                       value={groupBy}
                       onChange={setGroupBy}
-                      options={source.fields.map((f) => ({ value: f.key, label: f.label }))}
+                      options={source!.fields.map((f) => ({ value: f.key, label: f.label }))}
                       placeholder="Choose a field…"
                     />
                     <div className="space-y-2">
@@ -834,6 +839,7 @@ export default function ReportBuilderPage() {
                   </div>
                 )}
               </Panel>
+              )}
 
               {/* Actions */}
               <div className="flex flex-wrap items-center gap-3">
