@@ -140,6 +140,13 @@ function formatCell(value: unknown, type: FieldType): string {
   return String(value);
 }
 
+// Mirrors the backend's own slug() (SSD-Backend/src/controllers/reports/index.js) — only
+// used as the download's fallback name if the browser can't read the server's real
+// Content-Disposition filename, so it should still land on the same name either way.
+function slugify(label: string): string {
+  return label.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
 const HTML_ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
@@ -525,7 +532,7 @@ export default function ReportBuilderPage() {
         sort: payload.sort,
       });
       const params = new URLSearchParams({ config });
-      await downloadFile(api, `/reports/export?${params.toString()}`, `${source.key}-report.xlsx`);
+      await downloadFile(api, `/reports/export?${params.toString()}`, `${slugify(source.label)}.xlsx`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not export the report.");
     } finally {
