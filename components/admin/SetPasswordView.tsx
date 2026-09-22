@@ -31,7 +31,19 @@ const SUCCESS_REDIRECT_DELAY_MS = 2200;
  * route params ([token]) are only available in the server page component,
  * which unwraps them and passes the plain string down to this client view.
  */
-export default function SetPasswordView({ mode, token }: { mode: "activate" | "reset"; token: string }) {
+export default function SetPasswordView({
+  mode,
+  token,
+  loginHref = "/admin/login",
+  backdrop = "admin-photo",
+}: {
+  mode: "activate" | "reset";
+  token: string;
+  /** Where "Back to sign in" and the post-success redirect send the user — the customer
+   * portal reuses this view but must never drop a devotee onto the staff admin login. */
+  loginHref?: string;
+  backdrop?: "divine" | "admin-photo";
+}) {
   const router = useRouter();
   const [success, setSuccess] = useState(false);
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
@@ -81,7 +93,7 @@ export default function SetPasswordView({ mode, token }: { mode: "activate" | "r
     const endpoint = mode === "activate" ? "/auth/activate" : "/auth/reset-password";
     await authApi.post(endpoint, { token, ...values });
     setSuccess(true);
-    setTimeout(() => router.push("/admin/login"), SUCCESS_REDIRECT_DELAY_MS);
+    setTimeout(() => router.push(loginHref), SUCCESS_REDIRECT_DELAY_MS);
   });
 
   const copy =
@@ -98,7 +110,7 @@ export default function SetPasswordView({ mode, token }: { mode: "activate" | "r
         };
 
   return (
-    <AuthShell eyebrow={copy.eyebrow} title={copy.title} subtitle={copy.subtitle} backdrop="admin-photo">
+    <AuthShell eyebrow={copy.eyebrow} title={copy.title} subtitle={copy.subtitle} backdrop={backdrop}>
       {checkingToken ? (
         <div className="flex justify-center py-6">
           <EmblemLoader size="sm" label="Checking link…" />
@@ -106,7 +118,7 @@ export default function SetPasswordView({ mode, token }: { mode: "activate" | "r
       ) : tokenError ? (
         <div className="py-2 text-center">
           <StatusBanner tone="error">{tokenError}</StatusBanner>
-          <Link href="/admin/login" className="text-[13px] text-[#e8590c] underline-offset-2 hover:underline">
+          <Link href={loginHref} className="text-[13px] text-[#e8590c] underline-offset-2 hover:underline">
             ← Back to sign in
           </Link>
         </div>
