@@ -9,9 +9,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import DivineInput from "../divine/DivineInput";
 import StatusBanner from "../divine/StatusBanner";
-import { LockIcon, MailIcon, PhoneIcon, UserIcon } from "../divine/icons";
+import { LockIcon, MailIcon, UserIcon } from "../divine/icons";
 import { authApi, extractErrorMessage, unwrap, type ApiEnvelope } from "../../lib/api";
 import { emailField, requiredPasswordField } from "../../lib/validation";
+import { sanitizeMobileInput, isValidSgMobile, SG_MOBILE_ERROR } from "../../lib/mobileNumber";
 import { useAuthStore, type SessionUser } from "../../lib/authStore";
 import { USER_TYPES } from "../../lib/userTypes";
 
@@ -36,7 +37,7 @@ const loginSchema = z.object({ email: emailField, password: requiredPasswordFiel
 const registerSchema = z.object({
   name: z.string().trim().min(2, "Please enter your full name").max(100),
   email: emailField,
-  mobileNumber: z.string().trim().min(6, "Enter a valid mobile number").max(20),
+  mobileNumber: z.string().trim().refine((v) => isValidSgMobile(v), SG_MOBILE_ERROR),
 });
 type LoginValues = z.infer<typeof loginSchema>;
 type RegisterValues = z.infer<typeof registerSchema>;
@@ -81,8 +82,10 @@ export default function CustomerAuthPage({ initialTab, next, logo }: { initialTa
         transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
         className="relative z-10 w-full max-w-[440px]"
       >
-        {/* Breathing golden halo behind the card */}
-        <div className="animate-soft-pulse absolute -inset-1.5 rounded-[30px] bg-gradient-to-br from-gold-300/50 via-flame-400/25 to-gold-500/40 blur-lg" aria-hidden="true" />
+        {/* Breathing golden halo behind the card — pointer-events-none is load-bearing here:
+            its -inset-1.5 is sized against this whole wrapper (card + the "Back to the temple
+            website" link below it), so without it the halo silently swallows clicks on that link. */}
+        <div className="pointer-events-none animate-soft-pulse absolute -inset-1.5 rounded-[30px] bg-gradient-to-br from-gold-300/50 via-flame-400/25 to-gold-500/40 blur-lg" aria-hidden="true" />
 
         {/* Frosted glass: heavy blur + a little saturation lifts the painting's
             colours through the card; the diagonal sheen and bright hairline
@@ -213,7 +216,7 @@ function LoginForm({ target, onSwitch }: { target: string; onSwitch: () => void 
         <DivineInput containerClassName={GLASS_FIELD} label="Password" type="password" revealable autoComplete="current-password" icon={<LockIcon />} error={errors.password?.message} {...register("password")} />
       </div>
       <div className="mt-3 text-right">
-        <Link href="/admin/forgot-password" className="text-[12.5px] font-medium text-[#e8590c] underline-offset-2 hover:underline">
+        <Link href="/customer/forgot-password" className="text-[12.5px] font-medium text-[#e8590c] underline-offset-2 hover:underline">
           Forgot password?
         </Link>
       </div>
@@ -295,7 +298,15 @@ function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
       <div className="space-y-5">
         <DivineInput containerClassName={GLASS_FIELD} label="Full name" autoComplete="name" icon={<UserIcon />} error={errors.name?.message} {...register("name")} />
         <DivineInput containerClassName={GLASS_FIELD} label="Email address" type="email" autoComplete="email" icon={<MailIcon />} error={errors.email?.message} {...register("email")} />
-        <DivineInput containerClassName={GLASS_FIELD} label="Mobile number" type="tel" autoComplete="tel" icon={<PhoneIcon />} error={errors.mobileNumber?.message} {...register("mobileNumber")} />
+        <DivineInput
+          containerClassName={GLASS_FIELD}
+          label="Mobile number"
+          type="tel"
+          autoComplete="tel"
+          icon={<span className="text-[13.5px] font-semibold text-ink-500">+65</span>}
+          error={errors.mobileNumber?.message}
+          {...register("mobileNumber", { onChange: (e) => { e.target.value = sanitizeMobileInput(e.target.value); } })}
+        />
       </div>
       <p className="mt-3 text-[12px] font-medium text-ink-300">We&apos;ll email you a link to set your password and activate your account.</p>
       <button type="submit" disabled={isSubmitting} className={`${submitClass} mt-5`}>
