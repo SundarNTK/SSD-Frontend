@@ -13,6 +13,11 @@ type ImportExportBarProps = {
   basePath: string;
   entityLabel: string;
   canExport: boolean;
+  /** Shows the "Sample Excel" button independently of `canExport` — for a
+   *  master (Customer Master) that supports Import but has no `/export`
+   *  endpoint of its own. Defaults to `canExport` so every existing call
+   *  site, which only ever had the one flag, keeps its current behavior. */
+  canDownloadTemplate?: boolean;
   canImport: boolean;
   onOpenImport: () => void;
 };
@@ -24,8 +29,9 @@ type ImportExportBarProps = {
  * unchanged once they wire up the same backend endpoints Deity Master uses
  * (see SSD-Backend's common/factories/import-export-controller.js).
  */
-export default function ImportExportBar({ client, basePath, entityLabel, canExport, canImport, onOpenImport }: ImportExportBarProps) {
+export default function ImportExportBar({ client, basePath, entityLabel, canExport, canDownloadTemplate, canImport, onOpenImport }: ImportExportBarProps) {
   const [downloading, setDownloading] = useState<"template" | "export" | null>(null);
+  const showTemplate = canDownloadTemplate ?? canExport;
 
   async function handleDownload(kind: "template" | "export") {
     setDownloading(kind);
@@ -44,7 +50,7 @@ export default function ImportExportBar({ client, basePath, entityLabel, canExpo
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {canExport && (
+      {showTemplate && (
         <DivineButton
           type="button"
           variant="leaf"

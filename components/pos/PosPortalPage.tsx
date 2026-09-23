@@ -23,7 +23,13 @@
  * can never disagree.
  */
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   api,
@@ -40,16 +46,21 @@ import { PosCustomerDisplayDock } from "./PosCustomerDisplayPage";
 import { usePosDisplayPublisher } from "../../lib/usePosDisplayPublisher";
 import { SuccessModal } from "./SuccessModal";
 import { IDLE_DISPLAY, type PosDisplayPayload } from "../../lib/posDisplay";
-import netsSocketService, { normalizeRealtimeStatus } from "../../lib/netsSocketService";
+import netsSocketService, {
+  normalizeRealtimeStatus,
+} from "../../lib/netsSocketService";
 import { formatTempleDateTime, getTempleTimeParts } from "../../lib/datetime";
-import { sanitizeMobileInput, isValidSgMobile, SG_MOBILE_ERROR } from "../../lib/mobileNumber";
+import {
+  sanitizeMobileInput,
+  isValidSgMobile,
+  SG_MOBILE_ERROR,
+} from "../../lib/mobileNumber";
 import DivineInput from "../divine/DivineInput";
 import DivineButton from "../divine/DivineButton";
 import { StayOnPageWarning } from "../divine/StatusBanner";
 import { EmblemLoader, EmblemLoaderOverlay } from "../divine/EmblemLoader";
 import { resolveImageUrl } from "../../lib/imageUrl";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
-import DivineDatePicker from "../divine/DivineDatePicker";
 import DevoteeNameField from "./DevoteeNameField";
 import { FORM_LABEL } from "../divine/formFieldStyles";
 import {
@@ -92,7 +103,10 @@ const CUSTOMER_SECTION_BG = "/customer_section_bg.webp";
  *  scrolling body so recent bookings / cart lines can scroll over it. */
 function SectionPhotoBg({ mirror = false }: { mirror?: boolean }) {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+    >
       <div
         className={`h-full min-h-full w-full bg-cover bg-center bg-no-repeat ${mirror ? "-scale-x-100" : ""}`}
         style={{ backgroundImage: `url('${CUSTOMER_SECTION_BG}')` }}
@@ -104,12 +118,19 @@ function SectionPhotoBg({ mirror = false }: { mirror?: boolean }) {
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
+type FamilyMember = {
+  nameEnglish: string;
+  nameTamil: string;
+  natchathiram: { _id: string; name: string; tamilName?: string } | null;
+};
+
 type Customer = {
   _id: string;
   customerCode: string;
   name: string;
   email: string;
   mobileNumber: string | null;
+  familyMembers?: FamilyMember[];
 };
 
 type InventoryInfo = {
@@ -120,7 +141,13 @@ type InventoryInfo = {
   threshold?: number;
 };
 
-type CategoryTab = { _id: string; name: string; color: string; count: number; image?: string | null };
+type CategoryTab = {
+  _id: string;
+  name: string;
+  color: string;
+  count: number;
+  image?: string | null;
+};
 type Folder = {
   // Every category this folder's contents span — a folder is keyed by
   // Sub Category alone (no parent Category at the master level), so an
@@ -210,12 +237,10 @@ function offeringDescriptors(
   ];
 }
 
-// 6 columns × 3 rows — the default page size, which fits on screen with no
-// vertical scrolling; numbered pages take over from scrolling at this size.
-// Picking a larger size (see PAGE_SIZE_OPTIONS) trades that off deliberately
-// — more cards per page, but the grid itself scrolls to fit them.
-const CARDS_PER_PAGE = 18;
-const PAGE_SIZE_OPTIONS = [18, 36, 60, 100];
+// auto-fill grid — default fits ~3 rows at a typical 5-column width; larger
+// sizes are offered so a big screen can load more cards without extra page turns.
+const CARDS_PER_PAGE = 30;
+const PAGE_SIZE_OPTIONS = [30, 60, 100, 150];
 
 // Recent Transactions preview in the Customer panel: 3 up front, "Load more"
 // re-fetches at RECENT_BOOKINGS_ALL_LIMIT — the backend's own cap on
@@ -228,6 +253,24 @@ type DeityOption = { _id: string; name: string; tamilName: string };
 type NakshatraOption = { _id: string; name: string; tamilName?: string };
 
 type Devotee = { name: string; nakshatra: string };
+
+/**
+ * A one-tap devotee suggestion chip. `label` is what the cashier sees
+ * ("English / Tamil" when both are known); `fillName`/`fillNakshatra` are
+ * what actually lands in the row once picked — the Tamil name when there is
+ * one, since that's what belongs on the printed ticket.
+ */
+type DevoteeSuggestion = {
+  key: string;
+  label: string;
+  fillName: string;
+  fillNakshatra: string;
+};
+
+// Same heuristic DevoteeNameField.tsx uses to decide whether a typed name is
+// Tamil script — reused here to guess which of nameEnglish/nameTamil a
+// freshly-typed devotee name belongs in when it gets saved to the profile.
+const LATIN_NAME_RE = /^[a-zA-Z\s.'-]+$/;
 
 type CartLine = {
   id: string;
@@ -365,7 +408,12 @@ type RecordPaymentResult = {
 // its own never-reused reference, or a second live QR against the same
 // booking risks being refused/mis-reconciled by the bank for reusing a
 // reference it already saw settle once — see backend's confirmPosPayment.
-type PaynowPaymentDetails = { referenceId: string; amount: number; qr: string; engine: string };
+type PaynowPaymentDetails = {
+  referenceId: string;
+  amount: number;
+  qr: string;
+  engine: string;
+};
 type CreateOrderResult =
   | ({ status: "confirmed" } & BookingConfirmation)
   | {
@@ -376,7 +424,9 @@ type CreateOrderResult =
       paymentDetails: PaynowPaymentDetails | null;
       paymentDetailsError: string | null;
     };
-type OrderStatusResult = ({ status: "confirmed" } & BookingConfirmation) | { status: "pending" | "cancelled" | "expired" };
+type OrderStatusResult =
+  | ({ status: "confirmed" } & BookingConfirmation)
+  | { status: "pending" | "cancelled" | "expired" };
 
 // PayNow's own settlement is asynchronous and has no fixed timeline (the
 // customer has to open their banking app and scan) — this stays open until
@@ -396,16 +446,29 @@ const ORDER_POLL_MAX_ATTEMPTS = 40; // ~60s — comfortably under the order's ow
  * `basePath` is "/pos/booking/orders" or "/pos/admin/booking/orders"
  * depending on which portal is checking out.
  */
-async function pollOrderStatus(basePath: string, orderId: string): Promise<BookingConfirmation> {
+async function pollOrderStatus(
+  basePath: string,
+  orderId: string,
+): Promise<BookingConfirmation> {
   for (let attempt = 0; attempt < ORDER_POLL_MAX_ATTEMPTS; attempt++) {
-    const res = await api.get<ApiEnvelope<OrderStatusResult>>(`${basePath}/${orderId}/status`);
+    const res = await api.get<ApiEnvelope<OrderStatusResult>>(
+      `${basePath}/${orderId}/status`,
+    );
     const data = unwrap(res);
     if (data.status === "confirmed") return data;
-    if (data.status === "cancelled") throw new Error("This order was cancelled before payment could be confirmed.");
-    if (data.status === "expired") throw new Error("The booking hold expired before payment was confirmed. Please start again.");
+    if (data.status === "cancelled")
+      throw new Error(
+        "This order was cancelled before payment could be confirmed.",
+      );
+    if (data.status === "expired")
+      throw new Error(
+        "The booking hold expired before payment was confirmed. Please start again.",
+      );
     await new Promise((resolve) => setTimeout(resolve, ORDER_POLL_INTERVAL_MS));
   }
-  throw new Error("Timed out waiting for the booking to be confirmed. Please check Transaction History.");
+  throw new Error(
+    "Timed out waiting for the booking to be confirmed. Please check Transaction History.",
+  );
 }
 
 let lineCounter = 0;
@@ -461,6 +524,10 @@ export default function PosPortalPage() {
   const [catalogueLoading, setCatalogueLoading] = useState(true);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [activeFolder, setActiveFolder] = useState<Folder | null>(null);
+
+  // Derived: the full CategoryTab record for the active tab (null = "All Categories")
+  const selectedCategory =
+    categories.find((c) => c._id === selectedCategoryId) ?? null;
   const [folderItems, setFolderItems] = useState<PosItem[]>([]);
   const [folderServices, setFolderServices] = useState<PosService[]>([]);
   const [folderLoading, setFolderLoading] = useState(false);
@@ -530,7 +597,12 @@ export default function PosPortalPage() {
   const [cataloguePageSize, setCataloguePageSize] = useState(CARDS_PER_PAGE);
   useEffect(() => {
     setCataloguePage(1);
-  }, [selectedCategoryId, activeFolder?.subCategoryId, offeringSearch, cataloguePageSize]);
+  }, [
+    selectedCategoryId,
+    activeFolder?.subCategoryId,
+    offeringSearch,
+    cataloguePageSize,
+  ]);
 
   const defaultCatalogueDescriptors = useMemo<CatalogueCardDescriptor[]>(
     () => [
@@ -541,7 +613,10 @@ export default function PosPortalPage() {
           folder: f,
         }),
       ),
-      ...offeringDescriptors(visibleUncategorizedItems, visibleUncategorizedServices),
+      ...offeringDescriptors(
+        visibleUncategorizedItems,
+        visibleUncategorizedServices,
+      ),
     ],
     [visibleFolders, visibleUncategorizedItems, visibleUncategorizedServices],
   );
@@ -625,23 +700,34 @@ export default function PosPortalPage() {
   // modalDeityChoices), so there's nothing left to use a full active
   // roster for.
   const [nakshatraOptions, setNakshatraOptions] = useState<ListboxOption[]>([]);
+  // Same rows as nakshatraOptions, keyed by the English `name` (lowercased)
+  // — nakshatraOptions only carries a name/label pair, but persisting a
+  // freshly-typed devotee onto the customer's profile needs the actual
+  // Nakshathiram _id (Customer.familyMembers[].natchathiram is a reference).
+  const [nakshatraByName, setNakshatraByName] = useState<
+    Map<string, NakshatraOption>
+  >(new Map());
 
   useEffect(() => {
     api
       .get<ApiEnvelope<{ items: NakshatraOption[] }>>(
         "/pos/booking/nakshathirams",
       )
-      .then((r) =>
+      .then((r) => {
+        const rows = unwrap(r).items;
         setNakshatraOptions(
-          unwrap(r).items.map((n) => ({
+          rows.map((n) => ({
             // Keep English `name` as the stored value so existing bookings
             // and print enrichment (Nakshathiram.name → tamilName) stay in
             // sync; the cashier only sees Tamil in the list.
             value: n.name,
             label: n.tamilName?.trim() || n.name,
           })),
-        ),
-      )
+        );
+        setNakshatraByName(
+          new Map(rows.map((n) => [n.name.trim().toLowerCase(), n])),
+        );
+      })
       .catch(() => {});
   }, []);
 
@@ -717,7 +803,8 @@ export default function PosPortalPage() {
         setCart((prev) =>
           prev.map((line, idx) => {
             const sl = data.lines[idx];
-            if (!sl || sl.refId !== line.refId || sl.refType !== line.refType) return line;
+            if (!sl || sl.refId !== line.refId || sl.refType !== line.refType)
+              return line;
             return {
               ...line,
               lineTotal: sl.lineTotal,
@@ -755,7 +842,12 @@ export default function PosPortalPage() {
     summary != null &&
     paymentAmount < summary.grandTotal;
   const paymentBalanceAmount = summary
-    ? Math.max(0, +(summary.grandTotal - (Number.isNaN(paymentAmount) ? 0 : paymentAmount)).toFixed(2))
+    ? Math.max(
+        0,
+        +(
+          summary.grandTotal - (Number.isNaN(paymentAmount) ? 0 : paymentAmount)
+        ).toFixed(2),
+      )
     : 0;
   const paymentAmountValid =
     summary != null &&
@@ -827,7 +919,8 @@ export default function PosPortalPage() {
   // ── recent transactions (repeat a past booking) ─────────────────────────
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
   const [recentBookingsExpanded, setRecentBookingsExpanded] = useState(false);
-  const [loadingAllRecentBookings, setLoadingAllRecentBookings] = useState(false);
+  const [loadingAllRecentBookings, setLoadingAllRecentBookings] =
+    useState(false);
   const [viewingRecentBooking, setViewingRecentBooking] =
     useState<RecentBooking | null>(null);
   const [recheckingCart, setRecheckingCart] = useState(false);
@@ -975,7 +1068,10 @@ export default function PosPortalPage() {
   // Set while editing an existing cart line instead of adding a new one —
   // confirmAddToCart() branches on this to update in place rather than append.
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
-  const [cartNotice, setCartNotice] = useState<{ name: string; kind: "added" | "updated" } | null>(null);
+  const [cartNotice, setCartNotice] = useState<{
+    name: string;
+    kind: "added" | "updated";
+  } | null>(null);
 
   async function openAddModal(offering: Offering) {
     if (!selectedCustomer) {
@@ -1031,25 +1127,55 @@ export default function PosPortalPage() {
   // instead of a deity picker when this is empty (see AddToCartModal).
   const modalDeityChoices = modalOffering?.deityMapping ?? [];
 
-  // Devotees the selected customer has already booked for, across their
-  // last 3 confirmed bookings (recentBookings is already limited to that) —
-  // shown as one-tap suggestion chips in the devotee details form, name AND
-  // nakshatra together, deduplicated by name (first-seen nakshatra wins;
-  // a devotee's nakshatra doesn't change booking to booking).
-  const devoteeNameSuggestions = useMemo(() => {
-    const seen = new Map<string, Devotee>();
+  // Devotee suggestion chips for the details form — the selected customer's
+  // own family member profile comes first (name AND nakshatra together),
+  // topped up with anyone from their last 3 confirmed bookings
+  // (recentBookings) who isn't already on the profile — e.g. a name typed
+  // before this feature existed, or before it got saved back to the
+  // profile. Deduplicated by whichever name would actually be filled in, so
+  // the two sources never offer the same person twice.
+  //
+  // The chip label is "English / Tamil" ONLY when a family member has both
+  // filled in (a deliberate edit via the Customer Master) — one typed at the
+  // POS counter only ever has one of the two, so its chip just shows that
+  // one name, not that name duplicated on both sides of a slash.
+  const devoteeNameSuggestions = useMemo<DevoteeSuggestion[]>(() => {
+    const seen = new Map<string, DevoteeSuggestion>();
+
+    (selectedCustomer?.familyMembers ?? []).forEach((m) => {
+      const english = m.nameEnglish?.trim() || "";
+      const tamil = m.nameTamil?.trim() || "";
+      if (!english && !tamil) return;
+      const fillName = tamil || english;
+      const key = fillName.toLowerCase();
+      if (seen.has(key)) return;
+      seen.set(key, {
+        key,
+        label: english && tamil ? `${english} / ${tamil}` : fillName,
+        fillName,
+        fillNakshatra: m.natchathiram?.name ?? "",
+      });
+    });
+
     for (const booking of recentBookings) {
       for (const line of booking.lines) {
         for (const devotee of line.devotees) {
           const trimmed = devotee.name.trim();
-          if (trimmed && !seen.has(trimmed)) {
-            seen.set(trimmed, { name: trimmed, nakshatra: devotee.nakshatra });
-          }
+          if (!trimmed) continue;
+          const key = trimmed.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.set(key, {
+            key,
+            label: trimmed,
+            fillName: trimmed,
+            fillNakshatra: devotee.nakshatra,
+          });
         }
       }
     }
+
     return Array.from(seen.values());
-  }, [recentBookings]);
+  }, [selectedCustomer, recentBookings]);
 
   function addDevoteeRow() {
     if (!modalOffering) return;
@@ -1068,9 +1194,71 @@ export default function PosPortalPage() {
   // dead-end the sale behind a blocking note. Falling back to the plain
   // quantity flow instead means an admin forgetting to curate deities never
   // blocks a real transaction at the counter.
-  const modalHasDeityChoices = Boolean(modalOffering?.isDeityMappingRequired) && modalDeityChoices.length > 0;
-  const modalEffectiveQty = modalHasDeityChoices ? modalDeities.length || 0 : modalQuantity;
-  const modalTotal = modalOffering ? modalOffering.salePrice * modalEffectiveQty : 0;
+  const modalHasDeityChoices =
+    Boolean(modalOffering?.isDeityMappingRequired) &&
+    modalDeityChoices.length > 0;
+  const modalEffectiveQty = modalHasDeityChoices
+    ? modalDeities.length || 0
+    : modalQuantity;
+  const modalTotal = modalOffering
+    ? modalOffering.salePrice * modalEffectiveQty
+    : 0;
+
+  // Fire-and-forget: appends any devotee typed into this booking who isn't
+  // already one of the selected customer's known family members onto their
+  // profile, so next time they're booked for, this same person shows up as
+  // a suggestion chip instead of being retyped. Never awaited by the caller
+  // — the cart add itself doesn't wait on, or fail because of, this.
+  async function persistNewFamilyMembers(filledDevotees: Devotee[]) {
+    if (!selectedCustomer || filledDevotees.length === 0) return;
+
+    const known = new Set<string>();
+    (selectedCustomer.familyMembers ?? []).forEach((m) => {
+      if (m.nameEnglish) known.add(m.nameEnglish.trim().toLowerCase());
+      if (m.nameTamil) known.add(m.nameTamil.trim().toLowerCase());
+    });
+
+    const newOnes = filledDevotees.filter(
+      (d) => !known.has(d.name.trim().toLowerCase()),
+    );
+    if (newOnes.length === 0) return;
+
+    // Best guess at which script was typed — see DevoteeNameField's own
+    // LATIN_NAME_RE. Only ONE of nameEnglish/nameTamil is ever filled from
+    // here, never both with the same text — the "English / Tamil" combined
+    // suggestion label is reserved for a family member someone has
+    // deliberately filled in both languages for, via the Customer Master.
+    const payload = newOnes.map((d) => {
+      const trimmed = d.name.trim();
+      const isTamil = trimmed !== "" && !LATIN_NAME_RE.test(trimmed);
+      const nakshathiram = d.nakshatra
+        ? nakshatraByName.get(d.nakshatra.trim().toLowerCase())
+        : undefined;
+      return {
+        nameEnglish: isTamil ? "" : trimmed,
+        nameTamil: isTamil ? trimmed : "",
+        natchathiram: nakshathiram?._id ?? null,
+      };
+    });
+
+    const customerId = selectedCustomer._id;
+    try {
+      const r = await api.patch<
+        ApiEnvelope<{ addedCount: number; familyMembers: FamilyMember[] }>
+      >(`/pos/booking/customers/${customerId}/family-members`, {
+        familyMembers: payload,
+      });
+      const data = unwrap(r);
+      setSelectedCustomer((prev) =>
+        prev && prev._id === customerId
+          ? { ...prev, familyMembers: data.familyMembers }
+          : prev,
+      );
+    } catch {
+      // Best-effort — the booking already went through on its own; a failed
+      // profile update here shouldn't interrupt or roll back the cart.
+    }
+  }
 
   function confirmAddToCart() {
     if (!modalOffering) return;
@@ -1084,6 +1272,10 @@ export default function PosPortalPage() {
     const filledDevotees = modalDevotees
       .filter((d) => d.name.trim())
       .map((d) => ({ name: d.name.trim(), nakshatra: d.nakshatra }));
+
+    if (modalOffering.isFamilyMembersRequired) {
+      void persistNewFamilyMembers(filledDevotees);
+    }
 
     if (editingLineId) {
       const lineId = editingLineId;
@@ -1147,9 +1339,12 @@ export default function PosPortalPage() {
   // Set once a PayNow order is created and its QR generated — presence of
   // this (rather than a separate boolean) is what drives PaynowQrModal's
   // `open` prop, so there's never a modal shown with nothing to render.
-  const [paynowQr, setPaynowQr] = useState<{ orderId: string; referenceId: string; amount: number; qrImage: string } | null>(
-    null,
-  );
+  const [paynowQr, setPaynowQr] = useState<{
+    orderId: string;
+    referenceId: string;
+    amount: number;
+    qrImage: string;
+  } | null>(null);
   // Set once a NETS order is created and the terminal payment initiated —
   // same "presence drives the modal" convention as paynowQr above. See
   // NetsPaymentModal's own comment for the socket-driven flow this opens.
@@ -1158,18 +1353,29 @@ export default function PosPortalPage() {
   // way, but NetsPaymentModal skips sending anything to the terminal and
   // opens straight into the transaction-ref-number entry form instead of
   // narrating an auto flow that was never started.
-  const [netsPayment, setNetsPayment] = useState<{ orderId: string; referenceId: string; amount: number; manual?: boolean } | null>(
-    null,
-  );
+  const [netsPayment, setNetsPayment] = useState<{
+    orderId: string;
+    referenceId: string;
+    amount: number;
+    manual?: boolean;
+  } | null>(null);
   // Same "presence drives the modal" convention, for Credit Card — a
   // separate state (not a `kind` field bolted onto netsPayment) so it's
   // impossible for a leftover NETS payment to accidentally reopen as a
   // Credit Card modal or vice versa.
-  const [creditCardPayment, setCreditCardPayment] = useState<{ orderId: string; referenceId: string; amount: number; manual?: boolean } | null>(
-    null,
-  );
-  const [successDisplay, setSuccessDisplay] = useState<PosDisplayPayload | null>(null);
-  const { code: displayCode, error: displayError, publish: publishCustomerDisplay } = usePosDisplayPublisher();
+  const [creditCardPayment, setCreditCardPayment] = useState<{
+    orderId: string;
+    referenceId: string;
+    amount: number;
+    manual?: boolean;
+  } | null>(null);
+  const [successDisplay, setSuccessDisplay] =
+    useState<PosDisplayPayload | null>(null);
+  const {
+    code: displayCode,
+    error: displayError,
+    publish: publishCustomerDisplay,
+  } = usePosDisplayPublisher();
 
   function finalizeBooking(booking: BookingConfirmation) {
     setConfirmation(booking);
@@ -1191,13 +1397,22 @@ export default function PosPortalPage() {
   function printTicketForBooking(booking: BookingConfirmation) {
     void (async () => {
       try {
-        const res = await api.get<ApiEnvelope<unknown>>(`/pos/booking/bookings/${booking._id}/ticket-groups`);
+        const res = await api.get<ApiEnvelope<unknown>>(
+          `/pos/booking/bookings/${booking._id}/ticket-groups`,
+        );
         const ticketData = unwrap(res);
         netsSocketService.printTicket(
-          { orderId: booking.referenceId, ticketData, paymentMethod: booking.paymentModeName.toUpperCase() },
+          {
+            orderId: booking.referenceId,
+            ticketData,
+            paymentMethod: booking.paymentModeName.toUpperCase(),
+          },
           (ack) => {
             if (ack.status !== "success") {
-              console.warn("Ticket print request was not accepted by the Nets-Service EXE:", ack.error || ack.message);
+              console.warn(
+                "Ticket print request was not accepted by the Nets-Service EXE:",
+                ack.error || ack.message,
+              );
             }
           },
         );
@@ -1228,7 +1443,9 @@ export default function PosPortalPage() {
       return;
     }
     if (hasStockIssues) {
-      toast.error("Some items have insufficient stock. Please adjust quantities.");
+      toast.error(
+        "Some items have insufficient stock. Please adjust quantities.",
+      );
       return;
     }
     if (summary) setPaymentAmountInput(summary.grandTotal.toFixed(2));
@@ -1255,7 +1472,9 @@ export default function PosPortalPage() {
       return;
     }
     if (!paymentAmountValid) {
-      toast.error(`Enter a payment amount between $0.00 and ${formatCurrency(summary?.grandTotal ?? 0)}.`);
+      toast.error(
+        `Enter a payment amount between $0.00 and ${formatCurrency(summary?.grandTotal ?? 0)}.`,
+      );
       return;
     }
 
@@ -1307,18 +1526,34 @@ export default function PosPortalPage() {
           // generation on its own via the standalone route rather than
           // losing the order the customer already has reserved inventory
           // against.
-          const qrRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; qrImage: string }>>(
-            "/payments/paynow/generate-qr",
-            { referenceId: created.referenceId, amount: paymentAmount },
-          );
+          const qrRes = await api.post<
+            ApiEnvelope<{
+              referenceId: string;
+              amount: number;
+              qrImage: string;
+            }>
+          >("/payments/paynow/generate-qr", {
+            referenceId: created.referenceId,
+            amount: paymentAmount,
+          });
           const qr = unwrap(qrRes);
-          details = { referenceId: qr.referenceId, amount: qr.amount, qr: qr.qrImage, engine: "" };
+          details = {
+            referenceId: qr.referenceId,
+            amount: qr.amount,
+            qr: qr.qrImage,
+            engine: "",
+          };
         }
         setPaymentPopupOpen(false);
         // details.referenceId — the pending transaction's own per-attempt
         // reference, embedded in the QR itself — not created.referenceId
         // (the order's stable identity). See PaynowPaymentDetails' own comment.
-        setPaynowQr({ orderId: created._id, referenceId: details.referenceId, amount: details.amount, qrImage: details.qr });
+        setPaynowQr({
+          orderId: created._id,
+          referenceId: details.referenceId,
+          amount: details.amount,
+          qrImage: details.qr,
+        });
         return;
       }
 
@@ -1329,13 +1564,19 @@ export default function PosPortalPage() {
         // referenceId/amount this returns is what NetsPaymentModal sends
         // straight to the physical (or, with simulation on, simulated)
         // terminal over the socket connection.
-        const initRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; currency: string }>>(
-          `/pos/booking/orders/${created._id}/nets/initiate`,
-          { amount: paymentAmount },
-        );
+        const initRes = await api.post<
+          ApiEnvelope<{ referenceId: string; amount: number; currency: string }>
+        >(`/pos/booking/orders/${created._id}/nets/initiate`, {
+          amount: paymentAmount,
+        });
         const init = unwrap(initRes);
         setPaymentPopupOpen(false);
-        setNetsPayment({ orderId: created._id, referenceId: init.referenceId, amount: init.amount, manual: opts.manual });
+        setNetsPayment({
+          orderId: created._id,
+          referenceId: init.referenceId,
+          amount: init.amount,
+          manual: opts.manual,
+        });
         return;
       }
 
@@ -1344,13 +1585,19 @@ export default function PosPortalPage() {
         // pending-transaction/confirm flow, just Credit Card's own initiate
         // route and PAYMENT_MESSAGE-watching modal (see NetsPaymentModal's
         // kind prop).
-        const initRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; currency: string }>>(
-          `/pos/booking/orders/${created._id}/credit-card/initiate`,
-          { amount: paymentAmount },
-        );
+        const initRes = await api.post<
+          ApiEnvelope<{ referenceId: string; amount: number; currency: string }>
+        >(`/pos/booking/orders/${created._id}/credit-card/initiate`, {
+          amount: paymentAmount,
+        });
         const init = unwrap(initRes);
         setPaymentPopupOpen(false);
-        setCreditCardPayment({ orderId: created._id, referenceId: init.referenceId, amount: init.amount, manual: opts.manual });
+        setCreditCardPayment({
+          orderId: created._id,
+          referenceId: init.referenceId,
+          amount: init.amount,
+          manual: opts.manual,
+        });
         return;
       }
 
@@ -1422,13 +1669,19 @@ export default function PosPortalPage() {
   }
 
   const customerDisplayPayload = useMemo((): PosDisplayPayload => {
-    const lines = (step === "done" && confirmation ? confirmation.lines : cart).map((l) => ({
+    const lines = (
+      step === "done" && confirmation ? confirmation.lines : cart
+    ).map((l) => ({
       name: l.name,
       quantity: l.quantity,
       lineTotal: l.lineTotal ?? l.unitPrice * l.quantity,
     }));
-    const grandTotal = step === "done" && confirmation ? confirmation.grandTotal : (summary?.grandTotal ?? 0);
-    const customerName = selectedCustomer?.name ?? confirmation?.customer?.name ?? null;
+    const grandTotal =
+      step === "done" && confirmation
+        ? confirmation.grandTotal
+        : (summary?.grandTotal ?? 0);
+    const customerName =
+      selectedCustomer?.name ?? confirmation?.customer?.name ?? null;
 
     if (step === "done" && confirmation) {
       if (successDisplay) return successDisplay;
@@ -1523,7 +1776,12 @@ export default function PosPortalPage() {
 
   if (step === "done" && confirmation) {
     return (
-      <PosShell user={user} onNewTransaction={startNewTransaction} displayCode={displayCode} displayError={displayError}>
+      <PosShell
+        user={user}
+        onNewTransaction={startNewTransaction}
+        displayCode={displayCode}
+        displayError={displayError}
+      >
         <BookingSuccessView
           confirmation={confirmation}
           paymentModes={paymentModes}
@@ -1541,8 +1799,13 @@ export default function PosPortalPage() {
   const showingFolder = !showingSearch && activeFolder;
 
   return (
-    <PosShell user={user} onNewTransaction={startNewTransaction} displayCode={displayCode} displayError={displayError}>
-      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-2 sm:gap-4 sm:p-3 md:grid-cols-2 lg:h-full lg:grid-cols-[minmax(180px,0.7fr)_minmax(0,2.5fr)_minmax(210px,0.78fr)] lg:overflow-hidden lg:p-4 xl:grid-cols-[minmax(200px,240px)_minmax(0,1fr)_minmax(230px,300px)]">
+    <PosShell
+      user={user}
+      onNewTransaction={startNewTransaction}
+      displayCode={displayCode}
+      displayError={displayError}
+    >
+      <div className="relative z-10 grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-2 sm:gap-4 sm:p-3 md:grid-cols-2 lg:h-full lg:grid-cols-[minmax(200px,1fr)_minmax(0,3fr)_minmax(220px,1fr)] lg:overflow-hidden lg:p-4 xl:grid-cols-[minmax(240px,1.1fr)_minmax(0,3.5fr)_minmax(260px,1.1fr)] 2xl:grid-cols-[minmax(280px,1.2fr)_minmax(0,4fr)_minmax(300px,1.2fr)]">
         {/* ── LEFT: customer panel ─────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, x: -48, rotateY: 14 }}
@@ -1557,240 +1820,279 @@ export default function PosPortalPage() {
             </p>
           </div>
           <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-          {!selectedCustomer && <PanelGlow />}
-          <div
-            className={`relative rounded-xl transition-shadow duration-300 ${needsCustomerForCart ? "shadow-[0_0_0_3px_rgba(220,38,38,0.25)]" : ""}`}
-          >
-            <AnimatePresence>
-              {needsCustomerForCart && (
-                <>
-                  {/* Colorful expanding wave rings — three staggered rings in
+            {!selectedCustomer && <PanelGlow />}
+            <div
+              className={`relative rounded-xl transition-shadow duration-300 ${needsCustomerForCart ? "shadow-[0_0_0_3px_rgba(220,38,38,0.25)]" : ""}`}
+            >
+              <AnimatePresence>
+                {needsCustomerForCart && (
+                  <>
+                    {/* Colorful expanding wave rings — three staggered rings in
                       alternating gold/crimson/amber ripple outward from the
                       search box and fade, drawing the eye without a static shadow. */}
-                  <div className="pointer-events-none absolute inset-0 z-0 overflow-visible rounded-xl">
-                    {[
-                      { color: "#dc2626", delay: 0 },
-                      { color: "#d4af37", delay: 0.5 },
-                      { color: "#f59e0b", delay: 1 },
-                    ].map(({ color, delay }, i) => (
-                      <motion.span
-                        key={i}
-                        initial={{ opacity: 0.65, scale: 1 }}
-                        animate={{ opacity: [0.65, 0], scale: [1, 1.4] }}
-                        exit={{ opacity: 0 }}
-                        transition={{
+                    <div className="pointer-events-none absolute inset-0 z-0 overflow-visible rounded-xl">
+                      {[
+                        { color: "#dc2626", delay: 0 },
+                        { color: "#d4af37", delay: 0.5 },
+                        { color: "#f59e0b", delay: 1 },
+                      ].map(({ color, delay }, i) => (
+                        <motion.span
+                          key={i}
+                          initial={{ opacity: 0.65, scale: 1 }}
+                          animate={{ opacity: [0.65, 0], scale: [1, 1.4] }}
+                          exit={{ opacity: 0 }}
+                          transition={{
+                            repeat: Infinity,
+                            duration: 1.8,
+                            delay,
+                            ease: "easeOut",
+                          }}
+                          className="absolute inset-0 rounded-xl border-2"
+                          style={{ borderColor: color }}
+                        />
+                      ))}
+                    </div>
+                    <motion.div
+                      initial={{ opacity: 0, y: -2 }}
+                      animate={{ opacity: 1, y: [0, -6, 0] }}
+                      exit={{ opacity: 0 }}
+                      transition={{
+                        y: {
                           repeat: Infinity,
-                          duration: 1.8,
-                          delay,
-                          ease: "easeOut",
-                        }}
-                        className="absolute inset-0 rounded-xl border-2"
-                        style={{ borderColor: color }}
-                      />
-                    ))}
-                  </div>
-                  <motion.div
-                    initial={{ opacity: 0, y: -2 }}
-                    animate={{ opacity: 1, y: [0, -6, 0] }}
-                    exit={{ opacity: 0 }}
-                    transition={{
-                      y: { repeat: Infinity, duration: 1.1, ease: "easeInOut" },
-                      opacity: { duration: 0.2 },
-                    }}
-                    className="pointer-events-none absolute -top-9 left-1/2 z-10 -translate-x-1/2"
-                  >
-                    <svg
-                      className="h-7 w-7 drop-shadow-[0_2px_5px_rgba(220,38,38,0.45)]"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      strokeWidth="2.5"
+                          duration: 1.1,
+                          ease: "easeInOut",
+                        },
+                        opacity: { duration: 0.2 },
+                      }}
+                      className="pointer-events-none absolute -top-9 left-1/2 z-10 -translate-x-1/2"
                     >
-                      <defs>
-                        <linearGradient
-                          id="customerArrowGradient"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop offset="0%" stopColor="#dc2626" />
-                          <stop offset="100%" stopColor="#d4af37" />
-                        </linearGradient>
-                      </defs>
-                      <path
-                        d="M12 3v15M12 18l-5-5M12 18l5-5"
-                        stroke="url(#customerArrowGradient)"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-            <DivineInput
-              staticLabel
-              iconPosition="start"
-              label="Search customer"
-              placeholder="Search by name, mobile or email"
-              icon={<SearchIcon />}
-              value={customerQuery}
-              onChange={(e) => {
-                setCustomerQuery(e.target.value);
-                if (selectedCustomer) clearCustomer();
-              }}
-              disabled={!!selectedCustomer}
-              loading={customerSearching}
-            />
-            <AnimatePresence>
-              {(customerSearching || customerResults.length > 0) && !selectedCustomer && (
-                <motion.ul
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-md border border-orange-200 bg-white shadow-[0_8px_24px_-10px_rgba(0,0,0,0.2)]"
-                >
-                  {customerSearching && customerResults.length === 0 && (
-                    <li className="flex items-center gap-2 px-3 py-2.5 text-[12.5px] text-ink-500">
-                      <svg className="h-3.5 w-3.5 animate-spin text-amber-600" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                        <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
+                      <svg
+                        className="h-7 w-7 drop-shadow-[0_2px_5px_rgba(220,38,38,0.45)]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        strokeWidth="2.5"
+                      >
+                        <defs>
+                          <linearGradient
+                            id="customerArrowGradient"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop offset="0%" stopColor="#dc2626" />
+                            <stop offset="100%" stopColor="#d4af37" />
+                          </linearGradient>
+                        </defs>
+                        <path
+                          d="M12 3v15M12 18l-5-5M12 18l5-5"
+                          stroke="url(#customerArrowGradient)"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
-                      Searching…
-                    </li>
-                  )}
-                  {customerResults.map((c) => (
-                    <li
-                      key={c._id}
-                      onClick={() => selectCustomer(c)}
-                      className="cursor-pointer border-b border-slate-200 bg-white px-3 py-2.5 last:border-0 hover:bg-ivory-50"
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+              <DivineInput
+                staticLabel
+                iconPosition="start"
+                label="Search customer"
+                placeholder="Search by name, mobile or email"
+                icon={<SearchIcon />}
+                value={customerQuery}
+                onChange={(e) => {
+                  setCustomerQuery(e.target.value);
+                  if (selectedCustomer) clearCustomer();
+                }}
+                disabled={!!selectedCustomer}
+                loading={customerSearching}
+              />
+              <AnimatePresence>
+                {(customerSearching || customerResults.length > 0) &&
+                  !selectedCustomer && (
+                    <motion.ul
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-md border border-orange-200 bg-white shadow-[0_8px_24px_-10px_rgba(0,0,0,0.2)]"
                     >
-                      <p className="text-[13px] font-medium text-ink-100">
-                        {c.name}
-                      </p>
-                      <p className="text-[11.5px] text-ink-500">
-                        {c.customerCode}
-                        {c.mobileNumber ? ` · ${c.mobileNumber}` : ""}
-                      </p>
-                    </li>
-                  ))}
-                </motion.ul>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {selectedCustomer ? (
-            <div className="space-y-1 rounded-md border border-orange-200 bg-white px-3 py-2.5">
-              <p className="text-[13px] font-medium text-ink-100">
-                {selectedCustomer.name}
-              </p>
-              <p className="text-[11.5px] text-ink-500">
-                {selectedCustomer.customerCode}
-              </p>
-              {selectedCustomer.mobileNumber && (
-                <p className="flex items-center gap-1 text-[11.5px] text-ink-500">
-                  <PhoneIcon /> {selectedCustomer.mobileNumber}
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={clearCustomer}
-                className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-crimson-500/40 bg-crimson-500/5 px-3 py-1.5 text-[11.5px] font-semibold text-crimson-500 shadow-sm transition-colors duration-200 hover:border-crimson-500 hover:bg-crimson-500 hover:text-white"
-              >
-                <RefreshIcon className="h-3.5 w-3.5" />
-                Change customer
-              </button>
+                      {customerSearching && customerResults.length === 0 && (
+                        <li className="flex items-center gap-2 px-3 py-2.5 text-[12.5px] text-ink-500">
+                          <svg
+                            className="h-3.5 w-3.5 animate-spin text-amber-600"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                            />
+                            <path
+                              className="opacity-90"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"
+                            />
+                          </svg>
+                          Searching…
+                        </li>
+                      )}
+                      {customerResults.map((c) => (
+                        <li
+                          key={c._id}
+                          onClick={() => selectCustomer(c)}
+                          className="cursor-pointer border-b border-slate-200 bg-white px-3 py-2.5 last:border-0 hover:bg-ivory-50"
+                        >
+                          <p className="text-[13px] font-medium text-ink-100">
+                            {c.name}
+                          </p>
+                          <p className="text-[11.5px] text-ink-500">
+                            {c.customerCode}
+                            {c.mobileNumber ? ` · ${c.mobileNumber}` : ""}
+                          </p>
+                        </li>
+                      ))}
+                    </motion.ul>
+                  )}
+              </AnimatePresence>
             </div>
-          ) : (
-            <FlameActionButton
-              icon={<UserIcon />}
-              chevron={false}
-              onClick={() => setCreateCustomerOpen(true)}
-              className="w-full justify-center"
-            >
-              Create Customer
-            </FlameActionButton>
-          )}
 
-          {selectedCustomer && recentBookings.length > 0 && (
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7c1527]">
-                  <HistoryIcon /> Recent Transactions
+            {selectedCustomer ? (
+              <div className="space-y-1 rounded-md border border-orange-200 bg-white px-3 py-2.5">
+                <p className="text-[13px] font-medium text-ink-100">
+                  {selectedCustomer.name}
                 </p>
-                <span className="rounded-full bg-[#7c1527]/10 px-2 py-0.5 text-[10px] font-bold tabular-nums text-[#7c1527]">
-                  {recentBookings.length}
-                </span>
+                <p className="text-[11.5px] text-ink-500">
+                  {selectedCustomer.customerCode}
+                </p>
+                {selectedCustomer.mobileNumber && (
+                  <p className="flex items-center gap-1 text-[11.5px] text-ink-500">
+                    <PhoneIcon /> {selectedCustomer.mobileNumber}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={clearCustomer}
+                  className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-crimson-500/40 bg-crimson-500/5 px-3 py-1.5 text-[11.5px] font-semibold text-crimson-500 shadow-sm transition-colors duration-200 hover:border-crimson-500 hover:bg-crimson-500 hover:text-white"
+                >
+                  <RefreshIcon className="h-3.5 w-3.5" />
+                  Change customer
+                </button>
               </div>
-              {recentBookings.map((b) => {
-                const stamp = recentTxnStamp(b.bookedAt);
-                return (
-                  <button
-                    key={b._id}
-                    type="button"
-                    onClick={() => setViewingRecentBooking(b)}
-                    className="group w-full overflow-hidden rounded-lg border border-[#f0b4a0]/80 bg-white text-left shadow-[0_4px_14px_-8px_rgba(124,21,39,0.28)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#7c1527]/40 hover:shadow-[0_12px_24px_-12px_rgba(124,21,39,0.4)]"
-                  >
-                    <span className="flex">
-                      <span aria-hidden className="w-1 shrink-0 bg-[#7c1527]" />
-                      <span className="min-w-0 flex-1 px-3 py-2.5">
-                        <span className="flex items-start justify-between gap-2">
-                          <span className="min-w-0">
-                            <span className="block text-[9.5px] font-semibold uppercase tracking-wide text-[#7c1527]/70">
-                              Booking no.
+            ) : (
+              <FlameActionButton
+                icon={<UserIcon />}
+                chevron={false}
+                onClick={() => setCreateCustomerOpen(true)}
+                className="w-full justify-center"
+              >
+                Create Customer
+              </FlameActionButton>
+            )}
+
+            {selectedCustomer && recentBookings.length > 0 && (
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7c1527]">
+                    <HistoryIcon /> Recent Transactions
+                  </p>
+                  <span className="rounded-full bg-[#7c1527]/10 px-2 py-0.5 text-[10px] font-bold tabular-nums text-[#7c1527]">
+                    {recentBookings.length}
+                  </span>
+                </div>
+                {recentBookings.map((b) => {
+                  const stamp = recentTxnStamp(b.bookedAt);
+                  return (
+                    <button
+                      key={b._id}
+                      type="button"
+                      onClick={() => setViewingRecentBooking(b)}
+                      className="group w-full overflow-hidden rounded-lg border border-[#f0b4a0]/80 bg-white text-left shadow-[0_4px_14px_-8px_rgba(124,21,39,0.28)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#7c1527]/40 hover:shadow-[0_12px_24px_-12px_rgba(124,21,39,0.4)]"
+                    >
+                      <span className="flex">
+                        <span
+                          aria-hidden
+                          className="w-1 shrink-0 bg-[#7c1527]"
+                        />
+                        <span className="min-w-0 flex-1 px-3 py-2.5">
+                          <span className="flex items-start justify-between gap-2">
+                            <span className="min-w-0">
+                              <span className="block text-[9.5px] font-semibold uppercase tracking-wide text-[#7c1527]/70">
+                                Booking no.
+                              </span>
+                              <span className="mt-0.5 block truncate text-[12.5px] font-bold tabular-nums text-ink-100">
+                                {b.bookingNumber}
+                              </span>
                             </span>
-                            <span className="mt-0.5 block truncate text-[12.5px] font-bold tabular-nums text-ink-100">
-                              {b.bookingNumber}
+                            <span className="shrink-0 text-right">
+                              <span className="block text-[9.5px] font-semibold uppercase tracking-wide text-[#7c1527]/70">
+                                Amount
+                              </span>
+                              <span className="mt-0.5 inline-block rounded-md bg-[#7c1527] px-2 py-0.5 text-[12.5px] font-bold tabular-nums text-white">
+                                {formatCurrency(b.grandTotal)}
+                              </span>
                             </span>
                           </span>
-                          <span className="shrink-0 text-right">
-                            <span className="block text-[9.5px] font-semibold uppercase tracking-wide text-[#7c1527]/70">
-                              Amount
+                          <span className="mt-2 flex flex-wrap gap-1.5">
+                            <span className="rounded-md bg-[#faf6f1] px-1.5 py-0.5 text-[10px] font-medium text-ink-300">
+                              {stamp.date}
                             </span>
-                            <span className="mt-0.5 inline-block rounded-md bg-[#7c1527] px-2 py-0.5 text-[12.5px] font-bold tabular-nums text-white">
-                              {formatCurrency(b.grandTotal)}
+                            <span className="rounded-md bg-[#faf6f1] px-1.5 py-0.5 text-[10px] font-medium text-ink-300">
+                              {stamp.time}
                             </span>
-                          </span>
-                        </span>
-                        <span className="mt-2 flex flex-wrap gap-1.5">
-                          <span className="rounded-md bg-[#faf6f1] px-1.5 py-0.5 text-[10px] font-medium text-ink-300">
-                            {stamp.date}
-                          </span>
-                          <span className="rounded-md bg-[#faf6f1] px-1.5 py-0.5 text-[10px] font-medium text-ink-300">
-                            {stamp.time}
-                          </span>
-                          <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
-                            {b.lines.length} {b.lines.length === 1 ? "item" : "items"}
+                            <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+                              {b.lines.length}{" "}
+                              {b.lines.length === 1 ? "item" : "items"}
+                            </span>
                           </span>
                         </span>
                       </span>
-                    </span>
-                  </button>
-                );
-              })}
-              {!recentBookingsExpanded &&
-                recentBookings.length >= RECENT_BOOKINGS_PREVIEW_LIMIT && (
-                  <button
-                    type="button"
-                    onClick={loadAllRecentBookings}
-                    disabled={loadingAllRecentBookings}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#7c1527]/30 bg-white py-2 text-[12px] font-semibold text-[#7c1527] shadow-sm transition-colors hover:bg-[#faf6f1] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {loadingAllRecentBookings ? (
-                      <>
-                        <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                          <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
-                        </svg>
-                        Loading…
-                      </>
-                    ) : (
-                      "Load more"
-                    )}
-                  </button>
-                )}
-            </div>
-          )}
+                    </button>
+                  );
+                })}
+                {!recentBookingsExpanded &&
+                  recentBookings.length >= RECENT_BOOKINGS_PREVIEW_LIMIT && (
+                    <button
+                      type="button"
+                      onClick={loadAllRecentBookings}
+                      disabled={loadingAllRecentBookings}
+                      className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#7c1527]/30 bg-white py-2 text-[12px] font-semibold text-[#7c1527] shadow-sm transition-colors hover:bg-[#faf6f1] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {loadingAllRecentBookings ? (
+                        <>
+                          <svg
+                            className="h-3.5 w-3.5 animate-spin"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                            />
+                            <path
+                              className="opacity-90"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"
+                            />
+                          </svg>
+                          Loading…
+                        </>
+                      ) : (
+                        "Load more"
+                      )}
+                    </button>
+                  )}
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -1798,7 +2100,12 @@ export default function PosPortalPage() {
         <motion.div
           initial={{ opacity: 0, y: 40, rotateX: 12 }}
           animate={{ opacity: 1, y: 0, rotateX: 0 }}
-          transition={{ type: "spring", stiffness: 220, damping: 24, delay: 0.06 }}
+          transition={{
+            type: "spring",
+            stiffness: 220,
+            damping: 24,
+            delay: 0.06,
+          }}
           className={`relative order-2 flex min-h-[22rem] w-full min-w-0 flex-col ${POS_PANEL} bg-white md:order-3 md:col-span-2 lg:order-none lg:col-span-1 lg:h-full lg:min-h-0`}
         >
           <div className="shrink-0 space-y-2 p-3 pb-2">
@@ -1827,33 +2134,40 @@ export default function PosPortalPage() {
               {categories.map((c) => {
                 const catImg = resolveImageUrl(c.image);
                 return (
-                <button
-                  key={c._id}
-                  onClick={() => {
-                    setSelectedCategoryId(c._id);
-                    setActiveFolder(null);
-                  }}
-                  className={`inline-flex h-11 shrink-0 items-center gap-2.5 rounded-xl border py-1 pl-1.5 pr-3.5 text-[12.5px] font-medium shadow-sm transition-[box-shadow,background-color,color,border-color] duration-200 hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.4)] sm:h-12 ${
-                    selectedCategoryId === c._id ? POS_BTN_ON : POS_BTN_OFF
-                  }`}
-                >
-                  {catImg ? (
-                    <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md ring-1 ring-black/10">
-                      <img
-                        src={catImg}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    </span>
-                  ) : null}
-                  {c.name} ({c.count})
-                </button>
+                  <button
+                    key={c._id}
+                    onClick={() => {
+                      setSelectedCategoryId(c._id);
+                      setActiveFolder(null);
+                    }}
+                    className={`inline-flex h-11 shrink-0 items-center gap-2.5 rounded-xl border py-1 pl-1.5 pr-3.5 text-[12.5px] font-medium shadow-sm transition-[box-shadow,background-color,color,border-color] duration-200 hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.4)] sm:h-12 ${
+                      selectedCategoryId === c._id ? POS_BTN_ON : POS_BTN_OFF
+                    }`}
+                  >
+                    {catImg ? (
+                      <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md ring-1 ring-black/10">
+                        <img
+                          src={catImg}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      </span>
+                    ) : null}
+                    {c.name} ({c.count})
+                  </button>
                 );
               })}
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 pt-3">
+          <div
+            className="flex min-h-0 flex-1 flex-col overflow-visible p-4 pt-3 transition-colors duration-300"
+            style={{
+              backgroundColor: selectedCategory?.color
+                ? `${selectedCategory.color}18`
+                : "transparent",
+            }}
+          >
             {catalogueLoading && (
               <div className="flex justify-center py-10">
                 <EmblemLoader size="md" label="Loading catalogue…" />
@@ -1948,7 +2262,12 @@ export default function PosPortalPage() {
         <motion.div
           initial={{ opacity: 0, x: 48, rotateY: -14 }}
           animate={{ opacity: 1, x: 0, rotateY: 0 }}
-          transition={{ type: "spring", stiffness: 220, damping: 24, delay: 0.12 }}
+          transition={{
+            type: "spring",
+            stiffness: 220,
+            damping: 24,
+            delay: 0.12,
+          }}
           className={`relative order-3 flex min-h-[240px] max-h-[min(50vh,28rem)] w-full flex-col ${POS_PANEL} md:order-2 md:col-start-2 md:row-start-1 md:max-h-[min(50vh,28rem)] lg:order-none lg:col-start-auto lg:row-start-auto lg:h-full lg:max-h-none lg:min-h-0`}
         >
           <SectionPhotoBg mirror />
@@ -2082,11 +2401,15 @@ export default function PosPortalPage() {
         amount={paynowQr?.amount ?? 0}
         qrImage={paynowQr?.qrImage ?? ""}
         onPoll={async () => {
-          const res = await api.get<ApiEnvelope<OrderStatusResult>>(`/pos/booking/orders/${paynowQr?.orderId}/status`);
+          const res = await api.get<ApiEnvelope<OrderStatusResult>>(
+            `/pos/booking/orders/${paynowQr?.orderId}/status`,
+          );
           const data = unwrap(res);
           return { status: data.status, data };
         }}
-        onConfirmed={(data) => handlePaynowConfirmed(data as BookingConfirmation)}
+        onConfirmed={(data) =>
+          handlePaynowConfirmed(data as BookingConfirmation)
+        }
         onCancel={cancelPaynowQr}
       />
 
@@ -2095,7 +2418,9 @@ export default function PosPortalPage() {
         referenceId={netsPayment?.referenceId ?? ""}
         amount={netsPayment?.amount ?? 0}
         onPoll={async () => {
-          const res = await api.get<ApiEnvelope<OrderStatusResult>>(`/pos/booking/orders/${netsPayment?.orderId}/status`);
+          const res = await api.get<ApiEnvelope<OrderStatusResult>>(
+            `/pos/booking/orders/${netsPayment?.orderId}/status`,
+          );
           const data = unwrap(res);
           return { status: data.status, data };
         }}
@@ -2120,11 +2445,15 @@ export default function PosPortalPage() {
         referenceId={creditCardPayment?.referenceId ?? ""}
         amount={creditCardPayment?.amount ?? 0}
         onPoll={async () => {
-          const res = await api.get<ApiEnvelope<OrderStatusResult>>(`/pos/booking/orders/${creditCardPayment?.orderId}/status`);
+          const res = await api.get<ApiEnvelope<OrderStatusResult>>(
+            `/pos/booking/orders/${creditCardPayment?.orderId}/status`,
+          );
           const data = unwrap(res);
           return { status: data.status, data };
         }}
-        onConfirmed={(data) => handleCreditCardConfirmed(data as BookingConfirmation)}
+        onConfirmed={(data) =>
+          handleCreditCardConfirmed(data as BookingConfirmation)
+        }
         onCancel={cancelCreditCardPayment}
         startInManualMode={!!creditCardPayment?.manual}
         onManualConfirm={async (transactionRefNo) => {
@@ -2153,7 +2482,9 @@ export default function PosPortalPage() {
         booking={viewingRecentBooking}
         loading={recheckingCart}
         onClose={() => setViewingRecentBooking(null)}
-        onAddToCart={() => viewingRecentBooking && addRecentBookingToCart(viewingRecentBooking)}
+        onAddToCart={() =>
+          viewingRecentBooking && addRecentBookingToCart(viewingRecentBooking)
+        }
       />
 
       <UnavailableLinesDialog
@@ -2191,8 +2522,15 @@ export default function PosPortalPage() {
         onConfirm={confirmAddToCart}
       />
 
-      <AddedToCartPopup notice={cartNotice} onClear={() => setCartNotice(null)} />
-      <EmblemLoaderOverlay show={bookingLoading} label="Confirming payment…" className="z-[75]" />
+      <AddedToCartPopup
+        notice={cartNotice}
+        onClear={() => setCartNotice(null)}
+      />
+      <EmblemLoaderOverlay
+        show={bookingLoading}
+        label="Confirming payment…"
+        className="z-[75]"
+      />
     </PosShell>
   );
 }
@@ -2248,10 +2586,7 @@ function PosShell({
     <div className="pos-flame-canvas relative flex h-screen w-full flex-col overflow-hidden">
       <AnimatePresence>{signingOut && <SignOutOverlay />}</AnimatePresence>
       <NetsStatusWidget />
-      <div
-        aria-hidden="true"
-        className="h-1.5 shrink-0 bg-dark-orange"
-      />
+      <div aria-hidden="true" className="h-1.5 shrink-0 bg-dark-orange" />
       {/* auto/1fr/auto, not 1fr/auto/1fr — the logo and the clock+profile
           block each take exactly their own content width (they were never
           going to match each other), and the flexible track goes entirely
@@ -2346,7 +2681,9 @@ function PosShell({
               New Transaction
             </FlameActionButton>
           )}
-          {displayCode !== undefined && <PosCustomerDisplayDock code={displayCode} error={displayError} />}
+          {displayCode !== undefined && (
+            <PosCustomerDisplayDock code={displayCode} error={displayError} />
+          )}
         </div>
 
         <div className="hidden min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3 lg:flex">
@@ -2551,26 +2888,164 @@ function PanelGlow() {
 }
 
 const POS_SPARKS = [
-  { lx: "6%", ly: "94%", tx: "28vw", ty: "-62vh", c: "#ffd23f", sz: "7px", delay: "0s", dur: "1.15s" },
-  { lx: "18%", ly: "96%", tx: "18vw", ty: "-58vh", c: "#ff7a2e", sz: "5px", delay: "0.12s", dur: "1.05s" },
-  { lx: "32%", ly: "98%", tx: "8vw", ty: "-64vh", c: "#fff6d6", sz: "6px", delay: "0.22s", dur: "1.25s" },
-  { lx: "48%", ly: "97%", tx: "-4vw", ty: "-66vh", c: "#ffc36b", sz: "8px", delay: "0.08s", dur: "1.1s" },
-  { lx: "62%", ly: "95%", tx: "-16vw", ty: "-60vh", c: "#ff7a2e", sz: "5px", delay: "0.28s", dur: "1.2s" },
-  { lx: "78%", ly: "96%", tx: "-26vw", ty: "-63vh", c: "#ffd23f", sz: "7px", delay: "0.16s", dur: "1.08s" },
-  { lx: "90%", ly: "93%", tx: "-34vw", ty: "-55vh", c: "#fff", sz: "4px", delay: "0.34s", dur: "0.95s" },
-  { lx: "2%", ly: "70%", tx: "36vw", ty: "-28vh", c: "#ff9d42", sz: "6px", delay: "0.4s", dur: "1.3s" },
-  { lx: "96%", ly: "68%", tx: "-38vw", ty: "-24vh", c: "#ffd23f", sz: "6px", delay: "0.18s", dur: "1.18s" },
-  { lx: "10%", ly: "40%", tx: "22vw", ty: "18vh", c: "#fff6d6", sz: "4px", delay: "0.5s", dur: "1.4s" },
-  { lx: "88%", ly: "38%", tx: "-20vw", ty: "16vh", c: "#ff7a2e", sz: "5px", delay: "0.26s", dur: "1.22s" },
-  { lx: "24%", ly: "8%", tx: "10vw", ty: "42vh", c: "#ffd23f", sz: "5px", delay: "0.44s", dur: "1.12s" },
-  { lx: "70%", ly: "6%", tx: "-12vw", ty: "46vh", c: "#ffc36b", sz: "6px", delay: "0.1s", dur: "1.28s" },
-  { lx: "42%", ly: "4%", tx: "2vw", ty: "50vh", c: "#fff", sz: "4px", delay: "0.36s", dur: "1.06s" },
-  { lx: "55%", ly: "92%", tx: "-8vw", ty: "-48vh", c: "#b3273f", sz: "5px", delay: "0.2s", dur: "1.16s" },
+  {
+    lx: "6%",
+    ly: "94%",
+    tx: "28vw",
+    ty: "-62vh",
+    c: "#ffd23f",
+    sz: "7px",
+    delay: "0s",
+    dur: "1.15s",
+  },
+  {
+    lx: "18%",
+    ly: "96%",
+    tx: "18vw",
+    ty: "-58vh",
+    c: "#ff7a2e",
+    sz: "5px",
+    delay: "0.12s",
+    dur: "1.05s",
+  },
+  {
+    lx: "32%",
+    ly: "98%",
+    tx: "8vw",
+    ty: "-64vh",
+    c: "#fff6d6",
+    sz: "6px",
+    delay: "0.22s",
+    dur: "1.25s",
+  },
+  {
+    lx: "48%",
+    ly: "97%",
+    tx: "-4vw",
+    ty: "-66vh",
+    c: "#ffc36b",
+    sz: "8px",
+    delay: "0.08s",
+    dur: "1.1s",
+  },
+  {
+    lx: "62%",
+    ly: "95%",
+    tx: "-16vw",
+    ty: "-60vh",
+    c: "#ff7a2e",
+    sz: "5px",
+    delay: "0.28s",
+    dur: "1.2s",
+  },
+  {
+    lx: "78%",
+    ly: "96%",
+    tx: "-26vw",
+    ty: "-63vh",
+    c: "#ffd23f",
+    sz: "7px",
+    delay: "0.16s",
+    dur: "1.08s",
+  },
+  {
+    lx: "90%",
+    ly: "93%",
+    tx: "-34vw",
+    ty: "-55vh",
+    c: "#fff",
+    sz: "4px",
+    delay: "0.34s",
+    dur: "0.95s",
+  },
+  {
+    lx: "2%",
+    ly: "70%",
+    tx: "36vw",
+    ty: "-28vh",
+    c: "#ff9d42",
+    sz: "6px",
+    delay: "0.4s",
+    dur: "1.3s",
+  },
+  {
+    lx: "96%",
+    ly: "68%",
+    tx: "-38vw",
+    ty: "-24vh",
+    c: "#ffd23f",
+    sz: "6px",
+    delay: "0.18s",
+    dur: "1.18s",
+  },
+  {
+    lx: "10%",
+    ly: "40%",
+    tx: "22vw",
+    ty: "18vh",
+    c: "#fff6d6",
+    sz: "4px",
+    delay: "0.5s",
+    dur: "1.4s",
+  },
+  {
+    lx: "88%",
+    ly: "38%",
+    tx: "-20vw",
+    ty: "16vh",
+    c: "#ff7a2e",
+    sz: "5px",
+    delay: "0.26s",
+    dur: "1.22s",
+  },
+  {
+    lx: "24%",
+    ly: "8%",
+    tx: "10vw",
+    ty: "42vh",
+    c: "#ffd23f",
+    sz: "5px",
+    delay: "0.44s",
+    dur: "1.12s",
+  },
+  {
+    lx: "70%",
+    ly: "6%",
+    tx: "-12vw",
+    ty: "46vh",
+    c: "#ffc36b",
+    sz: "6px",
+    delay: "0.1s",
+    dur: "1.28s",
+  },
+  {
+    lx: "42%",
+    ly: "4%",
+    tx: "2vw",
+    ty: "50vh",
+    c: "#fff",
+    sz: "4px",
+    delay: "0.36s",
+    dur: "1.06s",
+  },
+  {
+    lx: "55%",
+    ly: "92%",
+    tx: "-8vw",
+    ty: "-48vh",
+    c: "#b3273f",
+    sz: "5px",
+    delay: "0.2s",
+    dur: "1.16s",
+  },
 ] as const;
 
 function PosSparkField() {
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+    >
       {POS_SPARKS.map((s, i) => (
         <span
           key={i}
@@ -2600,6 +3075,11 @@ function PosFlipModal({
   panelClassName,
   tone = "default",
   motion: motionStyle = "flip",
+  // Every POS popup opens instantly by default — the flip/fade/scale entrance
+  // was slowing down a counter where staff open and close these dozens of
+  // times an hour. Only the payment-confirmation popup (PaymentRecordedModal)
+  // opts back in, since that one moment is worth the extra beat.
+  animated = false,
   children,
 }: {
   open: boolean;
@@ -2607,6 +3087,7 @@ function PosFlipModal({
   panelClassName: string;
   tone?: "default" | "gold";
   motion?: "flip" | "soft";
+  animated?: boolean;
   children: React.ReactNode;
 }) {
   const reduce = useReducedMotion();
@@ -2619,8 +3100,12 @@ function PosFlipModal({
     };
   }, [open]);
   const gold = tone === "gold";
-  const flipIn = motionStyle !== "soft" && !reduce;
+  const flipIn = animated && motionStyle !== "soft" && !reduce;
   const ease = [0.22, 1, 0.36, 1] as const;
+  const transition = animated
+    ? { duration: reduce ? 0.16 : 0.22, ease }
+    : { duration: 0 };
+  const backdropTransition = animated ? { duration: 0.2 } : { duration: 0 };
 
   return (
     <AnimatePresence>
@@ -2628,10 +3113,10 @@ function PosFlipModal({
         <motion.div
           key="pos-modal"
           className={`fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 ${flipIn ? "[perspective:1600px]" : ""}`}
-          initial={{ opacity: 0 }}
+          initial={animated ? { opacity: 0 } : false}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          transition={backdropTransition}
         >
           <button
             type="button"
@@ -2642,17 +3127,29 @@ function PosFlipModal({
           {flipIn && <PosSparkField />}
           {gold && (
             <>
-              <span aria-hidden="true" className="pos-gold-ring pointer-events-none absolute left-1/2 top-[18%] h-24 w-24 -translate-x-1/2 rounded-full border-2 border-gold-400/70" />
-              <span aria-hidden="true" className="pos-gold-ring pointer-events-none absolute left-1/2 top-[18%] h-24 w-24 -translate-x-1/2 rounded-full border border-flame-400/50 [animation-delay:0.45s]" />
+              <span
+                aria-hidden="true"
+                className="pos-gold-ring pointer-events-none absolute left-1/2 top-[18%] h-24 w-24 -translate-x-1/2 rounded-full border-2 border-gold-400/70"
+              />
+              <span
+                aria-hidden="true"
+                className="pos-gold-ring pointer-events-none absolute left-1/2 top-[18%] h-24 w-24 -translate-x-1/2 rounded-full border border-flame-400/50 [animation-delay:0.45s]"
+              />
             </>
           )}
           <motion.div
             role="dialog"
             aria-modal="true"
-            initial={flipIn ? { opacity: 1 } : { opacity: 0, y: 14, scale: 0.97 }}
+            initial={
+              !animated
+                ? false
+                : flipIn
+                  ? { opacity: 1 }
+                  : { opacity: 0, y: 14, scale: 0.97 }
+            }
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
-            transition={{ duration: reduce ? 0.16 : 0.22, ease }}
+            transition={transition}
             onClick={(e) => e.stopPropagation()}
             className={`relative z-10 max-h-[calc(100dvh-1.5rem)] ${flipIn ? "ssd-flip-in" : ""} ${panelClassName}`}
           >
@@ -2668,20 +3165,16 @@ function PosFlipModal({
   );
 }
 
-const SSD_CONFETTI = [
-  { color: "#fff", tx: "-82px", ty: "-68px", r: "45deg", size: "9px", round: false },
-  { color: "#fcd34d", tx: "75px", ty: "-78px", r: "-60deg", size: "7px", round: true },
-  { color: "#ffe9a8", tx: "-95px", ty: "-28px", r: "120deg", size: "8px", round: false },
-  { color: "#fff", tx: "88px", ty: "-42px", r: "-90deg", size: "6px", round: true },
-  { color: "#d4af37", tx: "-65px", ty: "58px", r: "200deg", size: "10px", round: false },
-  { color: "#fff", tx: "92px", ty: "50px", r: "-150deg", size: "7px", round: true },
-  { color: "#fcd34d", tx: "-28px", ty: "85px", r: "80deg", size: "9px", round: false },
-  { color: "#ffc98f", tx: "42px", ty: "90px", r: "-30deg", size: "8px", round: true },
-];
-
 function GoldLeaf({ className = "" }: { className?: string }) {
   return (
-    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
       <path
         d="M12 3c4.2 2.2 7 6.2 7 11.2-3.8-.4-7-2.8-8.6-6.2C8.8 11.4 5.6 13.8 1.8 14.2 1.8 9.2 4.6 5.2 8.8 3L12 21"
         stroke="#ffe082"
@@ -2701,7 +3194,10 @@ function AddedToCartPopup({
 }) {
   useEffect(() => {
     if (!notice) return;
-    const t = window.setTimeout(onClear, 1400);
+    // Quick flash, not a screen to read — the popup itself opens instantly
+    // (no entrance animation), so it only needs to stay up long enough to
+    // register before the counter moves on to the next item.
+    const t = window.setTimeout(onClear, 300);
     return () => window.clearTimeout(t);
   }, [notice, onClear]);
 
@@ -2710,71 +3206,48 @@ function AddedToCartPopup({
       {notice && (
         <motion.div
           key={`${notice.kind}-${notice.name}`}
-          className="fixed inset-0 z-[70] flex items-center justify-center p-4 [perspective:1200px]"
-          initial={{ opacity: 0 }}
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+          initial={false}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.22 }}
+          exit={{ opacity: 1 }}
+          transition={{ duration: 0 }}
         >
           <motion.div
             className="absolute inset-0 bg-[#1a140c]/55 backdrop-blur-[14px]"
             onClick={onClear}
-            initial={{ opacity: 0 }}
+            initial={false}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 1 }}
+            transition={{ duration: 0 }}
           />
           <motion.div
             role="status"
             onClick={(e) => e.stopPropagation()}
-            initial={{ opacity: 1 }}
+            initial={false}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.98 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="ssd-flip-in relative z-10 w-full max-w-[22.5rem] overflow-hidden rounded-[26px] border border-[#ffd54a]/80 bg-[#fffdf8] shadow-[0_24px_60px_rgba(212,160,23,0.38)]"
+            exit={{ opacity: 1 }}
+            transition={{ duration: 0 }}
+            className="relative z-10 w-full max-w-[22.5rem] overflow-hidden rounded-[26px] border border-[#ffd54a]/80 bg-[#fffdf8] shadow-[0_24px_60px_rgba(212,160,23,0.38)]"
           >
             <div className="relative px-6 pb-4 pt-7 text-center">
-              <div className="pointer-events-none absolute left-1/2 top-11">
-                {SSD_CONFETTI.slice(0, 8).map((c, i) => (
-                  <span
-                    key={i}
-                    className="absolute"
-                    style={
-                      {
-                        background: i % 2 === 0 ? "#d4af37" : "#f6e59b",
-                        width: c.size,
-                        height: c.size,
-                        borderRadius: "50%",
-                        animation: `ssd-sc-conf 1s ease-out ${0.22 + i * 0.03}s both`,
-                        "--tx": c.tx,
-                        "--ty": c.ty,
-                        "--tr": c.r,
-                      } as CSSProperties
-                    }
-                  />
-                ))}
-              </div>
               <div className="relative mx-auto mb-4 flex h-[4.75rem] w-[4.75rem] items-center justify-center">
-                <span
-                  className="absolute inset-[-8px] rounded-full border border-[#ffd54a]/70"
-                  style={{ animation: "ssd-sc-ring 1.05s ease-out 0.2s both" }}
-                />
-                <span
-                  className="ssd-cart-tick relative z-10 flex h-[4.75rem] w-[4.75rem] items-center justify-center rounded-full border border-[#ffe082]"
-                  style={{
-                    animation:
-                      "ssd-sc-check-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.12s both, ssd-tick-glow 2.2s ease-in-out 0.6s infinite",
-                  }}
-                >
+                <span className="absolute inset-[-8px] rounded-full border border-[#ffd54a]/70" />
+                <span className="ssd-cart-tick relative z-10 flex h-[4.75rem] w-[4.75rem] items-center justify-center rounded-full border border-[#ffe082]">
                   <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
                     <defs>
-                      <linearGradient id="ssdCartGoldStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <linearGradient
+                        id="ssdCartGoldStroke"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="100%"
+                      >
                         <stop offset="0%" stopColor="#fff8d0" />
                         <stop offset="40%" stopColor="#ffd54a" />
                         <stop offset="100%" stopColor="#e6b422" />
                       </linearGradient>
                     </defs>
                     <polyline
-                      className="ssd-sc-chk"
                       points="20 6 9 17 4 12"
                       stroke="url(#ssdCartGoldStroke)"
                       strokeWidth="2.8"
@@ -2784,24 +3257,41 @@ function AddedToCartPopup({
                   </svg>
                 </span>
               </div>
-              <h3
-                className="relative font-display text-[22px] font-bold leading-snug text-[#d4a017]"
-                style={{ animation: "ssd-sc-title 0.45s ease 0.22s both" }}
-              >
-                {notice.kind === "updated" ? "Cart updated" : "Successfully added to cart"}
+              <h3 className="relative font-display text-[22px] font-bold leading-snug text-[#d4a017]">
+                {notice.kind === "updated"
+                  ? "Cart updated"
+                  : "Successfully added to cart"}
               </h3>
               <div className="relative mx-auto mt-3 mb-1 flex h-4 max-w-[13rem] items-center gap-2">
                 <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[#ffd54a]" />
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="#ffd54a" aria-hidden>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="#ffd54a"
+                  aria-hidden
+                >
                   <path d="M12 2l1.8 5.4H19l-4.2 3.2 1.6 5.4L12 13.2 7.6 16l1.6-5.4L5 7.4h5.2L12 2z" />
                 </svg>
                 <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[#ffd54a]" />
               </div>
             </div>
             <div className="relative">
-              <svg className="block w-full" viewBox="0 0 400 56" preserveAspectRatio="none" height="44" aria-hidden>
-                <path d="M0,22 C80,4 130,40 200,18 C275,-2 330,32 400,12 L400,56 L0,56 Z" fill="#ffd54a" />
-                <path d="M0,30 C95,10 155,48 230,26 C300,8 348,38 400,22 L400,56 L0,56 Z" fill="#e6b422" />
+              <svg
+                className="block w-full"
+                viewBox="0 0 400 56"
+                preserveAspectRatio="none"
+                height="44"
+                aria-hidden
+              >
+                <path
+                  d="M0,22 C80,4 130,40 200,18 C275,-2 330,32 400,12 L400,56 L0,56 Z"
+                  fill="#ffd54a"
+                />
+                <path
+                  d="M0,30 C95,10 155,48 230,26 C300,8 348,38 400,22 L400,56 L0,56 Z"
+                  fill="#e6b422"
+                />
               </svg>
               <div className="flex items-center justify-center gap-3 bg-[#e6b422] px-5 pb-5 pt-1">
                 <GoldLeaf />
@@ -2822,7 +3312,14 @@ function AddedToCartPopup({
 // Each offering "type" gets its own accent throughout the catalogue grid —
 // folder = crimson, item = flame orange, service = gold — so the three read
 // as genuinely distinct families rather than the same orange tinted three ways.
-type IconColor = "flame" | "crimson" | "gold" | "white" | "brown" | "darkPink" | "darkGreen";
+type IconColor =
+  | "flame"
+  | "crimson"
+  | "gold"
+  | "white"
+  | "brown"
+  | "darkPink"
+  | "darkGreen";
 const ICON_COLOR_CLASS: Record<IconColor, string> = {
   flame: "text-flame-600",
   crimson: "text-[#E11D2E]",
@@ -3016,7 +3513,11 @@ function PaynowIcon({ className = "" }: { className?: string }) {
       <rect x="3" y="3" width="6.5" height="6.5" rx="1.2" />
       <rect x="14.5" y="3" width="6.5" height="6.5" rx="1.2" />
       <rect x="3" y="14.5" width="6.5" height="6.5" rx="1.2" />
-      <path d="M14.5 14.5h3v3h-3zM20 14.5v3M17.5 20v1M14.5 20h1" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M14.5 14.5h3v3h-3zM20 14.5v3M17.5 20v1M14.5 20h1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -3032,9 +3533,19 @@ function NetsIcon({ className = "" }: { className?: string }) {
       stroke="currentColor"
       strokeWidth="1.6"
     >
-      <rect x="2.5" y="5" width="15" height="14" rx="2" strokeLinejoin="round" />
+      <rect
+        x="2.5"
+        y="5"
+        width="15"
+        height="14"
+        rx="2"
+        strokeLinejoin="round"
+      />
       <path d="M2.5 9.5h15" strokeLinecap="round" />
-      <path d="M19.5 8.5a5 5 0 0 1 0 7M22 6.5a8 8 0 0 1 0 11" strokeLinecap="round" />
+      <path
+        d="M19.5 8.5a5 5 0 0 1 0 7M22 6.5a8 8 0 0 1 0 11"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -3096,7 +3607,9 @@ function ProceedPaymentModal({
   // transaction-ref-number form. See handleConfirmBooking's `manual` opt.
   onManualConfirm: () => void;
 }) {
-  const isTerminalMode = modeName.toLowerCase() === "nets" || modeName.toLowerCase() === "credit card";
+  const isTerminalMode =
+    modeName.toLowerCase() === "nets" ||
+    modeName.toLowerCase() === "credit card";
   return (
     <PosFlipModal
       open={open}
@@ -3109,7 +3622,9 @@ function ProceedPaymentModal({
           <h2 className="font-accent text-[17px] font-extrabold tracking-tight text-ink-100">
             Collect Payment
           </h2>
-          <p className="text-[12px] text-ink-500">Choose a method and amount to confirm this booking.</p>
+          <p className="text-[12px] text-ink-500">
+            Choose a method and amount to confirm this booking.
+          </p>
         </div>
         <button
           type="button"
@@ -3117,7 +3632,13 @@ function ProceedPaymentModal({
           aria-label="Close"
           className="rounded-lg p-1.5 text-ink-500 hover:bg-ivory-100"
         >
-          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+          <svg
+            className="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          >
             <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
           </svg>
         </button>
@@ -3134,7 +3655,12 @@ function ProceedPaymentModal({
           <span className="text-[#7c1527]">{formatCurrency(total)}</span>
         </div>
 
-        <PaymentModeBoxes dense modes={modes} value={modeId} onChange={onModeChange} />
+        <PaymentModeBoxes
+          dense
+          modes={modes}
+          value={modeId}
+          onChange={onModeChange}
+        />
 
         <DivineInput
           staticLabel
@@ -3154,7 +3680,9 @@ function ProceedPaymentModal({
         />
         <div
           className={`flex items-center justify-between rounded-lg px-3 py-2 text-[11.5px] ${
-            isPartial ? "bg-crimson-500/10 text-crimson-500" : "bg-emerald-500/10 text-emerald-700"
+            isPartial
+              ? "bg-crimson-500/10 text-crimson-500"
+              : "bg-emerald-500/10 text-emerald-700"
           }`}
         >
           <span>Balance Amount (after this payment)</span>
@@ -3162,7 +3690,8 @@ function ProceedPaymentModal({
         </div>
         {isPartial && (
           <p className="text-[10.5px] text-ink-500">
-            Booking confirms now for the full order — collect the rest anytime from POS Transactions.
+            Booking confirms now for the full order — collect the rest anytime
+            from POS Transactions.
           </p>
         )}
       </div>
@@ -3248,7 +3777,10 @@ function PaynowQrModal({
   referenceId: string;
   amount: number;
   qrImage: string;
-  onPoll: () => Promise<{ status: "pending" | "confirmed" | "cancelled" | "expired"; data?: unknown }>;
+  onPoll: () => Promise<{
+    status: "pending" | "confirmed" | "cancelled" | "expired";
+    data?: unknown;
+  }>;
   onConfirmed: (data: unknown) => void;
   onCancel: () => void;
 }) {
@@ -3284,7 +3816,8 @@ function PaynowQrModal({
       try {
         result = await onPoll();
       } catch {
-        if (!cancelled) timeoutId = window.setTimeout(tick, PAYNOW_POLL_INTERVAL_MS);
+        if (!cancelled)
+          timeoutId = window.setTimeout(tick, PAYNOW_POLL_INTERVAL_MS);
         return;
       }
       if (cancelled) return;
@@ -3297,10 +3830,13 @@ function PaynowQrModal({
         return;
       }
       if (result.status === "expired") {
-        setPollError("The payment window expired — close this and start again.");
+        setPollError(
+          "The payment window expired — close this and start again.",
+        );
         return;
       }
-      if (!cancelled) timeoutId = window.setTimeout(tick, PAYNOW_POLL_INTERVAL_MS);
+      if (!cancelled)
+        timeoutId = window.setTimeout(tick, PAYNOW_POLL_INTERVAL_MS);
     }
 
     timeoutId = window.setTimeout(tick, PAYNOW_POLL_INTERVAL_MS);
@@ -3321,7 +3857,9 @@ function PaynowQrModal({
       tone="gold"
       panelClassName="flex w-full max-w-sm flex-col items-center overflow-hidden rounded-2xl border border-white/70 bg-white px-6 py-6 text-center shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]"
     >
-      <h2 className="font-accent text-[17px] font-extrabold tracking-tight text-ink-100">Scan to Pay with PayNow</h2>
+      <h2 className="font-accent text-[17px] font-extrabold tracking-tight text-ink-100">
+        Scan to Pay with PayNow
+      </h2>
       <p className="mt-1 text-[12px] text-ink-500">Reference {referenceId}</p>
 
       {qrImage ? (
@@ -3336,7 +3874,9 @@ function PaynowQrModal({
         </div>
       )}
 
-      <p className="mt-4 text-[22px] font-extrabold text-[#7c1527]">{formatCurrency(amount)}</p>
+      <p className="mt-4 text-[22px] font-extrabold text-[#7c1527]">
+        {formatCurrency(amount)}
+      </p>
 
       {pollError ? (
         <p className="mt-3 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-[12px] text-crimson-500">
@@ -3405,7 +3945,10 @@ function NetsPaymentModal({
   kind?: "NETS" | "CREDIT_CARD";
   referenceId: string;
   amount: number;
-  onPoll: () => Promise<{ status: "pending" | "confirmed" | "cancelled" | "expired"; data?: unknown }>;
+  onPoll: () => Promise<{
+    status: "pending" | "confirmed" | "cancelled" | "expired";
+    data?: unknown;
+  }>;
   onConfirmed: (data: unknown) => void;
   onCancel: () => void;
   // Fallback for when the terminal's own automatic callback hasn't landed
@@ -3427,8 +3970,12 @@ function NetsPaymentModal({
   // form below instead of narrating an auto flow that was never started.
   startInManualMode?: boolean;
 }) {
-  const [phase, setPhase] = useState<"sending" | "initiated" | "verifying" | "confirming" | "failed">("sending");
-  const [message, setMessage] = useState("Sending payment request to the terminal…");
+  const [phase, setPhase] = useState<
+    "sending" | "initiated" | "verifying" | "confirming" | "failed"
+  >("sending");
+  const [message, setMessage] = useState(
+    "Sending payment request to the terminal…",
+  );
   const [manualOpen, setManualOpen] = useState(!!startInManualMode);
   const [manualRef, setManualRef] = useState("");
   const [manualSubmitting, setManualSubmitting] = useState(false);
@@ -3450,7 +3997,9 @@ function NetsPaymentModal({
   async function submitManualConfirm() {
     const trimmed = manualRef.trim();
     if (!trimmed) {
-      setManualError("Enter the transaction reference number from the terminal's printed slip.");
+      setManualError(
+        "Enter the transaction reference number from the terminal's printed slip.",
+      );
       return;
     }
     setManualSubmitting(true);
@@ -3471,7 +4020,11 @@ function NetsPaymentModal({
       // already running rather than leaving the form stuck.
       setManualOpen(false);
     } catch (err) {
-      setManualError(err instanceof Error ? err.message : "Could not confirm this payment. Check the reference number and try again.");
+      setManualError(
+        err instanceof Error
+          ? err.message
+          : "Could not confirm this payment. Check the reference number and try again.",
+      );
     } finally {
       setManualSubmitting(false);
     }
@@ -3501,7 +4054,7 @@ function NetsPaymentModal({
         stopped = true;
         setPhase("failed");
         setMessage(
-          "Terminal approved, but SSD-Backend hasn't confirmed the booking after 30 seconds. Check the Nets-Service EXE's log file and SSD-Backend's own console for a request to /payments/nets/callback."
+          "Terminal approved, but SSD-Backend hasn't confirmed the booking after 30 seconds. Check the Nets-Service EXE's log file and SSD-Backend's own console for a request to /payments/nets/callback.",
         );
       }, NETS_CONFIRMING_TIMEOUT_MS);
 
@@ -3510,7 +4063,11 @@ function NetsPaymentModal({
         try {
           result = await onPoll();
         } catch {
-          if (!cancelled && !stopped) pollTimeoutId = window.setTimeout(tick, NETS_STATUS_POLL_INTERVAL_MS);
+          if (!cancelled && !stopped)
+            pollTimeoutId = window.setTimeout(
+              tick,
+              NETS_STATUS_POLL_INTERVAL_MS,
+            );
           return;
         }
         if (cancelled || stopped) return;
@@ -3524,66 +4081,100 @@ function NetsPaymentModal({
           stopped = true;
           window.clearTimeout(confirmingTimeoutId);
           setPhase("failed");
-          setMessage("The order could not be confirmed — it was cancelled or its hold expired. Close this and try again.");
+          setMessage(
+            "The order could not be confirmed — it was cancelled or its hold expired. Close this and try again.",
+          );
           return;
         }
-        if (!cancelled && !stopped) pollTimeoutId = window.setTimeout(tick, NETS_STATUS_POLL_INTERVAL_MS);
+        if (!cancelled && !stopped)
+          pollTimeoutId = window.setTimeout(tick, NETS_STATUS_POLL_INTERVAL_MS);
       }
       tick();
     }
 
-    const offPaymentMessage = netsSocketService.on("PAYMENT_MESSAGE", (data) => {
-      if (cancelled || stopped) return;
-      const payload = data as { status?: string; message?: string; response?: { translated?: { responsetext?: string } } };
-      const normalized = normalizeRealtimeStatus(payload as Record<string, unknown>);
+    const offPaymentMessage = netsSocketService.on(
+      "PAYMENT_MESSAGE",
+      (data) => {
+        if (cancelled || stopped) return;
+        const payload = data as {
+          status?: string;
+          message?: string;
+          response?: { translated?: { responsetext?: string } };
+        };
+        const normalized = normalizeRealtimeStatus(
+          payload as Record<string, unknown>,
+        );
 
-      if (normalized === "online") {
-        // "online" here means the SDK's own SUCCESS/COMPLETED status — see
-        // normalizeRealtimeStatus, which is shared with terminal-connectivity
-        // reporting since the SDK reuses the same status vocabulary.
-        setPhase("confirming");
-        setMessage("Terminal approved — confirming with SSD-Backend…");
-        pollUntilConfirmed();
-        return;
-      }
-      if (payload.status === "INITIATED") {
-        setPhase("initiated");
-        setMessage(payload.message || "Payment initiated — follow the prompts on the terminal.");
-        return;
-      }
-      // The EXE's own nets-service-sdk didn't hear back from the terminal
-      // in time (no ACK, a NACK loop, or no result frame — see the SSD
-      // patch in patches/nets-service-sdk+1.1.21.patch) and is re-querying
-      // it directly (Function 56 "Recovery") for the real outcome before
-      // giving up — the terminal may already have completed the charge
-      // even though the app-level exchange got out of sync. NOT a failure
-      // yet: stay in a waiting state and keep listening for the recovery
-      // query's own follow-up PAYMENT_MESSAGE (a genuine SUCCESS routes
-      // through the "online" branch above; a genuine failure still reaches
-      // the catch-all below).
-      if (payload.status === "UNKNOWN" && (payload as { action?: string }).action === "VERIFYING_STATUS") {
-        setPhase("verifying");
-        setMessage(payload.message || "Terminal didn't confirm in time — verifying the real outcome directly with it. Please wait…");
-        return;
-      }
-      // CANCELLED / TERMINAL_ERROR / RETRY / BACKEND_CONFIRMATION_FAILED / a
-      // SUCCESS that failed the genuine-approval check (see the EXE's
-      // paymentOutcomes.js) — all land here as a stopped, explainable
-      // failure rather than a silent hang. Also stops any poll already in
-      // flight from the "confirming" phase above.
-      stopped = true;
-      window.clearTimeout(confirmingTimeoutId);
-      setPhase("failed");
-      setMessage(payload.message || payload.response?.translated?.responsetext || `Payment ${payload.status?.toLowerCase() || "failed"}.`);
-    });
+        if (normalized === "online") {
+          // "online" here means the SDK's own SUCCESS/COMPLETED status — see
+          // normalizeRealtimeStatus, which is shared with terminal-connectivity
+          // reporting since the SDK reuses the same status vocabulary.
+          setPhase("confirming");
+          setMessage("Terminal approved — confirming with SSD-Backend…");
+          pollUntilConfirmed();
+          return;
+        }
+        if (payload.status === "INITIATED") {
+          setPhase("initiated");
+          setMessage(
+            payload.message ||
+              "Payment initiated — follow the prompts on the terminal.",
+          );
+          return;
+        }
+        // The EXE's own nets-service-sdk didn't hear back from the terminal
+        // in time (no ACK, a NACK loop, or no result frame — see the SSD
+        // patch in patches/nets-service-sdk+1.1.21.patch) and is re-querying
+        // it directly (Function 56 "Recovery") for the real outcome before
+        // giving up — the terminal may already have completed the charge
+        // even though the app-level exchange got out of sync. NOT a failure
+        // yet: stay in a waiting state and keep listening for the recovery
+        // query's own follow-up PAYMENT_MESSAGE (a genuine SUCCESS routes
+        // through the "online" branch above; a genuine failure still reaches
+        // the catch-all below).
+        if (
+          payload.status === "UNKNOWN" &&
+          (payload as { action?: string }).action === "VERIFYING_STATUS"
+        ) {
+          setPhase("verifying");
+          setMessage(
+            payload.message ||
+              "Terminal didn't confirm in time — verifying the real outcome directly with it. Please wait…",
+          );
+          return;
+        }
+        // CANCELLED / TERMINAL_ERROR / RETRY / BACKEND_CONFIRMATION_FAILED / a
+        // SUCCESS that failed the genuine-approval check (see the EXE's
+        // paymentOutcomes.js) — all land here as a stopped, explainable
+        // failure rather than a silent hang. Also stops any poll already in
+        // flight from the "confirming" phase above.
+        stopped = true;
+        window.clearTimeout(confirmingTimeoutId);
+        setPhase("failed");
+        setMessage(
+          payload.message ||
+            payload.response?.translated?.responsetext ||
+            `Payment ${payload.status?.toLowerCase() || "failed"}.`,
+        );
+      },
+    );
 
-    const sendPayment = kind === "CREDIT_CARD" ? netsSocketService.processCreditCardPayment.bind(netsSocketService) : netsSocketService.processNetsPayment.bind(netsSocketService);
+    const sendPayment =
+      kind === "CREDIT_CARD"
+        ? netsSocketService.processCreditCardPayment.bind(netsSocketService)
+        : netsSocketService.processNetsPayment.bind(netsSocketService);
     sendPayment({ orderId: referenceId, amount }, (ack) => {
       if (cancelled || stopped) return;
       if (ack.status !== "success") {
         stopped = true;
         setPhase("failed");
-        setMessage(typeof ack.error === "string" ? ack.error : ack.error?.message || ack.message || `Could not reach the ${kind === "CREDIT_CARD" ? "credit card" : "NETS"} terminal.`);
+        setMessage(
+          typeof ack.error === "string"
+            ? ack.error
+            : ack.error?.message ||
+                ack.message ||
+                `Could not reach the ${kind === "CREDIT_CARD" ? "credit card" : "NETS"} terminal.`,
+        );
       }
     });
 
@@ -3622,7 +4213,9 @@ function NetsPaymentModal({
             </div>
             <div className="mt-1 flex items-center justify-between text-[12px]">
               <span className="text-ink-500">Amount</span>
-              <span className="font-semibold text-[#7c1527]">{formatCurrency(amount)}</span>
+              <span className="font-semibold text-[#7c1527]">
+                {formatCurrency(amount)}
+              </span>
             </div>
           </div>
 
@@ -3630,7 +4223,8 @@ function NetsPaymentModal({
             Transaction Reference No.
           </label>
           <p className="mt-0.5 text-[11px] text-ink-400">
-            From the {kind === "CREDIT_CARD" ? "credit card" : "NETS"} terminal&apos;s printed slip.
+            From the {kind === "CREDIT_CARD" ? "credit card" : "NETS"}{" "}
+            terminal&apos;s printed slip.
           </p>
           <input
             type="text"
@@ -3684,14 +4278,20 @@ function NetsPaymentModal({
             ) : phase === "confirming" || phase === "verifying" ? (
               <EmblemLoader size="sm" label="" />
             ) : (
-              <span className="animate-pulse text-[40px] text-[#7c1527]">💳</span>
+              <span className="animate-pulse text-[40px] text-[#7c1527]">
+                💳
+              </span>
             )}
           </div>
 
-          <p className="mt-4 text-[22px] font-extrabold text-[#7c1527]">{formatCurrency(amount)}</p>
+          <p className="mt-4 text-[22px] font-extrabold text-[#7c1527]">
+            {formatCurrency(amount)}
+          </p>
 
           {isFailed ? (
-            <p className="mt-3 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-[12px] text-crimson-500">{message}</p>
+            <p className="mt-3 rounded-lg border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-[12px] text-crimson-500">
+              {message}
+            </p>
           ) : (
             <p className="mt-3 flex items-center gap-2 text-[12px] text-ink-500">
               <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
@@ -3736,15 +4336,31 @@ function PaymentModeBoxes({
 }) {
   return (
     <div className={`${dense ? "space-y-1" : "space-y-1.5"} text-left`}>
-      <p className={`flex items-center gap-1.5 ${FORM_LABEL} ${dense ? "!mb-1" : ""}`}>
+      <p
+        className={`flex items-center gap-1.5 ${FORM_LABEL} ${dense ? "!mb-1" : ""}`}
+      >
         <CashIcon className="h-3.5 w-3.5" /> Payment Method
       </p>
-      <div className={dense ? "flex flex-wrap gap-1.5" : "grid grid-cols-2 gap-1.5"}>
+      <div
+        className={
+          dense ? "flex flex-wrap gap-1.5" : "grid grid-cols-2 gap-1.5"
+        }
+      >
         {modes.map((m) => {
           const modeKey = m.name.toLowerCase();
-          const isEnabled = modeKey === "cash" || modeKey === "paynow" || modeKey === "nets" || modeKey === "credit card";
+          const isEnabled =
+            modeKey === "cash" ||
+            modeKey === "paynow" ||
+            modeKey === "nets" ||
+            modeKey === "credit card";
           const ModeIcon =
-            modeKey === "paynow" ? PaynowIcon : modeKey === "nets" ? NetsIcon : modeKey === "credit card" ? CreditCardIcon : CashIcon;
+            modeKey === "paynow"
+              ? PaynowIcon
+              : modeKey === "nets"
+                ? NetsIcon
+                : modeKey === "credit card"
+                  ? CreditCardIcon
+                  : CashIcon;
           const selected = isEnabled && value === m._id;
           const tileShape = dense
             ? "flex flex-row items-center gap-1.5 rounded-md px-2.5 py-1.5"
@@ -3759,8 +4375,12 @@ function PaymentModeBoxes({
                 title={`${m.name} isn't available yet`}
                 className={`${tileShape} cursor-not-allowed border-2 border-dashed border-gold-500/20 bg-ivory-50/60 opacity-45`}
               >
-                <span className="text-[11.5px] font-semibold text-ink-300">{m.name}</span>
-                <span className="text-[9px] font-medium text-ink-500">Coming soon</span>
+                <span className="text-[11.5px] font-semibold text-ink-300">
+                  {m.name}
+                </span>
+                <span className="text-[9px] font-medium text-ink-500">
+                  Coming soon
+                </span>
               </button>
             );
           }
@@ -3778,17 +4398,28 @@ function PaymentModeBoxes({
               }`}
             >
               {selected && (
-                <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 overflow-hidden"
+                >
                   <span className="pos-pay-shine" />
                 </span>
               )}
               <motion.span
-                animate={selected ? { rotate: [0, -8, 8, 0], scale: [1, 1.12, 1] } : { rotate: 0, scale: 1 }}
+                animate={
+                  selected
+                    ? { rotate: [0, -8, 8, 0], scale: [1, 1.12, 1] }
+                    : { rotate: 0, scale: 1 }
+                }
                 transition={{ duration: 0.45 }}
               >
-                <ModeIcon className={`h-4 w-4 ${selected ? "text-white" : "text-emerald-600"}`} />
+                <ModeIcon
+                  className={`h-4 w-4 ${selected ? "text-white" : "text-emerald-600"}`}
+                />
               </motion.span>
-              <span className={`relative text-[11.5px] font-semibold ${selected ? "text-white" : "text-ink-100"}`}>
+              <span
+                className={`relative text-[11.5px] font-semibold ${selected ? "text-white" : "text-ink-100"}`}
+              >
                 {m.name}
               </span>
               <AnimatePresence initial={false}>
@@ -3800,8 +4431,18 @@ function PaymentModeBoxes({
                     transition={{ type: "spring", stiffness: 420, damping: 18 }}
                     className="relative flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/25"
                   >
-                    <svg className="h-2.5 w-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5">
-                      <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                    <svg
+                      className="h-2.5 w-2.5 text-white"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3.5"
+                    >
+                      <path
+                        d="M5 13l4 4L19 7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   </motion.span>
                 )}
@@ -3871,6 +4512,7 @@ function CatalogueCard({
   rowLabel,
   extraBadges,
   imageUrl,
+  accentColor,
 }: {
   onClick: () => void;
   disabled?: boolean;
@@ -3882,8 +4524,27 @@ function CatalogueCard({
   rowLabel: string;
   extraBadges?: React.ReactNode;
   imageUrl?: string | null;
+  /** Optional hex/rgb color from the record — overrides the static theme's
+   *  banner, border, and footer pill with the folder's own stored color. */
+  accentColor?: string | null;
 }) {
   const cover = resolveImageUrl(imageUrl);
+
+  // When the folder record carries its own color, derive inline styles for
+  // the banner, border, and footer pill so each sub-category looks distinct.
+  // The body background is a very faint tint (10% opacity) of the same hue.
+  const accentBanner = accentColor
+    ? { backgroundColor: accentColor }
+    : undefined;
+  const accentBorder = accentColor ? { borderColor: accentColor } : undefined;
+  const accentPill = accentColor
+    ? { backgroundColor: `${accentColor}33` }
+    : undefined;
+  const accentPillTxt = accentColor ? { color: accentColor } : undefined;
+  const accentBodyBg = accentColor
+    ? { backgroundColor: `${accentColor}0f` }
+    : undefined;
+
   const bigIcon =
     iconKind === "folder" ? (
       <FolderIcon large color={theme.iconColor} />
@@ -3895,17 +4556,26 @@ function CatalogueCard({
 
   const footer = (
     <div
-      className={`flex w-full min-w-0 items-center justify-between gap-1 rounded-full px-2 py-1 ${theme.rowBg}`}
+      className={`flex w-full min-w-0 items-center justify-between gap-1 rounded-full px-2 py-1 ${accentPill ? "" : theme.rowBg}`}
+      style={accentPill}
     >
       <span className="flex min-w-0 items-center gap-1.5">
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_2px_6px_-2px_rgba(0,0,0,0.2)]">
           {rowIcon}
         </span>
-        <span className={`truncate whitespace-nowrap text-[11px] font-semibold ${theme.rowText}`}>
+        <span
+          className={`truncate whitespace-nowrap text-[11px] font-semibold ${accentPillTxt ? "" : theme.rowText}`}
+          style={accentPillTxt}
+        >
           {rowLabel}
         </span>
       </span>
-      <ChevronIcon className={`-rotate-90 shrink-0 ${theme.rowText}`} />
+      <span
+        style={accentPillTxt}
+        className={`shrink-0 ${accentPillTxt ? "" : theme.rowText}`}
+      >
+        <ChevronIcon className="-rotate-90" />
+      </span>
     </div>
   );
 
@@ -3914,17 +4584,24 @@ function CatalogueCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      whileHover={disabled ? undefined : { y: -4, scale: 1.02 }}
-      whileTap={disabled ? undefined : { scale: 0.98 }}
-      className={`group relative self-start rounded-2xl border-2 ${theme.border} ${theme.bodyBg} text-left shadow-[0_10px_24px_-10px_rgba(0,0,0,0.45)] transition-shadow duration-200 hover:shadow-[0_16px_32px_-12px_rgba(0,0,0,0.5)] disabled:cursor-not-allowed disabled:opacity-60`}
+      whileHover={disabled ? undefined : { y: -4 }}
+      whileTap={disabled ? undefined : { scale: 0.97 }}
+      className={`group relative self-start rounded-2xl border-2 ${accentBorder ? "" : theme.border} ${accentBodyBg ? "" : theme.bodyBg} text-left shadow-[0_10px_24px_-10px_rgba(0,0,0,0.45)] transition-shadow duration-200 hover:shadow-[0_16px_32px_-12px_rgba(0,0,0,0.5)] disabled:cursor-not-allowed disabled:opacity-60`}
+      style={{ ...accentBorder, ...accentBodyBg }}
     >
-      <div className={`flex flex-col overflow-hidden rounded-[14px] ${theme.bodyBg}`}>
+      <div
+        className={`flex flex-col overflow-hidden rounded-[14px] ${accentBodyBg ? "" : theme.bodyBg}`}
+        style={accentBodyBg}
+      >
         {/* Same fixed height and layout position whether or not there's a
             cover photo — an icon-only card and a photo card must come out
             exactly the same total height, so the photo is never allowed to
             grow the banner past this, and the title always lives in the
             text block below rather than overlaid on the photo. */}
-        <div className={`relative h-20 shrink-0 overflow-hidden sm:h-24 md:h-28 ${theme.banner}`}>
+        <div
+          className={`relative h-20 shrink-0 overflow-hidden sm:h-24 md:h-28 lg:h-24 xl:h-28 2xl:h-32 ${accentBanner ? "" : theme.banner}`}
+          style={accentBanner}
+        >
           {cover ? (
             <img
               src={cover}
@@ -3946,12 +4623,12 @@ function CatalogueCard({
         </div>
         <div className="flex flex-col items-start gap-1 px-2.5 py-2">
           <div className="w-full min-w-0">
-            <p className="truncate text-[13.5px] font-bold leading-tight text-ink-100">
-              {title}
-            </p>
             {tamilName && (
-              <p className="truncate text-[10.5px] text-ink-500">{tamilName}</p>
+              <p className="truncate text-[13.5px] font-bold leading-tight text-ink-100">
+                {tamilName}
+              </p>
             )}
+            <p className="truncate text-[10.5px] text-ink-500">{title}</p>
           </div>
           {extraBadges && (
             <div className="flex flex-wrap items-center gap-1.5">
@@ -3984,13 +4661,12 @@ function meaningfulPageSizeOptions(total: number, current: number): number[] {
 }
 
 /**
- * Renders one page of the catalogue — 6 columns, with `pageSize` cards
- * (PAGE_SIZE_OPTIONS) split across rows. At the default 18 (3 rows) that
- * fills the space it's given with no vertical scrolling; a larger size
- * trades that off deliberately — more cards per page, fewer page turns —
- * so the grid scrolls internally instead once it no longer fits. A numbered
- * pager plus a page-size picker sit underneath. Shared by the default,
- * folder, and search views so pagination behaves identically in all three.
+ * Renders one page of the catalogue — auto-fill columns sized at 140 px min,
+ * so the browser packs as many columns as the container allows. With `pageSize`
+ * cards split across rows the grid scrolls internally once it no longer fits.
+ * A numbered pager plus a page-size picker sit underneath. Shared by the
+ * default, folder, and search views so pagination behaves identically in all
+ * three.
  */
 function CatalogueGrid({
   descriptors,
@@ -4031,8 +4707,13 @@ function CatalogueGrid({
       {/* Only the cards scroll — the pager below stays fixed in place
           (not part of this scroll region) rather than sticky-positioned,
           so it's never scrolled out of view regardless of viewport height. */}
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-        <div className="grid content-start auto-rows-auto grid-cols-2 gap-2 sm:gap-2.5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-1 pt-2">
+        <div
+          className="grid content-start auto-rows-auto gap-2 sm:gap-2.5"
+          style={{
+            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+          }}
+        >
           {pageDescriptors.map((d) =>
             d.kind === "folder" ? (
               <CatalogueCard
@@ -4042,9 +4723,12 @@ function CatalogueGrid({
                 title={d.folder.subCategoryName}
                 tamilName={d.folder.subCategoryTamilName ?? undefined}
                 imageUrl={d.folder.image}
+                accentColor={d.folder.color}
                 theme={CATALOGUE_CARD_THEME.folder}
                 rowIcon={
-                  <ListRowIcon className={CATALOGUE_CARD_THEME.folder.rowText} />
+                  <ListRowIcon
+                    className={CATALOGUE_CARD_THEME.folder.rowText}
+                  />
                 }
                 rowLabel={`${d.folder.total} ${d.folder.total === 1 ? "offering" : "offerings"}`}
               />
@@ -4089,7 +4773,10 @@ function CatalogueGrid({
             <DivineListbox
               value={String(pageSize)}
               onChange={(v) => onPageSizeChange(Number(v))}
-              options={meaningfulPageSizeOptions(descriptors.length, pageSize).map((n) => ({
+              options={meaningfulPageSizeOptions(
+                descriptors.length,
+                pageSize,
+              ).map((n) => ({
                 value: String(n),
                 label: `${n} / page`,
               }))}
@@ -4242,7 +4929,7 @@ function AddToCartModal({
   devoteeRows: number;
   onAddDevotee: () => void;
   onRemoveDevotee: (idx: number) => void;
-  devoteeNameSuggestions?: Devotee[];
+  devoteeNameSuggestions?: DevoteeSuggestion[];
   quantity: number;
   onQuantityChange: (v: number) => void;
   total: number;
@@ -4267,10 +4954,15 @@ function AddToCartModal({
 
   // Fills ONE specific devotee row (the one its suggestion chips are
   // rendered under) with a suggested devotee — name AND nakshatra together,
-  // so a repeat visitor doesn't have to re-pick the nakshatra either.
-  function fillDevoteeRow(idx: number, suggestion: Devotee) {
+  // so a repeat visitor doesn't have to re-pick the nakshatra either. Uses
+  // the Tamil name when the suggestion has one (fillName already prefers
+  // it), not the "English / Tamil" text shown on the chip itself.
+  function fillDevoteeRow(idx: number, suggestion: DevoteeSuggestion) {
     const updated = [...devotees];
-    updated[idx] = { name: suggestion.name, nakshatra: suggestion.nakshatra };
+    updated[idx] = {
+      name: suggestion.fillName,
+      nakshatra: suggestion.fillNakshatra,
+    };
     onDevoteesChange(updated);
   }
 
@@ -4282,7 +4974,9 @@ function AddToCartModal({
   // already added to a DIFFERENT row in this same form.
   function suggestionsForRow(rowDevotee: Devotee) {
     if (rowDevotee.name.trim()) return [];
-    return (devoteeNameSuggestions ?? []).filter((s) => !usedDevoteeNames.has(s.name.toLowerCase()));
+    return (devoteeNameSuggestions ?? []).filter(
+      (s) => !usedDevoteeNames.has(s.fillName.toLowerCase()),
+    );
   }
 
   function handleConfirm() {
@@ -4304,12 +4998,9 @@ function AddToCartModal({
       onBackdrop={onCancel}
       panelClassName="flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]"
     >
-          {offering && (
-          <>
-          <div
-            aria-hidden="true"
-            className="h-1.5 shrink-0 bg-dark-orange"
-          />
+      {offering && (
+        <>
+          <div aria-hidden="true" className="h-1.5 shrink-0 bg-dark-orange" />
           <div className="flex items-center justify-between border-b border-gold-500/10 px-5 py-2">
             <div className="min-w-0">
               {isEditing && (
@@ -4321,7 +5012,9 @@ function AddToCartModal({
                 {offering.name}
               </h2>
               {offering.tamilName && (
-                <p className="truncate text-[12px] text-ink-500">{offering.tamilName}</p>
+                <p className="truncate text-[12px] text-ink-500">
+                  {offering.tamilName}
+                </p>
               )}
             </div>
             <button
@@ -4344,9 +5037,7 @@ function AddToCartModal({
           <div className="flex-1 space-y-3 overflow-y-auto px-5 py-3">
             {offering.isDeityMappingRequired && deityOptions.length > 0 && (
               <div>
-                <p className={`${FORM_LABEL} mb-2`}>
-                  Deities (Multi-Select) *
-                </p>
+                <p className={`${FORM_LABEL} mb-2`}>Deities (Multi-Select) *</p>
                 <div className="flex flex-wrap gap-2">
                   {deityOptions.map((d) => {
                     const selected = deities.includes(d._id);
@@ -4413,7 +5104,9 @@ function AddToCartModal({
                     type="number"
                     min={1}
                     value={quantity}
-                    onChange={(e) => onQuantityChange(Math.max(1, Number(e.target.value) || 1))}
+                    onChange={(e) =>
+                      onQuantityChange(Math.max(1, Number(e.target.value) || 1))
+                    }
                     className="w-12 bg-transparent text-center font-body text-[16px] font-semibold text-ink-100 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
                   <button
@@ -4448,7 +5141,7 @@ function AddToCartModal({
                           onDevoteesChange(updated);
                         }}
                         historyChips={suggestionsForRow(devotee).map((s) => ({
-                          name: s.name,
+                          name: s.label,
                           onPick: () => fillDevoteeRow(idx, s),
                         }))}
                       />
@@ -4516,25 +5209,20 @@ function AddToCartModal({
                 chevron={false}
                 onClick={handleConfirm}
                 disabled={
-                  offering.isDeityMappingRequired && deityOptions.length > 0 && deities.length === 0
+                  offering.isDeityMappingRequired &&
+                  deityOptions.length > 0 &&
+                  deities.length === 0
                 }
               >
                 {isEditing ? "Save Changes" : "Add to Cart"}
               </FlameActionButton>
             </div>
           </div>
-          </>
-          )}
+        </>
+      )}
     </PosFlipModal>
   );
 }
-
-const CREATE_CUSTOMER_GENDER_OPTIONS: ListboxOption[] = [
-  { value: "", label: "Not specified" },
-  { value: "MALE", label: "Male" },
-  { value: "FEMALE", label: "Female" },
-  { value: "OTHER", label: "Other" },
-];
 
 type WalkInMatch = {
   _id: string;
@@ -4542,15 +5230,13 @@ type WalkInMatch = {
   name: string;
   email: string;
   mobileNumber: string | null;
-  dateOfBirth: string | null;
-  gender: string | null;
 };
 
 /**
  * Captures the same fields the Admin Panel's Customer master can edit
- * (name, email, mobile, date of birth, gender) — a walk-in profile created
- * at the counter shouldn't be a lesser record than one created any other
- * way, and staff can later find/edit this exact profile from Customers.
+ * (name, email, mobile) — a walk-in profile created at the counter
+ * shouldn't be a lesser record than one created any other way, and staff
+ * can later find/edit this exact profile from Customers.
  *
  * As the mobile number is typed, it's checked (debounced) against existing
  * *unregistered* walk-in profiles — a repeat visitor on the same mobile
@@ -4572,8 +5258,6 @@ function CreateCustomerModal({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
-  const [gender, setGender] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [matched, setMatched] = useState<WalkInMatch | null>(null);
@@ -4597,10 +5281,6 @@ function CreateCustomerModal({
         if (found) {
           setName(found.name);
           setEmail(found.email);
-          setDateOfBirth(
-            found.dateOfBirth ? found.dateOfBirth.slice(0, 10) : "",
-          );
-          setGender(found.gender ?? "");
         }
       } catch {
         // A failed lookup shouldn't block manual entry — just proceed uncached.
@@ -4615,8 +5295,6 @@ function CreateCustomerModal({
     setMatched(null);
     setName("");
     setEmail("");
-    setDateOfBirth("");
-    setGender("");
   }
 
   async function submit() {
@@ -4641,8 +5319,6 @@ function CreateCustomerModal({
           name: name.trim(),
           email: email.trim(),
           mobileNumber: mobileNumber.trim() || undefined,
-          dateOfBirth: dateOfBirth || undefined,
-          gender: gender || undefined,
         },
       );
       const customer = unwrap(r);
@@ -4661,93 +5337,85 @@ function CreateCustomerModal({
       onBackdrop={onClose}
       panelClassName="flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-gold-500/25 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]"
     >
-          <div className="shrink-0 border-b border-gold-500/10 px-5 py-3">
-            <h2 className="font-display text-[18px] font-bold text-ink-100">
-              Create Customer
-            </h2>
-            <p className="text-[12.5px] text-ink-500">
-              Quick walk-in profile — no login required.
+      <div className="shrink-0 border-b border-gold-500/10 px-5 py-3">
+        <h2 className="font-display text-[18px] font-bold text-ink-100">
+          Create Customer
+        </h2>
+        <p className="text-[12.5px] text-ink-500">
+          Quick walk-in profile — no login required.
+        </p>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
+        {matched && (
+          <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-gold-500/25 bg-gold-500/5 px-3.5 py-2.5">
+            <p className="text-[12.5px] text-amber-700">
+              Existing profile found for this mobile number (
+              {matched.customerCode}) — details filled in below.
             </p>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
-            {matched && (
-              <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-gold-500/25 bg-gold-500/5 px-3.5 py-2.5">
-                <p className="text-[12.5px] text-amber-700">
-                  Existing profile found for this mobile number (
-                  {matched.customerCode}) — details filled in below.
-                </p>
-                <button
-                  type="button"
-                  onClick={clearMatch}
-                  className="whitespace-nowrap text-[12px] text-crimson-500 hover:underline"
-                >
-                  Not this person?
-                </button>
-              </div>
-            )}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <DivineInput
-                staticLabel
-                label="Full Name"
-                icon={<UserIcon />}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={!!matched}
-              />
-              <DivineInput
-                staticLabel
-                label="Email"
-                icon={<MailIcon />}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={!!matched}
-              />
-              <DivineInput
-                staticLabel
-                label="Mobile Number"
-                icon={<span className="text-[13.5px] font-semibold text-ink-500">+65</span>}
-                value={mobileNumber}
-                onChange={(e) => setMobileNumber(sanitizeMobileInput(e.target.value))}
-                hint={checkingMobile ? "Checking…" : undefined}
-              />
-              <DivineDatePicker
-                staticLabel
-                label="Date of birth"
-                value={dateOfBirth}
-                onChange={setDateOfBirth}
-                placeholder="Not recorded"
-              />
-              <DivineListbox
-                label="Gender"
-                value={gender}
-                onChange={setGender}
-                options={CREATE_CUSTOMER_GENDER_OPTIONS}
-                disabled={!!matched}
-              />
-            </div>
-            {error && (
-              <p className="mt-3 text-[12.5px] text-crimson-500">{error}</p>
-            )}
-          </div>
-          <div className="relative z-10 flex shrink-0 justify-end gap-3 border-t border-maroon/15 px-5 py-3 shadow-[0_-6px_16px_-4px_rgba(0,0,0,0.18)]">
-            <DivineButton
-              variant="ghost"
-              fullWidth={false}
+            <button
               type="button"
-              onClick={onClose}
+              onClick={clearMatch}
+              className="whitespace-nowrap text-[12px] text-crimson-500 hover:underline"
             >
-              Cancel
-            </DivineButton>
-            <DivineButton
-              variant="flame"
-              fullWidth={false}
-              type="button"
-              loading={submitting}
-              onClick={submit}
-            >
-              {matched ? "Use This Customer" : "Create"}
-            </DivineButton>
+              Not this person?
+            </button>
           </div>
+        )}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <DivineInput
+            staticLabel
+            label="Full Name"
+            icon={<UserIcon />}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={!!matched}
+          />
+          <DivineInput
+            staticLabel
+            label="Email"
+            icon={<MailIcon />}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={!!matched}
+          />
+          <DivineInput
+            staticLabel
+            label="Mobile Number"
+            icon={
+              <span className="text-[13.5px] font-semibold text-ink-500">
+                +65
+              </span>
+            }
+            value={mobileNumber}
+            onChange={(e) =>
+              setMobileNumber(sanitizeMobileInput(e.target.value))
+            }
+            hint={checkingMobile ? "Checking…" : undefined}
+          />
+        </div>
+        {error && (
+          <p className="mt-3 text-[12.5px] text-crimson-500">{error}</p>
+        )}
+      </div>
+      <div className="relative z-10 flex shrink-0 justify-end gap-3 border-t border-maroon/15 px-5 py-3 shadow-[0_-6px_16px_-4px_rgba(0,0,0,0.18)]">
+        <DivineButton
+          variant="ghost"
+          fullWidth={false}
+          type="button"
+          onClick={onClose}
+        >
+          Cancel
+        </DivineButton>
+        <DivineButton
+          variant="flame"
+          fullWidth={false}
+          type="button"
+          loading={submitting}
+          onClick={submit}
+        >
+          {matched ? "Use This Customer" : "Create"}
+        </DivineButton>
+      </div>
     </PosFlipModal>
   );
 }
@@ -4780,8 +5448,8 @@ function RecentBookingModal({
       onBackdrop={onClose}
       panelClassName="flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]"
     >
-          {booking && (
-          <>
+      {booking && (
+        <>
           <div className="flex items-start justify-between border-b border-gold-500/10 px-5 py-3">
             <div>
               <p className="text-[11px] uppercase tracking-wide text-ink-500">
@@ -4872,8 +5540,8 @@ function RecentBookingModal({
               </DivineButton>
             </div>
           </div>
-          </>
-          )}
+        </>
+      )}
     </PosFlipModal>
   );
 }
@@ -4906,45 +5574,50 @@ function UnavailableLinesDialog({
       onBackdrop={onCancel}
       panelClassName="flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-2xl border border-gold-500/25 bg-white shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]"
     >
-          <div className="shrink-0 border-b border-gold-500/10 px-5 py-3">
-            <h2 className="font-display text-[18px] font-bold text-ink-100">
-              Some items aren&apos;t available
-            </h2>
-            <p className="text-[12.5px] text-ink-500">
-              {availableCount > 0
-                ? `${availableCount} item(s) from this booking are still available. The rest can't be re-added right now:`
-                : "None of this booking's items can be re-added right now:"}
+      <div className="shrink-0 border-b border-gold-500/10 px-5 py-3">
+        <h2 className="font-display text-[18px] font-bold text-ink-100">
+          Some items aren&apos;t available
+        </h2>
+        <p className="text-[12.5px] text-ink-500">
+          {availableCount > 0
+            ? `${availableCount} item(s) from this booking are still available. The rest can't be re-added right now:`
+            : "None of this booking's items can be re-added right now:"}
+        </p>
+      </div>
+      <div className="max-h-[min(28vh,12rem)] space-y-2 overflow-y-auto px-5 py-3">
+        {unavailableLines.map((line, idx) => (
+          <div
+            key={idx}
+            className="rounded-xl border border-crimson-500/25 bg-crimson-500/5 px-3 py-2.5"
+          >
+            <p className="text-[13px] font-medium text-ink-100">
+              {line.name ?? "Unknown item"}
             </p>
+            <p className="text-[11.5px] text-crimson-500">{line.reason}</p>
           </div>
-          <div className="max-h-[min(28vh,12rem)] space-y-2 overflow-y-auto px-5 py-3">
-            {unavailableLines.map((line, idx) => (
-              <div
-                key={idx}
-                className="rounded-xl border border-crimson-500/25 bg-crimson-500/5 px-3 py-2.5"
-              >
-                <p className="text-[13px] font-medium text-ink-100">
-                  {line.name ?? "Unknown item"}
-                </p>
-                <p className="text-[11.5px] text-crimson-500">{line.reason}</p>
-              </div>
-            ))}
-          </div>
-          <div className="flex shrink-0 justify-end gap-3 border-t border-gold-500/10 px-5 py-3">
-            <DivineButton
-              variant="ghost"
-              fullWidth={false}
-              type="button"
-              onClick={onCancel}
-            >
-              Cancel
-            </DivineButton>
-            {availableCount > 0 && (
-              <DivineButton variant="flame" fullWidth={false} type="button" onClick={onProceed}>
-                Add {availableCount} Available Item
-                {availableCount > 1 ? "s" : ""}
-              </DivineButton>
-            )}
-          </div>
+        ))}
+      </div>
+      <div className="flex shrink-0 justify-end gap-3 border-t border-gold-500/10 px-5 py-3">
+        <DivineButton
+          variant="ghost"
+          fullWidth={false}
+          type="button"
+          onClick={onCancel}
+        >
+          Cancel
+        </DivineButton>
+        {availableCount > 0 && (
+          <DivineButton
+            variant="flame"
+            fullWidth={false}
+            type="button"
+            onClick={onProceed}
+          >
+            Add {availableCount} Available Item
+            {availableCount > 1 ? "s" : ""}
+          </DivineButton>
+        )}
+      </div>
     </PosFlipModal>
   );
 }
@@ -4967,7 +5640,9 @@ function BookingSuccessView({
   // success (and New Transaction) appear only after balance is $0.00.
   const stillDue = confirmation.balanceAmount > 0.005;
   const [payAgainOpen, setPayAgainOpen] = useState(stillDue);
-  const [amountInput, setAmountInput] = useState(stillDue ? confirmation.balanceAmount.toFixed(2) : "");
+  const [amountInput, setAmountInput] = useState(
+    stillDue ? confirmation.balanceAmount.toFixed(2) : "",
+  );
   const [modeId, setModeId] = useState(
     paymentModes.find((m) => m.name.toLowerCase() === "cash")?._id || "",
   );
@@ -4976,8 +5651,12 @@ function BookingSuccessView({
   // payment lands, cleared when the cashier dismisses it. A toast alone
   // (the previous behaviour) was too easy to miss at a busy counter; this
   // needs an explicit acknowledgment.
-  const [paymentPopup, setPaymentPopup] = useState<RecordPaymentResult | null>(null);
-  const [grandOpen, setGrandOpen] = useState(() => confirmation.balanceAmount <= 0.005);
+  const [paymentPopup, setPaymentPopup] = useState<RecordPaymentResult | null>(
+    null,
+  );
+  const [grandOpen, setGrandOpen] = useState(
+    () => confirmation.balanceAmount <= 0.005,
+  );
   const wasDue = useRef(confirmation.balanceAmount > 0.005);
   // Set while a PayNow top-up QR is open — see submitPayAgain's PayNow
   // branch. Kept separate from the main checkout's `paynowQr` state (a
@@ -4985,15 +5664,27 @@ function BookingSuccessView({
   // booking's already confirmed), so its onPoll below watches the
   // booking's own balance instead — see PaynowQrModal's own comment on why
   // `onPoll` is generic.
-  const [payAgainQr, setPayAgainQr] = useState<{ referenceId: string; amount: number; qrImage: string } | null>(null);
+  const [payAgainQr, setPayAgainQr] = useState<{
+    referenceId: string;
+    amount: number;
+    qrImage: string;
+  } | null>(null);
   // Same idea as payAgainQr above, for a NETS top-up — see submitPayAgain's
   // NETS branch. Previously missing entirely, which let NETS silently fall
   // through to the Cash-style instant-confirm route below and mark a top-up
   // "paid" with no terminal ever charged.
-  const [payAgainNets, setPayAgainNets] = useState<{ referenceId: string; amount: number; manual?: boolean } | null>(null);
+  const [payAgainNets, setPayAgainNets] = useState<{
+    referenceId: string;
+    amount: number;
+    manual?: boolean;
+  } | null>(null);
   // Same idea, for a Credit Card top-up — see submitPayAgain's Credit Card
   // branch, mirroring the NETS one above exactly.
-  const [payAgainCreditCard, setPayAgainCreditCard] = useState<{ referenceId: string; amount: number; manual?: boolean } | null>(null);
+  const [payAgainCreditCard, setPayAgainCreditCard] = useState<{
+    referenceId: string;
+    amount: number;
+    manual?: boolean;
+  } | null>(null);
   const balanceBeforeTopUp = useRef(confirmation.balanceAmount);
   // Every payment actually collected against this booking during this
   // checkout — the first one from `confirmation` itself, then one more
@@ -5001,7 +5692,9 @@ function BookingSuccessView({
   // Session-local (see PosDisplayPaymentEntry's own comment): correct for
   // the normal case of one cashier collecting installments in one sitting,
   // not a retroactive fetch of the booking's full server-side history.
-  const [paymentHistory, setPaymentHistory] = useState<{ mode: string; amount: number }[]>(() => [
+  const [paymentHistory, setPaymentHistory] = useState<
+    { mode: string; amount: number }[]
+  >(() => [
     { mode: confirmation.paymentModeName, amount: confirmation.amountPaid },
   ]);
 
@@ -5012,7 +5705,9 @@ function BookingSuccessView({
       quantity: l.quantity,
       lineTotal: l.lineTotal ?? l.unitPrice * l.quantity,
     }));
-    const modeName = paymentModes.find((m) => m._id === modeId)?.name ?? confirmation.paymentModeName;
+    const modeName =
+      paymentModes.find((m) => m._id === modeId)?.name ??
+      confirmation.paymentModeName;
     const payingNow = Number(amountInput);
 
     if (payAgainQr) {
@@ -5055,7 +5750,10 @@ function BookingSuccessView({
       customerName: confirmation.customer.name,
       lines,
       grandTotal: confirmation.grandTotal,
-      payingNow: stillDue && payAgainOpen && !Number.isNaN(payingNow) ? payingNow : confirmation.amountPaid,
+      payingNow:
+        stillDue && payAgainOpen && !Number.isNaN(payingNow)
+          ? payingNow
+          : confirmation.amountPaid,
       amountPaid: confirmation.amountPaid,
       balanceDue: confirmation.balanceAmount,
       mode: modeName,
@@ -5094,13 +5792,21 @@ function BookingSuccessView({
 
   function openPayAgain() {
     setAmountInput(confirmation.balanceAmount.toFixed(2));
-    setModeId((prev) => prev || paymentModes.find((m) => m.name.toLowerCase() === "cash")?._id || "");
+    setModeId(
+      (prev) =>
+        prev ||
+        paymentModes.find((m) => m.name.toLowerCase() === "cash")?._id ||
+        "",
+    );
     setPayAgainOpen(true);
   }
 
   function applyPayAgainResult(result: RecordPaymentResult) {
     onPaymentRecorded(result);
-    setPaymentHistory((prev) => [...prev, { mode: result.paymentModeName, amount: result.amount }]);
+    setPaymentHistory((prev) => [
+      ...prev,
+      { mode: result.paymentModeName, amount: result.amount },
+    ]);
     if (result.balanceAmount > 0.005) {
       setPaymentPopup(result);
       setAmountInput(result.balanceAmount.toFixed(2));
@@ -5118,7 +5824,9 @@ function BookingSuccessView({
       return;
     }
     if (amount > confirmation.balanceAmount + 0.005) {
-      toast.error(`Amount cannot exceed the outstanding balance of ${formatCurrency(confirmation.balanceAmount)}.`);
+      toast.error(
+        `Amount cannot exceed the outstanding balance of ${formatCurrency(confirmation.balanceAmount)}.`,
+      );
       return;
     }
     if (!modeId) {
@@ -5126,7 +5834,9 @@ function BookingSuccessView({
       return;
     }
 
-    const modeName = paymentModes.find((m) => m._id === modeId)?.name?.toLowerCase();
+    const modeName = paymentModes
+      .find((m) => m._id === modeId)
+      ?.name?.toLowerCase();
 
     if (modeName === "paynow") {
       // No instant confirm here — a QR has to actually be scanned and paid.
@@ -5135,10 +5845,12 @@ function BookingSuccessView({
       // status to poll — its balance dropping is the only signal).
       setSubmitting(true);
       try {
-        const qrRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; qrImage: string }>>(
-          "/payments/paynow/generate-qr",
-          { referenceId: confirmation.referenceId, amount },
-        );
+        const qrRes = await api.post<
+          ApiEnvelope<{ referenceId: string; amount: number; qrImage: string }>
+        >("/payments/paynow/generate-qr", {
+          referenceId: confirmation.referenceId,
+          amount,
+        });
         const qr = unwrap(qrRes);
         balanceBeforeTopUp.current = confirmation.balanceAmount;
         setPayAgainQr(qr);
@@ -5160,13 +5872,19 @@ function BookingSuccessView({
       // response to have gotten an order id from.
       setSubmitting(true);
       try {
-        const initRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; currency: string }>>(
-          "/pos/booking/nets/initiate",
-          { referenceId: confirmation.referenceId, amount },
-        );
+        const initRes = await api.post<
+          ApiEnvelope<{ referenceId: string; amount: number; currency: string }>
+        >("/pos/booking/nets/initiate", {
+          referenceId: confirmation.referenceId,
+          amount,
+        });
         const init = unwrap(initRes);
         balanceBeforeTopUp.current = confirmation.balanceAmount;
-        setPayAgainNets({ referenceId: init.referenceId, amount: init.amount, manual: opts.manual });
+        setPayAgainNets({
+          referenceId: init.referenceId,
+          amount: init.amount,
+          manual: opts.manual,
+        });
       } catch (err) {
         toast.error(extractErrorMessage(err));
       } finally {
@@ -5180,13 +5898,19 @@ function BookingSuccessView({
       // bookings/:id/payments's own guard rejecting "CREDIT CARD" too.
       setSubmitting(true);
       try {
-        const initRes = await api.post<ApiEnvelope<{ referenceId: string; amount: number; currency: string }>>(
-          "/pos/booking/credit-card/initiate",
-          { referenceId: confirmation.referenceId, amount },
-        );
+        const initRes = await api.post<
+          ApiEnvelope<{ referenceId: string; amount: number; currency: string }>
+        >("/pos/booking/credit-card/initiate", {
+          referenceId: confirmation.referenceId,
+          amount,
+        });
         const init = unwrap(initRes);
         balanceBeforeTopUp.current = confirmation.balanceAmount;
-        setPayAgainCreditCard({ referenceId: init.referenceId, amount: init.amount, manual: opts.manual });
+        setPayAgainCreditCard({
+          referenceId: init.referenceId,
+          amount: init.amount,
+          manual: opts.manual,
+        });
       } catch (err) {
         toast.error(extractErrorMessage(err));
       } finally {
@@ -5211,296 +5935,405 @@ function BookingSuccessView({
 
   return (
     <>
-    {stillDue && (
-    <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 sm:p-3">
-      <motion.div
-        initial={{ opacity: 0, y: 48, scale: 0.94 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        // A spring recomputes its position every single frame based on
-        // velocity/physics; a fixed-duration tween is calculated once and
-        // just interpolated, so it keeps its smoothness even when the main
-        // thread is busy (a network response resolving, etc.) — same
-        // visual arc (this damping was already high enough to have barely
-        // any overshoot), just cheaper to render under load.
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="relative mx-auto flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-maroon/15 bg-white text-center shadow-[0_28px_70px_-24px_rgba(124,21,39,0.45)]"
-      >
-        <div aria-hidden="true" className="h-1 shrink-0 bg-maroon" />
-        <motion.div
-          initial="hidden"
-          animate="show"
-          variants={{
-            hidden: {},
-            show: { transition: { staggerChildren: 0.05, delayChildren: 0.06 } },
-          }}
-          className="min-h-0 px-3 py-2.5 sm:px-5 sm:py-3"
-        >
+      {stillDue && (
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2 sm:p-3">
           <motion.div
-            variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
-            className="flex items-center justify-center gap-3"
+            initial={{ opacity: 0, y: 48, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            // A spring recomputes its position every single frame based on
+            // velocity/physics; a fixed-duration tween is calculated once and
+            // just interpolated, so it keeps its smoothness even when the main
+            // thread is busy (a network response resolving, etc.) — same
+            // visual arc (this damping was already high enough to have barely
+            // any overshoot), just cheaper to render under load.
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="relative mx-auto flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-maroon/15 bg-white text-center shadow-[0_28px_70px_-24px_rgba(124,21,39,0.45)]"
           >
-            <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_6px_16px_-6px_rgba(16,185,129,0.7)]">
-              <motion.svg
-                className="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.6"
+            <div aria-hidden="true" className="h-1 shrink-0 bg-maroon" />
+            <motion.div
+              initial="hidden"
+              animate="show"
+              variants={{
+                hidden: {},
+                show: {
+                  transition: { staggerChildren: 0.05, delayChildren: 0.06 },
+                },
+              }}
+              className="min-h-0 px-3 py-2.5 sm:px-5 sm:py-3"
+            >
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 8 },
+                  show: { opacity: 1, y: 0 },
+                }}
+                className="flex items-center justify-center gap-3"
               >
-                <motion.path
-                  d="M5 13l4 4L19 7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ delay: 0.2, duration: 0.35, ease: "easeOut" }}
-                />
-              </motion.svg>
-            </span>
-            <div className="text-left">
-              <h2 className="font-display text-[18px] font-bold leading-tight text-ink-100 sm:text-[20px]">
-                Partial Payment Success
-              </h2>
-              <p className="text-[12px] text-ink-500">
-                Partial payment received · Inventory updated
-              </p>
-            </div>
-          </motion.div>
-
-          <motion.div variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}>
-            <StayOnPageWarning className="!mt-2">
-              Do not close or refresh this page until the remaining balance is collected.
-            </StayOnPageWarning>
-          </motion.div>
-
-          <motion.div
-            variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
-            className="my-2 grid grid-cols-2 gap-1.5 text-left sm:grid-cols-4"
-          >
-            <DetailTile label="Booking No." value={confirmation.bookingNumber} highlight />
-            <DetailTile label="Order No." value={confirmation.orderNumber} />
-            <DetailTile label="Receipt No." value={confirmation.receiptNo ?? "—"} />
-            <DetailTile
-              label="Customer"
-              value={`${confirmation.customer.name} (${confirmation.customer.customerCode})`}
-            />
-            <DetailTile label="Payment Mode" value={confirmation.paymentModeName} />
-            <DetailTile label="Total Payable" value={formatCurrency(confirmation.grandTotal)} />
-            <DetailTile label="Amount Paid" value={formatCurrency(confirmation.amountPaid)} />
-            <DetailTile
-              label="Balance Due"
-              value={formatCurrency(confirmation.balanceAmount)}
-              highlight={confirmation.balanceAmount > 0}
-            />
-          </motion.div>
-
-          {stillDue && !payAgainOpen && (
-            <motion.div
-              variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
-              className="space-y-2 rounded-xl border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-left"
-            >
-              <p className="text-[12px] text-crimson-500">
-                Only partially paid — {formatCurrency(confirmation.balanceAmount)} still due. Collect the remaining
-                amount now.
-              </p>
-              <DivineButton variant="flame" fullWidth type="button" onClick={openPayAgain}>
-                Pay Again
-              </DivineButton>
-            </motion.div>
-          )}
-
-          {payAgainOpen && stillDue && (
-            <motion.div
-              variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
-              className="space-y-2 rounded-xl border border-[#f0b4a0]/70 bg-[#faf6f1] px-3 py-2.5 text-left"
-            >
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-                <DivineInput
-                  staticLabel
-                  label={`Amount (max ${formatCurrency(confirmation.balanceAmount)})`}
-                  type="number"
-                  min={0.01}
-                  max={confirmation.balanceAmount}
-                  step="0.01"
-                  inputMode="decimal"
-                  value={amountInput}
-                  onChange={(e) => setAmountInput(e.target.value)}
-                />
-                <DivineButton
-                  variant="flame"
-                  fullWidth={false}
-                  type="button"
-                  loading={submitting}
-                  onClick={() => submitPayAgain()}
-                  className="sm:h-10 sm:px-5"
-                >
-                  Collect Payment
-                </DivineButton>
-              </div>
-              <PaymentModeBoxes dense modes={paymentModes} value={modeId} onChange={setModeId} />
-              {(() => {
-                const payAgainModeName = paymentModes.find((m) => m._id === modeId)?.name?.toLowerCase();
-                if (payAgainModeName !== "nets" && payAgainModeName !== "credit card") return null;
-                return (
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => submitPayAgain({ manual: true })}
-                    title="Enter the transaction reference number from the terminal's printed slip instead of waiting for its automatic confirmation."
-                    className="w-full rounded-md border border-[#7c1527]/40 bg-transparent px-4 py-1.5 text-[12.5px] font-semibold text-[#7c1527] transition-colors duration-200 hover:bg-[#7c1527]/10 disabled:cursor-not-allowed disabled:opacity-40"
+                <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_6px_16px_-6px_rgba(16,185,129,0.7)]">
+                  <motion.svg
+                    className="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.6"
                   >
-                    Manual Confirm
-                  </button>
-                );
-              })()}
+                    <motion.path
+                      d="M5 13l4 4L19 7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{
+                        delay: 0.2,
+                        duration: 0.35,
+                        ease: "easeOut",
+                      }}
+                    />
+                  </motion.svg>
+                </span>
+                <div className="text-left">
+                  <h2 className="font-display text-[18px] font-bold leading-tight text-ink-100 sm:text-[20px]">
+                    Partial Payment Success
+                  </h2>
+                  <p className="text-[12px] text-ink-500">
+                    Partial payment received · Inventory updated
+                  </p>
+                </div>
+              </motion.div>
+
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 8 },
+                  show: { opacity: 1, y: 0 },
+                }}
+              >
+                <StayOnPageWarning className="!mt-2">
+                  Do not close or refresh this page until the remaining balance
+                  is collected.
+                </StayOnPageWarning>
+              </motion.div>
+
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 10 },
+                  show: { opacity: 1, y: 0 },
+                }}
+                className="my-2 grid grid-cols-2 gap-1.5 text-left sm:grid-cols-4"
+              >
+                <DetailTile
+                  label="Booking No."
+                  value={confirmation.bookingNumber}
+                  highlight
+                />
+                <DetailTile
+                  label="Order No."
+                  value={confirmation.orderNumber}
+                />
+                <DetailTile
+                  label="Receipt No."
+                  value={confirmation.receiptNo ?? "—"}
+                />
+                <DetailTile
+                  label="Customer"
+                  value={`${confirmation.customer.name} (${confirmation.customer.customerCode})`}
+                />
+                <DetailTile
+                  label="Payment Mode"
+                  value={confirmation.paymentModeName}
+                />
+                <DetailTile
+                  label="Total Payable"
+                  value={formatCurrency(confirmation.grandTotal)}
+                />
+                <DetailTile
+                  label="Amount Paid"
+                  value={formatCurrency(confirmation.amountPaid)}
+                />
+                <DetailTile
+                  label="Balance Due"
+                  value={formatCurrency(confirmation.balanceAmount)}
+                  highlight={confirmation.balanceAmount > 0}
+                />
+              </motion.div>
+
+              {stillDue && !payAgainOpen && (
+                <motion.div
+                  variants={{
+                    hidden: { opacity: 0, y: 8 },
+                    show: { opacity: 1, y: 0 },
+                  }}
+                  className="space-y-2 rounded-xl border border-crimson-500/30 bg-crimson-500/10 px-3 py-2 text-left"
+                >
+                  <p className="text-[12px] text-crimson-500">
+                    Only partially paid —{" "}
+                    {formatCurrency(confirmation.balanceAmount)} still due.
+                    Collect the remaining amount now.
+                  </p>
+                  <DivineButton
+                    variant="flame"
+                    fullWidth
+                    type="button"
+                    onClick={openPayAgain}
+                  >
+                    Pay Again
+                  </DivineButton>
+                </motion.div>
+              )}
+
+              {payAgainOpen && stillDue && (
+                <motion.div
+                  variants={{
+                    hidden: { opacity: 0, y: 10 },
+                    show: { opacity: 1, y: 0 },
+                  }}
+                  className="space-y-2 rounded-xl border border-[#f0b4a0]/70 bg-[#faf6f1] px-3 py-2.5 text-left"
+                >
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                    <DivineInput
+                      staticLabel
+                      label={`Amount (max ${formatCurrency(confirmation.balanceAmount)})`}
+                      type="number"
+                      min={0.01}
+                      max={confirmation.balanceAmount}
+                      step="0.01"
+                      inputMode="decimal"
+                      value={amountInput}
+                      onChange={(e) => setAmountInput(e.target.value)}
+                    />
+                    <DivineButton
+                      variant="flame"
+                      fullWidth={false}
+                      type="button"
+                      loading={submitting}
+                      onClick={() => submitPayAgain()}
+                      className="sm:h-10 sm:px-5"
+                    >
+                      Collect Payment
+                    </DivineButton>
+                  </div>
+                  <PaymentModeBoxes
+                    dense
+                    modes={paymentModes}
+                    value={modeId}
+                    onChange={setModeId}
+                  />
+                  {(() => {
+                    const payAgainModeName = paymentModes
+                      .find((m) => m._id === modeId)
+                      ?.name?.toLowerCase();
+                    if (
+                      payAgainModeName !== "nets" &&
+                      payAgainModeName !== "credit card"
+                    )
+                      return null;
+                    return (
+                      <button
+                        type="button"
+                        disabled={submitting}
+                        onClick={() => submitPayAgain({ manual: true })}
+                        title="Enter the transaction reference number from the terminal's printed slip instead of waiting for its automatic confirmation."
+                        className="w-full rounded-md border border-[#7c1527]/40 bg-transparent px-4 py-1.5 text-[12.5px] font-semibold text-[#7c1527] transition-colors duration-200 hover:bg-[#7c1527]/10 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Manual Confirm
+                      </button>
+                    );
+                  })()}
+                </motion.div>
+              )}
             </motion.div>
-          )}
-        </motion.div>
-      </motion.div>
-    </div>
-    )}
-    <SuccessModal
-      open={grandOpen}
-      onClose={onNewTransaction}
-      title="Booking Success"
-      amountLabel="Total amount paid"
-      amount={formatCurrency(confirmation.amountPaid)}
-      bookingNo={confirmation.bookingNumber}
-      paymentMode={confirmation.paymentModeName}
-      amountPaid={formatCurrency(confirmation.amountPaid)}
-      cta="Continue"
-      paymentHistory={paymentHistory.map((p) => ({ mode: p.mode, amount: formatCurrency(p.amount) }))}
-    />
-    <PaymentRecordedModal open={!!paymentPopup} result={paymentPopup} onClose={() => setPaymentPopup(null)} />
-    <PaynowQrModal
-      open={!!payAgainQr}
-      referenceId={payAgainQr?.referenceId ?? ""}
-      amount={payAgainQr?.amount ?? 0}
-      qrImage={payAgainQr?.qrImage ?? ""}
-      onPoll={async () => {
-        const res = await api.get<
-          ApiEnvelope<{
-            transactions: { receiptNo: string; amount: number; paymentModeName: string }[];
+          </motion.div>
+        </div>
+      )}
+      <SuccessModal
+        open={grandOpen}
+        onClose={onNewTransaction}
+        title="Booking Success"
+        amountLabel="Total amount paid"
+        amount={formatCurrency(confirmation.amountPaid)}
+        bookingNo={confirmation.bookingNumber}
+        paymentMode={confirmation.paymentModeName}
+        amountPaid={formatCurrency(confirmation.amountPaid)}
+        cta="Continue"
+        paymentHistory={paymentHistory.map((p) => ({
+          mode: p.mode,
+          amount: formatCurrency(p.amount),
+        }))}
+      />
+      <PaymentRecordedModal
+        open={!!paymentPopup}
+        result={paymentPopup}
+        onClose={() => setPaymentPopup(null)}
+      />
+      <PaynowQrModal
+        open={!!payAgainQr}
+        referenceId={payAgainQr?.referenceId ?? ""}
+        amount={payAgainQr?.amount ?? 0}
+        qrImage={payAgainQr?.qrImage ?? ""}
+        onPoll={async () => {
+          const res = await api.get<
+            ApiEnvelope<{
+              transactions: {
+                receiptNo: string;
+                amount: number;
+                paymentModeName: string;
+              }[];
+              amountPaid: number;
+              balanceAmount: number;
+            }>
+          >(`/pos/booking/bookings/${confirmation._id}`);
+          const data = unwrap(res);
+          // This booking is already confirmed — there's no order status left
+          // to transition, so a genuine drop in balance since the QR was
+          // generated is the only signal the top-up actually landed.
+          if (data.balanceAmount < balanceBeforeTopUp.current - 0.005) {
+            return { status: "confirmed" as const, data };
+          }
+          return { status: "pending" as const };
+        }}
+        onConfirmed={(raw) => {
+          const data = raw as {
+            transactions: {
+              receiptNo: string;
+              amount: number;
+              paymentModeName: string;
+            }[];
             amountPaid: number;
             balanceAmount: number;
-          }>
-        >(`/pos/booking/bookings/${confirmation._id}`);
-        const data = unwrap(res);
-        // This booking is already confirmed — there's no order status left
-        // to transition, so a genuine drop in balance since the QR was
-        // generated is the only signal the top-up actually landed.
-        if (data.balanceAmount < balanceBeforeTopUp.current - 0.005) {
-          return { status: "confirmed" as const, data };
-        }
-        return { status: "pending" as const };
-      }}
-      onConfirmed={(raw) => {
-        const data = raw as { transactions: { receiptNo: string; amount: number; paymentModeName: string }[]; amountPaid: number; balanceAmount: number };
-        const latestTxn = data.transactions[data.transactions.length - 1];
-        setPayAgainQr(null);
-        applyPayAgainResult({
-          receiptNo: latestTxn?.receiptNo ?? "",
-          amount: +(balanceBeforeTopUp.current - data.balanceAmount).toFixed(2),
-          paymentModeName: latestTxn?.paymentModeName ?? "PAYNOW",
-          paymentStatus: data.balanceAmount <= 0.005 ? "paid" : "partial",
-          amountPaid: data.amountPaid,
-          balanceAmount: data.balanceAmount,
-        });
-      }}
-      onCancel={() => setPayAgainQr(null)}
-    />
-    <NetsPaymentModal
-      open={!!payAgainNets}
-      referenceId={payAgainNets?.referenceId ?? ""}
-      amount={payAgainNets?.amount ?? 0}
-      onPoll={async () => {
-        const res = await api.get<
-          ApiEnvelope<{
-            transactions: { receiptNo: string; amount: number; paymentModeName: string }[];
-            amountPaid: number;
-            balanceAmount: number;
-          }>
-        >(`/pos/booking/bookings/${confirmation._id}`);
-        const data = unwrap(res);
-        // Same reasoning as PaynowQrModal's onPoll above — this booking is
-        // already confirmed, so a genuine drop in balance since the
-        // terminal was sent this payment is the only signal it landed.
-        if (data.balanceAmount < balanceBeforeTopUp.current - 0.005) {
-          return { status: "confirmed" as const, data };
-        }
-        return { status: "pending" as const };
-      }}
-      onConfirmed={(raw) => {
-        const data = raw as { transactions: { receiptNo: string; amount: number; paymentModeName: string }[]; amountPaid: number; balanceAmount: number };
-        const latestTxn = data.transactions[data.transactions.length - 1];
-        setPayAgainNets(null);
-        applyPayAgainResult({
-          receiptNo: latestTxn?.receiptNo ?? "",
-          amount: +(balanceBeforeTopUp.current - data.balanceAmount).toFixed(2),
-          paymentModeName: latestTxn?.paymentModeName ?? "NETS",
-          paymentStatus: data.balanceAmount <= 0.005 ? "paid" : "partial",
-          amountPaid: data.amountPaid,
-          balanceAmount: data.balanceAmount,
-        });
-      }}
-      onCancel={() => setPayAgainNets(null)}
-      startInManualMode={!!payAgainNets?.manual}
-      onManualConfirm={async (transactionRefNo) => {
-        try {
-          await api.post(`/pos/booking/manual-confirm`, {
-            referenceId: payAgainNets?.referenceId,
-            transactionRefNo,
+          };
+          const latestTxn = data.transactions[data.transactions.length - 1];
+          setPayAgainQr(null);
+          applyPayAgainResult({
+            receiptNo: latestTxn?.receiptNo ?? "",
+            amount: +(balanceBeforeTopUp.current - data.balanceAmount).toFixed(
+              2,
+            ),
+            paymentModeName: latestTxn?.paymentModeName ?? "PAYNOW",
+            paymentStatus: data.balanceAmount <= 0.005 ? "paid" : "partial",
+            amountPaid: data.amountPaid,
+            balanceAmount: data.balanceAmount,
           });
-        } catch (err) {
-          throw new Error(extractErrorMessage(err));
-        }
-      }}
-    />
-    <NetsPaymentModal
-      open={!!payAgainCreditCard}
-      kind="CREDIT_CARD"
-      referenceId={payAgainCreditCard?.referenceId ?? ""}
-      amount={payAgainCreditCard?.amount ?? 0}
-      onPoll={async () => {
-        const res = await api.get<
-          ApiEnvelope<{
-            transactions: { receiptNo: string; amount: number; paymentModeName: string }[];
+        }}
+        onCancel={() => setPayAgainQr(null)}
+      />
+      <NetsPaymentModal
+        open={!!payAgainNets}
+        referenceId={payAgainNets?.referenceId ?? ""}
+        amount={payAgainNets?.amount ?? 0}
+        onPoll={async () => {
+          const res = await api.get<
+            ApiEnvelope<{
+              transactions: {
+                receiptNo: string;
+                amount: number;
+                paymentModeName: string;
+              }[];
+              amountPaid: number;
+              balanceAmount: number;
+            }>
+          >(`/pos/booking/bookings/${confirmation._id}`);
+          const data = unwrap(res);
+          // Same reasoning as PaynowQrModal's onPoll above — this booking is
+          // already confirmed, so a genuine drop in balance since the
+          // terminal was sent this payment is the only signal it landed.
+          if (data.balanceAmount < balanceBeforeTopUp.current - 0.005) {
+            return { status: "confirmed" as const, data };
+          }
+          return { status: "pending" as const };
+        }}
+        onConfirmed={(raw) => {
+          const data = raw as {
+            transactions: {
+              receiptNo: string;
+              amount: number;
+              paymentModeName: string;
+            }[];
             amountPaid: number;
             balanceAmount: number;
-          }>
-        >(`/pos/booking/bookings/${confirmation._id}`);
-        const data = unwrap(res);
-        if (data.balanceAmount < balanceBeforeTopUp.current - 0.005) {
-          return { status: "confirmed" as const, data };
-        }
-        return { status: "pending" as const };
-      }}
-      onConfirmed={(raw) => {
-        const data = raw as { transactions: { receiptNo: string; amount: number; paymentModeName: string }[]; amountPaid: number; balanceAmount: number };
-        const latestTxn = data.transactions[data.transactions.length - 1];
-        setPayAgainCreditCard(null);
-        applyPayAgainResult({
-          receiptNo: latestTxn?.receiptNo ?? "",
-          amount: +(balanceBeforeTopUp.current - data.balanceAmount).toFixed(2),
-          paymentModeName: latestTxn?.paymentModeName ?? "CREDIT CARD",
-          paymentStatus: data.balanceAmount <= 0.005 ? "paid" : "partial",
-          amountPaid: data.amountPaid,
-          balanceAmount: data.balanceAmount,
-        });
-      }}
-      onCancel={() => setPayAgainCreditCard(null)}
-      startInManualMode={!!payAgainCreditCard?.manual}
-      onManualConfirm={async (transactionRefNo) => {
-        try {
-          await api.post(`/pos/booking/manual-confirm`, {
-            referenceId: payAgainCreditCard?.referenceId,
-            transactionRefNo,
+          };
+          const latestTxn = data.transactions[data.transactions.length - 1];
+          setPayAgainNets(null);
+          applyPayAgainResult({
+            receiptNo: latestTxn?.receiptNo ?? "",
+            amount: +(balanceBeforeTopUp.current - data.balanceAmount).toFixed(
+              2,
+            ),
+            paymentModeName: latestTxn?.paymentModeName ?? "NETS",
+            paymentStatus: data.balanceAmount <= 0.005 ? "paid" : "partial",
+            amountPaid: data.amountPaid,
+            balanceAmount: data.balanceAmount,
           });
-        } catch (err) {
-          throw new Error(extractErrorMessage(err));
-        }
-      }}
-    />
+        }}
+        onCancel={() => setPayAgainNets(null)}
+        startInManualMode={!!payAgainNets?.manual}
+        onManualConfirm={async (transactionRefNo) => {
+          try {
+            await api.post(`/pos/booking/manual-confirm`, {
+              referenceId: payAgainNets?.referenceId,
+              transactionRefNo,
+            });
+          } catch (err) {
+            throw new Error(extractErrorMessage(err));
+          }
+        }}
+      />
+      <NetsPaymentModal
+        open={!!payAgainCreditCard}
+        kind="CREDIT_CARD"
+        referenceId={payAgainCreditCard?.referenceId ?? ""}
+        amount={payAgainCreditCard?.amount ?? 0}
+        onPoll={async () => {
+          const res = await api.get<
+            ApiEnvelope<{
+              transactions: {
+                receiptNo: string;
+                amount: number;
+                paymentModeName: string;
+              }[];
+              amountPaid: number;
+              balanceAmount: number;
+            }>
+          >(`/pos/booking/bookings/${confirmation._id}`);
+          const data = unwrap(res);
+          if (data.balanceAmount < balanceBeforeTopUp.current - 0.005) {
+            return { status: "confirmed" as const, data };
+          }
+          return { status: "pending" as const };
+        }}
+        onConfirmed={(raw) => {
+          const data = raw as {
+            transactions: {
+              receiptNo: string;
+              amount: number;
+              paymentModeName: string;
+            }[];
+            amountPaid: number;
+            balanceAmount: number;
+          };
+          const latestTxn = data.transactions[data.transactions.length - 1];
+          setPayAgainCreditCard(null);
+          applyPayAgainResult({
+            receiptNo: latestTxn?.receiptNo ?? "",
+            amount: +(balanceBeforeTopUp.current - data.balanceAmount).toFixed(
+              2,
+            ),
+            paymentModeName: latestTxn?.paymentModeName ?? "CREDIT CARD",
+            paymentStatus: data.balanceAmount <= 0.005 ? "paid" : "partial",
+            amountPaid: data.amountPaid,
+            balanceAmount: data.balanceAmount,
+          });
+        }}
+        onCancel={() => setPayAgainCreditCard(null)}
+        startInManualMode={!!payAgainCreditCard?.manual}
+        onManualConfirm={async (transactionRefNo) => {
+          try {
+            await api.post(`/pos/booking/manual-confirm`, {
+              referenceId: payAgainCreditCard?.referenceId,
+              transactionRefNo,
+            });
+          } catch (err) {
+            throw new Error(extractErrorMessage(err));
+          }
+        }}
+      />
     </>
   );
 }
@@ -5524,35 +6357,58 @@ function PaymentRecordedModal({
     <PosFlipModal
       open={open}
       onBackdrop={onClose}
+      animated
       panelClassName="flex max-h-full w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-gold-500/25 bg-white p-5 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)]"
     >
-          {result && (
-          <>
+      {result && (
+        <>
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border-2 border-gold-400 bg-gold-500/15">
-            <svg className="h-7 w-7 text-[#d4a017]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              className="h-7 w-7 text-[#d4a017]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                d="M5 13l4 4L19 7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </div>
           <h3 className="font-display text-[19px] font-bold text-ink-100">
             Partial Payment Success
           </h3>
           <p className="mt-1 text-[12.5px] text-ink-500">
-            Collected — a balance is still due. Continue paying until the balance is $0.00.
+            Collected — a balance is still due. Continue paying until the
+            balance is $0.00.
           </p>
           <div className="my-5 space-y-1.5 rounded-xl border border-gold-500/15 bg-ivory-100 px-4 py-3.5 text-left text-[13px]">
-            <Row label="Amount Collected" value={formatCurrency(result.amount)} highlight />
+            <Row
+              label="Amount Collected"
+              value={formatCurrency(result.amount)}
+              highlight
+            />
             <Row label="Payment Mode" value={result.paymentModeName} />
             <Row label="Receipt No." value={result.receiptNo} />
             <div className="border-t border-gold-500/10 pt-1.5">
-              <Row label="Total Paid So Far" value={formatCurrency(result.amountPaid)} />
-              <Row label="Balance Due" value={formatCurrency(result.balanceAmount)} highlight />
+              <Row
+                label="Total Paid So Far"
+                value={formatCurrency(result.amountPaid)}
+              />
+              <Row
+                label="Balance Due"
+                value={formatCurrency(result.balanceAmount)}
+                highlight
+              />
             </div>
           </div>
           <DivineButton variant="flame" fullWidth onClick={onClose}>
             OK
           </DivineButton>
-          </>
-          )}
+        </>
+      )}
     </PosFlipModal>
   );
 }
@@ -5568,7 +6424,9 @@ function DetailTile({
 }) {
   return (
     <div className="rounded-md border border-[#f0b4a0]/60 bg-[#fffdfb] px-2.5 py-1.5 text-left">
-      <p className="text-[9.5px] font-semibold uppercase tracking-wide text-maroon/70">{label}</p>
+      <p className="text-[9.5px] font-semibold uppercase tracking-wide text-maroon/70">
+        {label}
+      </p>
       <p
         className={`mt-px truncate text-[12.5px] ${
           highlight ? "font-bold text-[#c9a227]" : "font-semibold text-ink-100"

@@ -59,7 +59,7 @@ type Customer = {
   name: string;
   email: string;
   mobileNumber: string | null;
-  familyMembers?: { name: string; nakshatra: string }[];
+  familyMembers?: { nameEnglish: string; nameTamil: string; natchathiram: { _id: string; name: string } | null }[];
 };
 
 type InventoryInfo = {
