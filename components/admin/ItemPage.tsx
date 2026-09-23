@@ -741,6 +741,7 @@ export default function ItemPage() {
           </div>
           <DivineMasterImageUpload
             label="Item Image"
+            hint="Recommended: 400 × 400 px square, WebP or JPEG · shown as the card banner in the POS offering grid · up to 100 KB"
             value={editing?.image}
             onChange={(file) => {
               (editing ? setEditImage : setCreateImage)(file);
