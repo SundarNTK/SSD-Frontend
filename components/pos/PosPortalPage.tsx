@@ -80,6 +80,8 @@ import {
   LockIcon,
   HomeIcon,
   RefreshIcon,
+  CheckIcon,
+  CloseIcon,
 } from "../divine/icons";
 
 // Shared by every text/select/date field on the counter screen — search
@@ -1409,6 +1411,26 @@ export default function PosPortalPage() {
     );
   }
 
+  // Inline per-devotee edit right on the cart row (see CartLineRow) — fixes
+  // a single name/nakshatra without reopening the whole Edit modal. Pads
+  // out any missing slots first so writing to idx never leaves a hole.
+  function updateCartLineDevotee(id: string, idx: number, devotee: Devotee) {
+    setCart((prev) =>
+      prev.map((l) => {
+        if (l.id !== id) return l;
+        const devotees = Array.from(
+          { length: Math.max(l.devotees.length, idx + 1) },
+          (_, i) => l.devotees[i] ?? { name: "", nakshatra: "" },
+        );
+        devotees[idx] = devotee;
+        return { ...l, devotees };
+      }),
+    );
+    if (devotee.name.trim()) {
+      void persistNewFamilyMembers([devotee]);
+    }
+  }
+
   function clearCart() {
     setCart([]);
     setSummary(null);
@@ -2411,6 +2433,10 @@ export default function PosPortalPage() {
                           onRemove={() => removeCartLine(line.id)}
                           onIncrement={() => adjustCartLineQuantity(line.id, 1)}
                           onDecrement={() => adjustCartLineQuantity(line.id, -1)}
+                          nakshatraOptions={nakshatraOptions}
+                          onUpdateDevotee={(idx, devotee) =>
+                            updateCartLineDevotee(line.id, idx, devotee)
+                          }
                         />
                       </motion.div>
                     ))}
@@ -4936,20 +4962,63 @@ function CartLineRow({
   onRemove,
   onIncrement,
   onDecrement,
+  nakshatraOptions,
+  onUpdateDevotee,
 }: {
   line: CartLine;
   onEdit: () => void;
   onRemove: () => void;
   onIncrement: () => void;
   onDecrement: () => void;
+  nakshatraOptions: ListboxOption[];
+  onUpdateDevotee: (idx: number, devotee: Devotee) => void;
 }) {
-  // A plain quantity line (no deities, no devotees — see
-  // isSimpleQuantityOffering) gets an inline +/- stepper right on the cart
-  // row instead of only a pencil button that reopens the whole modal just
-  // to bump a number. A deity-mapped or family-member line keeps the
-  // existing Edit flow, since its quantity is derived from (or paired
-  // with) selections a stepper alone can't represent.
-  const isSimple = line.deities.length === 0 && line.devotees.length === 0;
+  const [devoteesExpanded, setDevoteesExpanded] = useState(false);
+  // Which devotee slot (if any) is mid-edit right on the cart row — lets a
+  // name/nakshatra typo get fixed without reopening the whole Edit modal.
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [draftNakshatra, setDraftNakshatra] = useState("");
+
+  function startEditingDevotee(idx: number, devotee: Devotee | undefined) {
+    setEditingIdx(idx);
+    setDraftName(devotee?.name ?? "");
+    setDraftNakshatra(devotee?.nakshatra ?? "");
+  }
+
+  function saveEditingDevotee() {
+    if (editingIdx === null) return;
+    onUpdateDevotee(editingIdx, {
+      name: draftName.trim(),
+      nakshatra: draftNakshatra,
+    });
+    setEditingIdx(null);
+  }
+
+  // Quantity is only ever derived from the deity picks for a deity-mapped
+  // offering (see modalEffectiveQty) — everything else, including a
+  // family-member offering, keeps an independently-typed quantity, so the
+  // +/- stepper is safe to show for it too. This is judged off the
+  // offering's own isDeityMappingRequired/deityMapping, not the line's
+  // current deities array, so it can't waver as deities get added/removed.
+  const hasDeityChoices = line.offering
+    ? Boolean(line.offering.isDeityMappingRequired) &&
+      (line.offering.deityMapping?.length ?? 0) > 0
+    : line.deities.length > 0;
+  const hasFamilyMembers = line.offering
+    ? Boolean(line.offering.isFamilyMembersRequired)
+    : line.devotees.length > 0;
+  const showStepper = !hasDeityChoices;
+  const showEditButton = !!line.offering && (hasDeityChoices || hasFamilyMembers);
+  const maxFamilyMembers = line.offering?.maxFamilyMembers ?? line.devotees.length;
+  // Placeholder rows so an offering that requires family-member details but
+  // was added with some (or all) of them left blank still shows every slot
+  // — not just the ones that happen to be filled in — so staff can see at a
+  // glance what's missing and tap Edit to fill it in.
+  const devoteeSlots = hasFamilyMembers
+    ? Array.from({ length: Math.max(maxFamilyMembers, line.devotees.length) }, (_, i) => line.devotees[i])
+    : [];
+  const filledDevoteeCount = line.devotees.filter((d) => d.name.trim()).length;
 
   return (
     <div
@@ -4962,9 +5031,7 @@ function CartLineRow({
           </p>
           <p className="text-[11.5px] text-ink-500">
             {line.refType}
-            {!isSimple && ` · Qty ${line.quantity}`}
-            {line.devotees.length > 0 &&
-              ` · ${line.devotees.map((d) => d.name).join(", ")}`}
+            {!showStepper && ` · Qty ${line.quantity}`}
           </p>
           {line.quantityExceedsStock && (
             <p className="text-[11px] text-crimson-500">
@@ -4976,7 +5043,7 @@ function CartLineRow({
           <span className="whitespace-nowrap text-[13px] font-semibold text-[#7c1527]">
             {formatCurrency(line.lineTotal ?? line.unitPrice * line.quantity)}
           </span>
-          {!isSimple && line.offering && (
+          {showEditButton && (
             <button
               onClick={onEdit}
               aria-label={`Edit ${line.name}`}
@@ -4995,7 +5062,7 @@ function CartLineRow({
         </div>
       </div>
 
-      {isSimple && (
+      {showStepper && (
         <div className="mt-2 flex items-center justify-between">
           <span className="text-[11.5px] text-ink-500">Quantity</span>
           <div className="inline-flex items-center gap-2 rounded-lg border border-gold-500/30 bg-white px-1.5 py-1">
@@ -5020,6 +5087,110 @@ function CartLineRow({
               <PlusIcon />
             </button>
           </div>
+        </div>
+      )}
+
+      {hasFamilyMembers && (
+        <div className="mt-2 border-t border-gold-500/15 pt-2">
+          <button
+            type="button"
+            onClick={() => setDevoteesExpanded((v) => !v)}
+            className="flex w-full items-center justify-between text-[11.5px] text-ink-500"
+          >
+            <span>
+              Devotee details{" "}
+              <span
+                className={
+                  filledDevoteeCount < devoteeSlots.length
+                    ? "font-medium text-crimson-500"
+                    : "font-medium text-ink-300"
+                }
+              >
+                ({filledDevoteeCount}/{devoteeSlots.length} added)
+              </span>
+            </span>
+            <ChevronIcon
+              className={`h-3.5 w-3.5 shrink-0 transition-transform ${devoteesExpanded ? "rotate-180" : ""}`}
+            />
+          </button>
+          {devoteesExpanded && (
+            <div className="mt-1.5 space-y-1">
+              {devoteeSlots.map((devotee, idx) =>
+                editingIdx === idx ? (
+                  <div
+                    key={idx}
+                    className="space-y-1.5 rounded-md border border-gold-500/30 bg-white p-1.5"
+                  >
+                    <input
+                      type="text"
+                      value={draftName}
+                      onChange={(e) => setDraftName(e.target.value)}
+                      placeholder="Enter name"
+                      autoFocus
+                      className="h-8 w-full min-w-0 rounded-md border border-gold-500/40 bg-white px-2 text-[12px] text-ink-100 outline-none focus:border-flame-500"
+                    />
+                    <div className="flex items-center gap-1.5">
+                      <div className="min-w-0 flex-1">
+                        <DivineListbox
+                          value={draftNakshatra}
+                          onChange={setDraftNakshatra}
+                          options={nakshatraOptions}
+                          placeholder="Select star"
+                          clearable={false}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={saveEditingDevotee}
+                        aria-label="Save devotee"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-green-600 hover:bg-green-500/10"
+                      >
+                        <CheckIcon className="h-4 w-4 text-green-600" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingIdx(null)}
+                        aria-label="Cancel"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-crimson-500/40 text-crimson-500 hover:bg-crimson-500/10"
+                      >
+                        <CloseIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ) : devotee?.name?.trim() ? (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between gap-1.5 rounded-md bg-ivory-100 px-2 py-1 text-[11.5px]"
+                  >
+                    <span className="truncate text-ink-100">
+                      {devotee.name}
+                    </span>
+                    <span className="shrink-0 pl-2 text-ink-500">
+                      {devotee.nakshatra || "—"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => startEditingDevotee(idx, devotee)}
+                      aria-label={`Edit devotee ${idx + 1}`}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-crimson-500 hover:bg-crimson-500/10"
+                    >
+                      <PencilIcon className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => startEditingDevotee(idx, devotee)}
+                    className="flex w-full items-center justify-between rounded-md border border-dashed border-crimson-500/30 bg-crimson-500/5 px-2 py-1 text-[11.5px] text-crimson-500"
+                  >
+                    <span>Devotee {idx + 1} — not added</span>
+                    <PencilIcon className="h-3 w-3" />
+                  </button>
+                ),
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
