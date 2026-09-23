@@ -72,6 +72,8 @@ type BookingDetail = {
     deities: DeityRef[];
     devotees: Devotee[];
     lineTotal: number;
+    gstAmount: number;
+    glAmount: number;
   }[];
   subtotal: number;
   gstAmount: number;
@@ -633,6 +635,8 @@ function BookingReceiptDocument({ detail }: { detail: BookingDetail }) {
                 <th className="pb-1.5 pr-3 font-medium">Item / Service</th>
                 <th className="w-12 pb-1.5 text-center font-medium">Qty</th>
                 <th className="w-20 pb-1.5 text-right font-medium">Unit</th>
+                <th className="w-20 pb-1.5 pl-3 text-right font-medium">GL Amt</th>
+                <th className="w-16 pb-1.5 pl-3 text-right font-medium">GST</th>
                 <th className="w-24 pb-1.5 pl-3 text-right font-medium">Amount</th>
               </tr>
             </thead>
@@ -660,6 +664,8 @@ function BookingReceiptDocument({ detail }: { detail: BookingDetail }) {
                   </td>
                   <td className="py-1.5 text-center tabular-nums">{line.quantity}</td>
                   <td className="py-1.5 text-right tabular-nums text-[#6b6258]">{formatCurrency(line.unitPrice)}</td>
+                  <td className="py-1.5 pl-3 text-right tabular-nums text-[#6b6258]">{formatCurrency(line.glAmount)}</td>
+                  <td className="py-1.5 pl-3 text-right tabular-nums text-[#6b6258]">{formatCurrency(line.gstAmount)}</td>
                   <td className="py-1.5 pl-3 text-right font-medium tabular-nums">{formatCurrency(line.lineTotal)}</td>
                 </tr>
               ))}
@@ -702,7 +708,7 @@ function BookingReceiptDocument({ detail }: { detail: BookingDetail }) {
 
           <ReceiptSection title="Amount Summary" keepTogether>
             <div className="ml-auto w-full max-w-sm space-y-1.5">
-              <SummaryRow label="Sub Total" value={formatCurrency(detail.subtotal)} />
+              <SummaryRow label="GL Amount" value={formatCurrency(detail.subtotal)} />
               <SummaryRow label="GST" value={formatCurrency(detail.gstAmount)} />
               <div className="flex items-center justify-between border-y border-[#e8e4dc] py-2">
                 <span className="text-[13px] font-semibold text-[#1c1917]">
