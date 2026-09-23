@@ -78,7 +78,7 @@ type CreateFormValues = z.infer<typeof createSchema>;
 
 function toFamilyMemberPayload(members: EditableFamilyMember[]) {
   return members
-    .filter((m) => m.nameEnglish.trim())
+    .filter((m) => m.nameEnglish.trim() || m.nameTamil.trim())
     .map((m) => ({
       nameEnglish: m.nameEnglish.trim(),
       nameTamil: m.nameTamil.trim(),
