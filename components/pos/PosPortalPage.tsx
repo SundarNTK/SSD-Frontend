@@ -476,6 +476,21 @@ function newLineId() {
   return `line-${++lineCounter}`;
 }
 
+// An offering with no curated deities to pick from and no family-member
+// details to collect degrades to a plain "how many" add — the modal shows
+// just the Quantity stepper for these (see AddToCartModal's own
+// `!(offering.isDeityMappingRequired && deityOptions.length > 0)` check,
+// mirrored here). Repeat-adding one of these should bump the existing cart
+// line's quantity instead of appending a lookalike row next to it, and the
+// cart row itself gets its own +/- stepper instead of only a pencil button
+// that reopens the modal (see confirmAddToCart / CartLineRow).
+function isSimpleQuantityOffering(offering: Offering): boolean {
+  const hasDeityChoices =
+    Boolean(offering.isDeityMappingRequired) &&
+    (offering.deityMapping?.length ?? 0) > 0;
+  return !hasDeityChoices && !offering.isFamilyMembersRequired;
+}
+
 function formatCurrency(v: number) {
   return `$${v.toFixed(2)}`;
 }
@@ -752,6 +767,9 @@ export default function PosPortalPage() {
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const summaryDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Bumped on every /summary request actually sent — lets a response tell
+  // whether it's still the latest one in flight (see the effect below).
+  const summaryRequestSeq = useRef(0);
 
   // Signature of just the fields that actually change what the summary API
   // should return. The effect below writes lineTotal/inventory/
@@ -783,13 +801,21 @@ export default function PosPortalPage() {
       return;
     }
     summaryDebounce.current = setTimeout(async () => {
+      // A snapshot of exactly what's being sent, keyed by each line's
+      // stable `id` — not its array index — so the response can be pinned
+      // back onto the same line it was actually computed for, even if the
+      // cart has since gained/lost/reordered lines while this request was
+      // in flight (e.g. another line added, or another quantity bumped,
+      // during the round trip).
+      const requestedLines = cart;
+      const requestId = ++summaryRequestSeq.current;
       setSummaryLoading(true);
       try {
         const r = await api.post<ApiEnvelope<SummaryResponse>>(
           "/pos/booking/summary",
           {
             customerId: selectedCustomer._id,
-            lines: cart.map((l) => ({
+            lines: requestedLines.map((l) => ({
               refType: l.refType,
               refId: l.refId,
               quantity: l.quantity,
@@ -798,11 +824,18 @@ export default function PosPortalPage() {
             })),
           },
         );
+        // A newer request has since gone out (the cart changed again while
+        // this one was in flight) — that newer request owns the summary
+        // now, so drop this stale response instead of letting an
+        // out-of-order network reply flash the total to an old quantity's
+        // numbers before the real one catches up.
+        if (requestId !== summaryRequestSeq.current) return;
         const data = unwrap(r);
         setSummary(data);
         setCart((prev) =>
-          prev.map((line, idx) => {
-            const sl = data.lines[idx];
+          prev.map((line) => {
+            const reqIdx = requestedLines.findIndex((rl) => rl.id === line.id);
+            const sl = reqIdx === -1 ? undefined : data.lines[reqIdx];
             if (!sl || sl.refId !== line.refId || sl.refType !== line.refType)
               return line;
             return {
@@ -814,9 +847,11 @@ export default function PosPortalPage() {
           }),
         );
       } catch (err) {
-        toast.error(extractErrorMessage(err));
+        if (requestId === summaryRequestSeq.current) {
+          toast.error(extractErrorMessage(err));
+        }
       } finally {
-        setSummaryLoading(false);
+        if (requestId === summaryRequestSeq.current) setSummaryLoading(false);
       }
     }, 400);
     return () => {
@@ -1302,15 +1337,51 @@ export default function PosPortalPage() {
       return;
     }
 
+    const addedQty = modalEffectiveQty || 1;
+
+    // A plain quantity offering (no deities, no devotees) already on the
+    // cart gets topped up in place rather than appended as a second,
+    // identical-looking line — see isSimpleQuantityOffering.
+    const existingLine = isSimpleQuantityOffering(modalOffering)
+      ? cart.find(
+          (l) =>
+            l.refType === modalOffering.refType &&
+            l.refId === modalOffering._id &&
+            l.deities.length === 0 &&
+            l.devotees.length === 0,
+        )
+      : undefined;
+
+    if (existingLine) {
+      const lineId = existingLine.id;
+      const nextQty = existingLine.quantity + addedQty;
+      setCart((prev) =>
+        prev.map((l) =>
+          l.id === lineId
+            ? {
+                ...l,
+                quantity: nextQty,
+                unitPrice: modalOffering.salePrice,
+                lineTotal: modalOffering.salePrice * nextQty,
+                offering: modalOffering,
+              }
+            : l,
+        ),
+      );
+      setModalOffering(null);
+      setCartNotice({ name: modalOffering.name, kind: "updated" });
+      return;
+    }
+
     const newLine: CartLine = {
       id: newLineId(),
       refType: modalOffering.refType,
       refId: modalOffering._id,
       name: modalOffering.name,
       code: modalOffering.code,
-      quantity: modalEffectiveQty || 1,
+      quantity: addedQty,
       unitPrice: modalOffering.salePrice,
-      lineTotal: modalOffering.salePrice * (modalEffectiveQty || 1),
+      lineTotal: modalOffering.salePrice * addedQty,
       deities: modalDeities,
       devotees: modalOffering.isFamilyMembersRequired ? filledDevotees : [],
       offering: modalOffering,
@@ -1322,6 +1393,20 @@ export default function PosPortalPage() {
 
   function removeCartLine(id: string) {
     setCart((prev) => prev.filter((l) => l.id !== id));
+  }
+
+  // Inline +/- on a simple cart row (see CartLineRow) — clamped to a floor
+  // of 1, matching the modal's own stepper (removal stays a deliberate
+  // Remove tap, not a decrement past 1).
+  function adjustCartLineQuantity(id: string, delta: number) {
+    setCart((prev) =>
+      prev.map((l) => {
+        if (l.id !== id) return l;
+        const nextQty = Math.max(1, l.quantity + delta);
+        if (nextQty === l.quantity) return l;
+        return { ...l, quantity: nextQty, lineTotal: l.unitPrice * nextQty };
+      }),
+    );
   }
 
   function clearCart() {
@@ -2324,6 +2409,8 @@ export default function PosPortalPage() {
                           line={line}
                           onEdit={() => openEditModal(line)}
                           onRemove={() => removeCartLine(line.id)}
+                          onIncrement={() => adjustCartLineQuantity(line.id, 1)}
+                          onDecrement={() => adjustCartLineQuantity(line.id, -1)}
                         />
                       </motion.div>
                     ))}
@@ -4847,11 +4934,23 @@ function CartLineRow({
   line,
   onEdit,
   onRemove,
+  onIncrement,
+  onDecrement,
 }: {
   line: CartLine;
   onEdit: () => void;
   onRemove: () => void;
+  onIncrement: () => void;
+  onDecrement: () => void;
 }) {
+  // A plain quantity line (no deities, no devotees — see
+  // isSimpleQuantityOffering) gets an inline +/- stepper right on the cart
+  // row instead of only a pencil button that reopens the whole modal just
+  // to bump a number. A deity-mapped or family-member line keeps the
+  // existing Edit flow, since its quantity is derived from (or paired
+  // with) selections a stepper alone can't represent.
+  const isSimple = line.deities.length === 0 && line.devotees.length === 0;
+
   return (
     <div
       className={`relative z-10 rounded-lg border p-3 shadow-[0_2px_4px_rgba(124,21,39,0.12),0_8px_18px_rgba(0,0,0,0.14)] transition-shadow duration-200 ${line.quantityExceedsStock ? "border-crimson-500/40 bg-crimson-500/5" : "border-[#d4b8a4] bg-white hover:shadow-[0_4px_8px_rgba(124,21,39,0.16),0_12px_24px_rgba(0,0,0,0.16)]"}`}
@@ -4862,7 +4961,8 @@ function CartLineRow({
             {line.name}
           </p>
           <p className="text-[11.5px] text-ink-500">
-            {line.refType} · Qty {line.quantity}
+            {line.refType}
+            {!isSimple && ` · Qty ${line.quantity}`}
             {line.devotees.length > 0 &&
               ` · ${line.devotees.map((d) => d.name).join(", ")}`}
           </p>
@@ -4876,7 +4976,7 @@ function CartLineRow({
           <span className="whitespace-nowrap text-[13px] font-semibold text-[#7c1527]">
             {formatCurrency(line.lineTotal ?? line.unitPrice * line.quantity)}
           </span>
-          {line.offering && (
+          {!isSimple && line.offering && (
             <button
               onClick={onEdit}
               aria-label={`Edit ${line.name}`}
@@ -4894,6 +4994,34 @@ function CartLineRow({
           </button>
         </div>
       </div>
+
+      {isSimple && (
+        <div className="mt-2 flex items-center justify-between">
+          <span className="text-[11.5px] text-ink-500">Quantity</span>
+          <div className="inline-flex items-center gap-2 rounded-lg border border-gold-500/30 bg-white px-1.5 py-1">
+            <button
+              type="button"
+              onClick={onDecrement}
+              disabled={line.quantity <= 1}
+              aria-label={`Decrease quantity of ${line.name}`}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-flame-600 transition-colors hover:bg-flame-500/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              <MinusIcon />
+            </button>
+            <span className="w-5 text-center font-body text-[13px] font-semibold text-ink-100">
+              {line.quantity}
+            </span>
+            <button
+              type="button"
+              onClick={onIncrement}
+              aria-label={`Increase quantity of ${line.name}`}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-flame-600 transition-colors hover:bg-flame-500/10"
+            >
+              <PlusIcon />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

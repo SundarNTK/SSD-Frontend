@@ -7,6 +7,8 @@ import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
+import ImportExportBar from "./ImportExportBar";
+import ImportReviewModal from "./ImportReviewModal";
 import DivineInput from "../divine/DivineInput";
 import DivineToggle from "../divine/DivineToggle";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
@@ -59,7 +61,9 @@ export default function NakshathiramPage() {
   const { can } = usePermissions();
   const canCreate = can(MODULES.nakshathirams, "fullAccess");
   const canEdit = can(MODULES.nakshathirams, "edit");
+  const canView = can(MODULES.nakshathirams, "view");
   const { items, total, list, create, update, remove } = useApiResource<Nakshathiram>(api, "/masters/nakshathirams");
+  const [importOpen, setImportOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -161,12 +165,36 @@ export default function NakshathiramPage() {
         onCreate={canCreate ? openCreate : undefined}
         createLabel="Add Nakshathiram"
         emptyMessage="No nakshathirams yet — create the first one."
+        toolbarActions={
+          <ImportExportBar
+            client={api}
+            basePath="/masters/nakshathirams"
+            entityLabel="Nakshathiram"
+            canExport={canView}
+            canImport={canCreate}
+            onOpenImport={() => setImportOpen(true)}
+          />
+        }
         rowActions={(n) => (
           <div className="flex justify-end gap-2">
             {canEdit && <EditIconButton onClick={() => openEdit(n)} />}
             {canCreate && <DeleteIconButton onClick={() => setDeleting(n)} />}
           </div>
         )}
+      />
+
+      <ImportReviewModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        client={api}
+        basePath="/masters/nakshathirams"
+        entityLabel="Nakshathiram"
+        previewFields={[
+          { key: "code", label: "Code" },
+          { key: "name", label: "Nakshathiram" },
+          { key: "rasi", label: "Rasi" },
+        ]}
+        onImported={() => list.run({ page, pageSize, search: search || undefined, status: statusFilter || undefined })}
       />
 
       <ConfirmDialog
