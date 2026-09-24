@@ -255,7 +255,12 @@ const PAGE_SIZE_OPTIONS = [30, 60, 100, 150];
 const RECENT_BOOKINGS_PREVIEW_LIMIT = 3;
 const RECENT_BOOKINGS_ALL_LIMIT = 200;
 
-type DeityOption = { _id: string; name: string; tamilName: string; color?: string };
+type DeityOption = {
+  _id: string;
+  name: string;
+  tamilName: string;
+  color?: string;
+};
 type NakshatraOption = { _id: string; name: string; tamilName?: string };
 
 type Devotee = { name: string; nakshatra: string };
@@ -2440,7 +2445,9 @@ export default function PosPortalPage() {
                           onEdit={() => openEditModal(line)}
                           onRemove={() => removeCartLine(line.id)}
                           onIncrement={() => adjustCartLineQuantity(line.id, 1)}
-                          onDecrement={() => adjustCartLineQuantity(line.id, -1)}
+                          onDecrement={() =>
+                            adjustCartLineQuantity(line.id, -1)
+                          }
                           nakshatraOptions={nakshatraOptions}
                           onUpdateDevotee={(idx, devotee) =>
                             updateCartLineDevotee(line.id, idx, devotee)
@@ -4839,7 +4846,7 @@ function CatalogueGrid({
           so it's never scrolled out of view regardless of viewport height. */}
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-1 pt-2">
         <div
-          className="grid content-start auto-rows-auto gap-2 sm:gap-2.5"
+          className="grid content-start auto-rows-auto gap-3 sm:gap-4"
           style={{
             gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
           }}
@@ -5027,14 +5034,19 @@ function CartLineRow({
     ? Boolean(line.offering.isFamilyMembersRequired)
     : line.devotees.length > 0;
   const showStepper = !hasDeityChoices;
-  const showEditButton = !!line.offering && (hasDeityChoices || hasFamilyMembers);
-  const maxFamilyMembers = line.offering?.maxFamilyMembers ?? line.devotees.length;
+  const showEditButton =
+    !!line.offering && (hasDeityChoices || hasFamilyMembers);
+  const maxFamilyMembers =
+    line.offering?.maxFamilyMembers ?? line.devotees.length;
   // Placeholder rows so an offering that requires family-member details but
   // was added with some (or all) of them left blank still shows every slot
   // — not just the ones that happen to be filled in — so staff can see at a
   // glance what's missing and tap Edit to fill it in.
   const devoteeSlots = hasFamilyMembers
-    ? Array.from({ length: Math.max(maxFamilyMembers, line.devotees.length) }, (_, i) => line.devotees[i])
+    ? Array.from(
+        { length: Math.max(maxFamilyMembers, line.devotees.length) },
+        (_, i) => line.devotees[i],
+      )
     : [];
   const filledDevoteeCount = line.devotees.filter((d) => d.name.trim()).length;
 
@@ -5410,7 +5422,12 @@ function AddToCartModal({
                             </motion.span>
                           )}
                         </AnimatePresence>
-                        <span className="line-clamp-2 min-w-0 break-words" title={d.name}>{d.name}</span>
+                        <span
+                          className="line-clamp-2 min-w-0 break-words"
+                          title={d.name}
+                        >
+                          {d.name}
+                        </span>
                       </button>
                     );
                   })}
