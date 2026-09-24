@@ -1131,7 +1131,13 @@ export default function PosPortalPage() {
     }
     setEditingLineId(null);
     setModalOffering(offering);
-    setModalDeities([]);
+    // A deity-mapped offering with just one deity has nothing to choose —
+    // pre-select it so the cashier doesn't have to tap the only option.
+    setModalDeities(
+      offering.isDeityMappingRequired && offering.deityMapping?.length === 1
+        ? [offering.deityMapping[0]._id]
+        : [],
+    );
     // Family member details are their own independent count (the offering's
     // configured max), not tied to how many deities get picked — selecting
     // more deities only changes price/quantity, never how many devotee rows
@@ -1247,9 +1253,15 @@ export default function PosPortalPage() {
   const modalHasDeityChoices =
     Boolean(modalOffering?.isDeityMappingRequired) &&
     modalDeityChoices.length > 0;
+  // Family-member offerings without deity choices are booked one at a time —
+  // quantity stays at the default 1 (no +/- in the modal or the cart row).
+  const modalFixedQty =
+    !modalHasDeityChoices && Boolean(modalOffering?.isFamilyMembersRequired);
   const modalEffectiveQty = modalHasDeityChoices
     ? modalDeities.length || 0
-    : modalQuantity;
+    : modalFixedQty
+      ? 1
+      : modalQuantity;
   const modalTotal = modalOffering
     ? modalOffering.salePrice * modalEffectiveQty
     : 0;
@@ -5033,7 +5045,7 @@ function CartLineRow({
   const hasFamilyMembers = line.offering
     ? Boolean(line.offering.isFamilyMembersRequired)
     : line.devotees.length > 0;
-  const showStepper = !hasDeityChoices;
+  const showStepper = !hasDeityChoices && !hasFamilyMembers;
   const showEditButton =
     !!line.offering && (hasDeityChoices || hasFamilyMembers);
   const maxFamilyMembers =
@@ -5439,7 +5451,8 @@ function AddToCartModal({
               </div>
             )}
 
-            {!(offering.isDeityMappingRequired && deityOptions.length > 0) && (
+            {!(offering.isDeityMappingRequired && deityOptions.length > 0) &&
+              !offering.isFamilyMembersRequired && (
               <div>
                 <p className={`${FORM_LABEL} mb-2`}>Quantity</p>
                 <div className="inline-flex items-center gap-3 rounded-xl border border-gold-500/30 bg-white px-2 py-1.5">
@@ -5472,6 +5485,16 @@ function AddToCartModal({
                 </div>
               </div>
             )}
+
+            {!(offering.isDeityMappingRequired && deityOptions.length > 0) &&
+              offering.isFamilyMembersRequired && (
+                <div>
+                  <p className={`${FORM_LABEL} mb-2`}>Quantity</p>
+                  <span className="inline-flex min-w-12 items-center justify-center rounded-xl border border-gold-500/30 bg-ivory-50 px-4 py-1.5 font-body text-[16px] font-semibold text-ink-100">
+                    1
+                  </span>
+                </div>
+              )}
 
             {offering.isFamilyMembersRequired && devoteeRows > 0 && (
               <div className="space-y-3">
