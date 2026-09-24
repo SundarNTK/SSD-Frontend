@@ -173,6 +173,8 @@ type PosItem = {
   tamilName: string;
   salePrice: number;
   image?: string | null;
+  /** Master-configured card colour (hex); empty = default theme. */
+  color?: string;
   isDeityMappingRequired: boolean;
   deityMapping: DeityOption[];
   isFamilyMembersRequired: boolean;
@@ -193,6 +195,8 @@ type PosService = {
   tamilName: string;
   defaultSalePrice: number;
   image?: string | null;
+  /** Master-configured card colour (hex); empty = default theme. */
+  color?: string;
   isDeityMappingRequired: boolean;
   deityMapping: DeityOption[];
   isFamilyMembersRequired: boolean;
@@ -251,7 +255,7 @@ const PAGE_SIZE_OPTIONS = [30, 60, 100, 150];
 const RECENT_BOOKINGS_PREVIEW_LIMIT = 3;
 const RECENT_BOOKINGS_ALL_LIMIT = 200;
 
-type DeityOption = { _id: string; name: string; tamilName: string };
+type DeityOption = { _id: string; name: string; tamilName: string; color?: string };
 type NakshatraOption = { _id: string; name: string; tamilName?: string };
 
 type Devotee = { name: string; nakshatra: string };
@@ -356,6 +360,8 @@ type RecheckedLine = {
   // Only present when available — lets the "repeat a past booking" flow
   // reconstruct a full Offering so its cart lines get an Edit button too.
   tamilName?: string;
+  image?: string | null;
+  color?: string;
   isDeityMappingRequired?: boolean;
   deityMapping?: DeityOption[];
   isFamilyMembersRequired?: boolean;
@@ -1058,6 +1064,8 @@ export default function PosPortalPage() {
               code: l.code ?? "",
               name: l.name ?? "",
               tamilName: l.tamilName ?? "",
+              image: l.image ?? null,
+              color: l.color ?? "",
               salePrice: l.unitPrice ?? 0,
               isDeityMappingRequired: l.isDeityMappingRequired,
               deityMapping: l.deityMapping ?? [],
@@ -4568,6 +4576,15 @@ function PaymentModeBoxes({
   );
 }
 
+/** Black or white, whichever reads better on the given #rrggbb background. */
+function readableTextColor(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#1f2937" : "#ffffff";
+}
+
 type CatalogueCardTheme = {
   banner: string;
   border: string;
@@ -4936,6 +4953,7 @@ function OfferingCard({
       tamilName={offering.tamilName}
       theme={theme}
       imageUrl={offering.image}
+      accentColor={offering.color || null}
       rowIcon={<PriceTagRowIcon className={theme.rowText} />}
       rowLabel={formatCurrency(offering.salePrice)}
       extraBadges={
@@ -5295,7 +5313,7 @@ function AddToCartModal({
     <PosFlipModal
       open={open}
       onBackdrop={onCancel}
-      panelClassName="flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]"
+      panelClassName={`flex max-h-full w-full ${offering?.isDeityMappingRequired && deityOptions.length > 0 ? "max-w-3xl" : "max-w-lg"} flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]`}
     >
       {offering && (
         <>
@@ -5337,16 +5355,34 @@ function AddToCartModal({
             {offering.isDeityMappingRequired && deityOptions.length > 0 && (
               <div>
                 <p className={`${FORM_LABEL} mb-2`}>Deities (Multi-Select) *</p>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
                   {deityOptions.map((d) => {
                     const selected = deities.includes(d._id);
+                    // Master-configured colour → card background; none → the
+                    // existing POS on/off button look.
+                    const hasColor = /^#[0-9A-Fa-f]{6}$/.test(d.color ?? "");
                     return (
                       <button
                         key={d._id}
                         type="button"
                         onClick={() => toggleDeity(d._id)}
-                        className={`flex items-center gap-1.5 rounded-md border px-3.5 py-1.5 text-[13px] font-medium transition-[transform,box-shadow,background-color,color,border-color] duration-200 hover:-translate-y-0.5 ${
-                          selected ? POS_BTN_ON : POS_BTN_OFF
+                        style={{
+                          ...(hasColor
+                            ? {
+                                backgroundColor: d.color,
+                                borderColor: d.color,
+                                color: readableTextColor(d.color as string),
+                              }
+                            : undefined),
+                        }}
+                        className={`flex h-11 w-full min-w-0 items-center justify-center gap-1.5 rounded-md border px-2.5 py-1 text-center text-[13px] font-medium leading-tight transition-[transform,box-shadow,background-color,color,border-color] duration-200 hover:-translate-y-0.5 ${
+                          hasColor
+                            ? selected
+                              ? "shadow-[0_0_0_2px_#fff,0_0_0_4px_#7c1527]"
+                              : "opacity-80 hover:opacity-100"
+                            : selected
+                              ? POS_BTN_ON
+                              : POS_BTN_OFF
                         }`}
                       >
                         <AnimatePresence initial={false}>
@@ -5374,7 +5410,7 @@ function AddToCartModal({
                             </motion.span>
                           )}
                         </AnimatePresence>
-                        {d.name}
+                        <span className="line-clamp-2 min-w-0 break-words" title={d.name}>{d.name}</span>
                       </button>
                     );
                   })}

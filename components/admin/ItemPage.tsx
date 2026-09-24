@@ -19,6 +19,7 @@ import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineVisibilitySelect from "../divine/DivineVisibilitySelect";
 import DivineButton from "../divine/DivineButton";
 import DivineMasterImageUpload from "../divine/DivineMasterImageUpload";
+import DivineColorPicker from "../divine/DivineColorPicker";
 import { withOptionalImage } from "../../lib/withOptionalImage";
 import {
   PlusIcon,
@@ -65,6 +66,7 @@ export type Item = {
   customerPortalAvailability: boolean;
   status: number;
   image: string | null;
+  color?: string;
 };
 
 // Unit of Measure now comes from the Unit master (status: 1 only) rather
@@ -111,6 +113,7 @@ const schema = z
     maxFamilyMembers: z.number().int().min(1),
     visibility: z.array(z.string()),
     status: z.number(),
+    color: z.string().regex(/^(#[0-9A-Fa-f]{6})?$/, "Enter a valid hex colour"),
   })
   .superRefine((data, ctx) => {
     if (data.isDeityMappingRequired) {
@@ -146,6 +149,7 @@ const DEFAULT_VALUES: FormValues = {
   maxFamilyMembers: 2,
   visibility: DEFAULT_VISIBILITY,
   status: 1,
+  color: "",
 };
 
 async function fetchOptions(path: string, labelField = "name"): Promise<ListboxOption[]> {
@@ -265,6 +269,7 @@ export default function ItemPage() {
       maxFamilyMembers: item.maxFamilyMembers,
       visibility: flagsToVisibility(item.posAvailability, item.customerPortalAvailability),
       status: item.status,
+      color: item.color ?? "",
     });
     setEditImage(null);
     setImageRemoved(false);
@@ -301,6 +306,16 @@ export default function ItemPage() {
     { key: "image", label: "Image", render: (i) => <MasterImageCell src={i.image} alt={i.name} /> },
     { key: "code", label: "Code", render: (i) => <span className="font-medium tabular-nums text-amber-700">{i.code}</span> },
     { key: "name", label: "Name", render: (i) => i.name },
+    {
+      key: "color",
+      label: "Color",
+      render: (i) =>
+        i.color ? (
+          <span className="inline-flex h-5 w-5 rounded-full border border-gold-500/25" style={{ backgroundColor: i.color }} />
+        ) : (
+          <span className="text-ink-400">—</span>
+        ),
+    },
     {
       key: "gl",
       label: "GL Account",
@@ -739,6 +754,19 @@ export default function ItemPage() {
               )}
             />
           </div>
+          <Controller
+            control={control}
+            name="color"
+            render={({ field }) => (
+              <DivineColorPicker
+                optional
+                label="Item Card Colour (optional)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.color?.message}
+              />
+            )}
+          />
           <DivineMasterImageUpload
             label="Item Image"
             hint="Recommended: 400 × 400 px square, WebP or JPEG · shown as the card banner in the POS offering grid · up to 100 KB"
