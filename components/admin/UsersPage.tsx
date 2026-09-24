@@ -6,8 +6,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import DataTable, { StatusToggleCell, EditIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
+import FamilyMemberEditor, {
+  DEFAULT_MAX_FAMILY_MEMBERS,
+  toFamilyMemberPayload,
+  type EditableFamilyMember,
+  type FamilyMember,
+} from "./FamilyMemberEditor";
 import DivineInput from "../divine/DivineInput";
-import DivineListbox from "../divine/DivineListbox";
+import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineImageUpload from "../divine/DivineImageUpload";
 import DivineToggle from "../divine/DivineToggle";
@@ -16,7 +22,7 @@ import DivineButton from "../divine/DivineButton";
 import { MailIcon, UserIcon } from "../divine/icons";
 import { startOfToday, formatTempleDateTime } from "../../lib/datetime";
 import { sanitizeMobileInput, isValidSgMobile, SG_MOBILE_ERROR } from "../../lib/mobileNumber";
-import { authApi, unwrap, type ApiEnvelope } from "../../lib/api";
+import { authApi, api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource, type WriteBody } from "../../lib/useApiResource";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import { emailField } from "../../lib/validation";
@@ -43,6 +49,7 @@ type AdminUser = {
   passwordSetAt: string | null;
   hasSetPassword: boolean;
   entities: { entity: string; roles: { _id: string; name: string }[]; default: boolean }[];
+  familyMembers: FamilyMember[];
 };
 
 
@@ -78,8 +85,11 @@ export default function UsersPage() {
 
   const { items, total, list, create, update } = useApiResource<AdminUser>(authApi, "/users");
   const [roles, setRoles] = useState<AssignableRole[]>([]);
+  const [nakshathiramOptions, setNakshathiramOptions] = useState<ListboxOption[]>([]);
   const [createImage, setCreateImage] = useState<File | null>(null);
   const [editImage, setEditImage] = useState<File | null>(null);
+  const [createFamilyMembers, setCreateFamilyMembers] = useState<EditableFamilyMember[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<EditableFamilyMember[]>([]);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -87,6 +97,17 @@ export default function UsersPage() {
   const { pageSize, setPageSize } = usePageSize();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
+
+  useEffect(() => {
+    api
+      .get<ApiEnvelope<{ items: { _id: string; name: string }[] }>>("/masters/nakshathirams", {
+        params: { status: 1, pageSize: 200 },
+      })
+      .then((res) => {
+        setNakshathiramOptions(unwrap(res).items.map((n) => ({ value: n._id, label: n.name })));
+      })
+      .catch(() => setNakshathiramOptions([]));
+  }, []);
 
   // Reads from /users/assignable-roles, not /roles. Assigning a role belongs
   // to managing users; inspecting what a role *grants* is the Roles master's
@@ -119,6 +140,7 @@ export default function UsersPage() {
     setEditing(null);
     createForm.reset({ name: "", email: "", mobileNumber: "", roleIds: [], accessUpto: "", status: 1, posAccess: false });
     setCreateImage(null);
+    setCreateFamilyMembers([]);
     create.setError(null);
     setDrawerOpen(true);
   }
@@ -136,8 +158,39 @@ export default function UsersPage() {
       posAccess: user.posAccess,
     });
     setEditImage(null);
+    setFamilyMembers(
+      user.familyMembers.map((m) => ({
+        nameEnglish: m.nameEnglish,
+        nameTamil: m.nameTamil,
+        natchathiramId: m.natchathiram?._id ?? "",
+      }))
+    );
     update.setError(null);
     setDrawerOpen(true);
+  }
+
+  function addCreateFamilyMemberRow() {
+    setCreateFamilyMembers((prev) => [...prev, { nameEnglish: "", nameTamil: "", natchathiramId: "" }]);
+  }
+
+  function removeCreateFamilyMemberRow(index: number) {
+    setCreateFamilyMembers((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateCreateFamilyMemberRow(index: number, patch: Partial<EditableFamilyMember>) {
+    setCreateFamilyMembers((prev) => prev.map((m, i) => (i === index ? { ...m, ...patch } : m)));
+  }
+
+  function addFamilyMemberRow() {
+    setFamilyMembers((prev) => [...prev, { nameEnglish: "", nameTamil: "", natchathiramId: "" }]);
+  }
+
+  function removeFamilyMemberRow(index: number) {
+    setFamilyMembers((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateFamilyMemberRow(index: number, patch: Partial<EditableFamilyMember>) {
+    setFamilyMembers((prev) => prev.map((m, i) => (i === index ? { ...m, ...patch } : m)));
   }
 
   /**
@@ -163,7 +216,9 @@ export default function UsersPage() {
   }
 
   const submitCreate = createForm.handleSubmit(async (values) => {
-    const ok = await create.run(toPayload(values, createImage));
+    const ok = await create.run(
+      toPayload({ ...values, familyMembers: toFamilyMemberPayload(createFamilyMembers) }, createImage)
+    );
     if (ok !== undefined) {
       setDrawerOpen(false);
       toast.created("Admin user created — activation email sent.");
@@ -172,7 +227,10 @@ export default function UsersPage() {
 
   const submitEdit = editForm.handleSubmit(async (values) => {
     if (!editing) return;
-    const ok = await update.run(editing._id, toPayload(values, editImage));
+    const ok = await update.run(
+      editing._id,
+      toPayload({ ...values, familyMembers: toFamilyMemberPayload(familyMembers) }, editImage)
+    );
     if (ok !== undefined) {
       setDrawerOpen(false);
       toast.updated("Admin user updated successfully.");
@@ -281,6 +339,7 @@ export default function UsersPage() {
         title="Create Admin User"
         subtitle="Sends a set-password activation email — never set a password here directly."
         error={create.error}
+        maxWidthClassName="max-w-2xl"
         footer={
           <div className="flex justify-end gap-3">
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
@@ -344,6 +403,15 @@ export default function UsersPage() {
               )}
             />
           </div>
+
+          <FamilyMemberEditor
+            members={createFamilyMembers}
+            maxMembers={DEFAULT_MAX_FAMILY_MEMBERS}
+            nakshathiramOptions={nakshathiramOptions}
+            onAdd={addCreateFamilyMemberRow}
+            onRemove={removeCreateFamilyMemberRow}
+            onUpdate={updateCreateFamilyMemberRow}
+          />
         </form>
       </FormDrawer>
 
@@ -353,6 +421,7 @@ export default function UsersPage() {
         title="Edit Admin User"
         subtitle={editing?.email}
         error={update.error}
+        maxWidthClassName="max-w-2xl"
         footer={
           <div className="flex justify-end gap-3">
             <DivineButton variant="ghost" fullWidth={false} type="button" onClick={() => setDrawerOpen(false)}>
@@ -415,6 +484,15 @@ export default function UsersPage() {
               )}
             />
           </div>
+
+          <FamilyMemberEditor
+            members={familyMembers}
+            maxMembers={DEFAULT_MAX_FAMILY_MEMBERS}
+            nakshathiramOptions={nakshathiramOptions}
+            onAdd={addFamilyMemberRow}
+            onRemove={removeFamilyMemberRow}
+            onUpdate={updateFamilyMemberRow}
+          />
         </form>
       </FormDrawer>
     </>
