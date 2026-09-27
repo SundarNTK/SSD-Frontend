@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { PlusIcon, PencilIcon, TrashIcon } from "../divine/icons";
+import { PlusIcon, PencilIcon, TrashIcon, StarIcon } from "../divine/icons";
 import DivineListbox from "../divine/DivineListbox";
 import DivineSwitch from "../divine/DivineSwitch";
 import { resolveImageUrl } from "../../lib/imageUrl";
@@ -405,5 +405,59 @@ export function StatusToggleCell({
         onChange={(checked) => void onChange(checked ? 1 : 0)}
       />
     </div>
+  );
+}
+
+/** Read-only gold/grey pill — same role as StatusPill, for rows the viewer can't toggle. */
+export function FavoritePill({ favorite }: { favorite: boolean }) {
+  return favorite ? (
+    <span className="inline-flex items-center gap-1 rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[11.5px] font-medium text-amber-700">
+      <StarIcon filled className="h-3 w-3" /> Favorite
+    </span>
+  ) : (
+    <span className="inline-flex items-center rounded-md border border-slate-400/30 bg-slate-100 px-2 py-0.5 text-[11.5px] font-medium text-slate-500">
+      Not favorite
+    </span>
+  );
+}
+
+/**
+ * One-tap gold-star switch for toggling a master's `favorite` flag straight
+ * from the list — same "click to flip, patch immediately" contract as
+ * StatusToggleCell above, but its own glowing-star look instead of the
+ * generic on/off slider, so it reads unmistakably as "favorite" at a glance.
+ */
+export function FavoriteToggleCell({
+  favorite,
+  canEdit,
+  disabled,
+  onChange,
+}: {
+  favorite: boolean;
+  canEdit?: boolean;
+  disabled?: boolean;
+  onChange?: (favorite: boolean) => void | Promise<void>;
+}) {
+  if (!canEdit || !onChange) return <FavoritePill favorite={favorite} />;
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={favorite}
+      aria-label={favorite ? "Remove from favorites" : "Mark as favorite"}
+      title={favorite ? "Remove from favorites" : "Mark as favorite"}
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!disabled) void onChange(!favorite);
+      }}
+      className={`flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 ${
+        favorite
+          ? "bg-amber-300 text-[#5b1020] shadow-[0_2px_10px_-2px_rgba(217,158,11,0.5)] hover:scale-110 hover:bg-amber-400"
+          : "bg-slate-100 text-slate-400 hover:scale-110 hover:bg-amber-50 hover:text-amber-600"
+      } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+    >
+      <StarIcon filled={favorite} className="h-4 w-4" />
+    </button>
   );
 }

@@ -82,6 +82,7 @@ import {
   RefreshIcon,
   CheckIcon,
   CloseIcon,
+  StarIcon,
 } from "../divine/icons";
 
 // Shared by every text/select/date field on the counter screen — search
@@ -95,6 +96,19 @@ const POS_BTN_ON =
   "border-[#7c1527] bg-[#7c1527] text-white hover:bg-[#681221]";
 const POS_BTN_OFF =
   "border-[#7c1527]/30 bg-white text-ink-100 hover:border-[#7c1527]/55 hover:bg-[#faf6f1] hover:text-[#7c1527]";
+
+// Gold-themed variant of the pair above, just for the static Favorites tab —
+// keeps it visually distinct from every real category pill (which stay
+// maroon on/off, same as All Categories) while still sharing the same
+// pill shape/height/hover-lift, and the same flat-fill/outline treatment,
+// as the rest of the tab strip. A light, bright yellow-gold (Tailwind's
+// amber-300/400) rather than a deep solid amber — reads as an airy
+// highlight instead of a heavy block, with dark maroon text on top for
+// contrast.
+const POS_BTN_FAVORITE_ON =
+  "border-amber-400 bg-amber-300 text-[#5b1020] hover:bg-amber-400";
+const POS_BTN_FAVORITE_OFF =
+  "border-amber-400/50 bg-white text-amber-700 hover:border-amber-500/70 hover:bg-amber-50";
 
 const POS_PANEL =
   "overflow-hidden rounded-2xl border border-[#7c1527]/30 shadow-[0_16px_36px_-12px_rgba(0,0,0,0.28),0_6px_16px_-6px_rgba(124,21,39,0.32)]";
@@ -173,6 +187,8 @@ type PosItem = {
   tamilName: string;
   salePrice: number;
   image?: string | null;
+  /** Master-configured card colour (hex); empty = default theme. */
+  color?: string;
   isDeityMappingRequired: boolean;
   deityMapping: DeityOption[];
   isFamilyMembersRequired: boolean;
@@ -184,6 +200,8 @@ type PosItem = {
    *  unfiltered "All Categories" view and inside that one category's
    *  filtered view, without a folder to sit in. */
   categoryId?: string | null;
+  /** Admin-flagged quick-access favourite — powers the Favorites tab. */
+  favorite?: boolean;
 };
 
 type PosService = {
@@ -193,6 +211,8 @@ type PosService = {
   tamilName: string;
   defaultSalePrice: number;
   image?: string | null;
+  /** Master-configured card colour (hex); empty = default theme. */
+  color?: string;
   isDeityMappingRequired: boolean;
   deityMapping: DeityOption[];
   isFamilyMembersRequired: boolean;
@@ -200,6 +220,8 @@ type PosService = {
   inventory: InventoryInfo;
   /** Same as PosItem.categoryId — see above. */
   categoryId?: string | null;
+  /** Admin-flagged quick-access favourite — powers the Favorites tab. */
+  favorite?: boolean;
 };
 
 type Offering =
@@ -251,7 +273,12 @@ const PAGE_SIZE_OPTIONS = [30, 60, 100, 150];
 const RECENT_BOOKINGS_PREVIEW_LIMIT = 3;
 const RECENT_BOOKINGS_ALL_LIMIT = 200;
 
-type DeityOption = { _id: string; name: string; tamilName: string };
+type DeityOption = {
+  _id: string;
+  name: string;
+  tamilName: string;
+  color?: string;
+};
 type NakshatraOption = { _id: string; name: string; tamilName?: string };
 
 type Devotee = { name: string; nakshatra: string };
@@ -356,6 +383,8 @@ type RecheckedLine = {
   // Only present when available — lets the "repeat a past booking" flow
   // reconstruct a full Offering so its cart lines get an Edit button too.
   tamilName?: string;
+  image?: string | null;
+  color?: string;
   isDeityMappingRequired?: boolean;
   deityMapping?: DeityOption[];
   isFamilyMembersRequired?: boolean;
@@ -541,6 +570,14 @@ export default function PosPortalPage() {
   const [catalogueLoading, setCatalogueLoading] = useState(true);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [activeFolder, setActiveFolder] = useState<Folder | null>(null);
+  // Static "Favorites" tab — sits before "All Categories" and, unlike a real
+  // category tab, isn't keyed off any categoryId. Its own flat item+service
+  // list (favoriteItems/favoriteServices below) cuts across every category,
+  // so it's tracked independently rather than folded into selectedCategoryId.
+  const [showingFavorites, setShowingFavorites] = useState(false);
+  const [favoriteItems, setFavoriteItems] = useState<PosItem[]>([]);
+  const [favoriteServices, setFavoriteServices] = useState<PosService[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
 
   // Derived: the full CategoryTab record for the active tab (null = "All Categories")
   const selectedCategory =
@@ -586,6 +623,41 @@ export default function PosPortalPage() {
     loadCatalogue();
   }, []);
 
+  // Same flat, cross-category item+service shape as a search result, since a
+  // favourite can belong to any category or none. Loaded once up front (so
+  // the tab's own count badge is accurate before it's ever opened, the same
+  // way All Categories' and every category pill's counts are) and re-fetched
+  // every time the tab is (re)opened, since a favourite flag can change in
+  // the master screens between visits.
+  async function loadFavorites() {
+    setFavoritesLoading(true);
+    try {
+      const [itemsRes, servicesRes] = await Promise.all([
+        api.get<ApiEnvelope<{ items: PosItem[] }>>("/pos/booking/items", {
+          params: { favorite: true, pageSize: 100 },
+        }),
+        api.get<ApiEnvelope<{ items: PosService[] }>>("/pos/booking/services", {
+          params: { favorite: true, pageSize: 100 },
+        }),
+      ]);
+      setFavoriteItems(unwrap(itemsRes).items);
+      setFavoriteServices(unwrap(servicesRes).items);
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setFavoritesLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadFavorites();
+  }, []);
+
+  useEffect(() => {
+    if (showingFavorites) loadFavorites();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showingFavorites]);
+
   const visibleFolders = useMemo(
     () =>
       selectedCategoryId
@@ -605,11 +677,11 @@ export default function PosPortalPage() {
     : uncategorizedServices;
 
   // ── catalogue pagination ────────────────────────────────────────────────
-  // One page number + page size shared by whichever of the three views
-  // (default / folder / search) is currently showing — only one is ever
-  // visible at a time, and the reset effect below keys off exactly the same
-  // switches that decide which view that is (plus the page size itself,
-  // since changing it changes how many pages there are).
+  // One page number + page size shared by whichever of the four views
+  // (default / folder / favorites / search) is currently showing — only one
+  // is ever visible at a time, and the reset effect below keys off exactly
+  // the same switches that decide which view that is (plus the page size
+  // itself, since changing it changes how many pages there are).
   const [cataloguePage, setCataloguePage] = useState(1);
   const [cataloguePageSize, setCataloguePageSize] = useState(CARDS_PER_PAGE);
   useEffect(() => {
@@ -618,6 +690,7 @@ export default function PosPortalPage() {
     selectedCategoryId,
     activeFolder?.subCategoryId,
     offeringSearch,
+    showingFavorites,
     cataloguePageSize,
   ]);
 
@@ -645,10 +718,16 @@ export default function PosPortalPage() {
     () => offeringDescriptors(searchItems, searchServices),
     [searchItems, searchServices],
   );
+  const favoriteCatalogueDescriptors = useMemo(
+    () => offeringDescriptors(favoriteItems, favoriteServices),
+    [favoriteItems, favoriteServices],
+  );
+  const favoriteCount = favoriteItems.length + favoriteServices.length;
 
   function openFolder(folder: Folder) {
     setActiveFolder(folder);
     setOfferingSearch("");
+    setShowingFavorites(false);
   }
 
   useEffect(() => {
@@ -1058,6 +1137,8 @@ export default function PosPortalPage() {
               code: l.code ?? "",
               name: l.name ?? "",
               tamilName: l.tamilName ?? "",
+              image: l.image ?? null,
+              color: l.color ?? "",
               salePrice: l.unitPrice ?? 0,
               isDeityMappingRequired: l.isDeityMappingRequired,
               deityMapping: l.deityMapping ?? [],
@@ -1118,7 +1199,13 @@ export default function PosPortalPage() {
     }
     setEditingLineId(null);
     setModalOffering(offering);
-    setModalDeities([]);
+    // A deity-mapped offering with just one deity has nothing to choose —
+    // pre-select it so the cashier doesn't have to tap the only option.
+    setModalDeities(
+      offering.isDeityMappingRequired && offering.deityMapping?.length === 1
+        ? [offering.deityMapping[0]._id]
+        : [],
+    );
     // Family member details are their own independent count (the offering's
     // configured max), not tied to how many deities get picked — selecting
     // more deities only changes price/quantity, never how many devotee rows
@@ -1234,9 +1321,15 @@ export default function PosPortalPage() {
   const modalHasDeityChoices =
     Boolean(modalOffering?.isDeityMappingRequired) &&
     modalDeityChoices.length > 0;
+  // Family-member offerings without deity choices are booked one at a time —
+  // quantity stays at the default 1 (no +/- in the modal or the cart row).
+  const modalFixedQty =
+    !modalHasDeityChoices && Boolean(modalOffering?.isFamilyMembersRequired);
   const modalEffectiveQty = modalHasDeityChoices
     ? modalDeities.length || 0
-    : modalQuantity;
+    : modalFixedQty
+      ? 1
+      : modalQuantity;
   const modalTotal = modalOffering
     ? modalOffering.salePrice * modalEffectiveQty
     : 0;
@@ -1762,6 +1855,7 @@ export default function PosPortalPage() {
     setActiveFolder(null);
     setOfferingSearch("");
     setSelectedCategoryId("");
+    setShowingFavorites(false);
     setStep("cart");
     setConfirmation(null);
     setPaymentAmountInput("");
@@ -1903,7 +1997,7 @@ export default function PosPortalPage() {
   }
 
   const showingSearch = offeringSearch.trim().length > 0;
-  const showingFolder = !showingSearch && activeFolder;
+  const showingFolder = !showingSearch && !showingFavorites && activeFolder;
 
   return (
     <PosShell
@@ -2227,13 +2321,31 @@ export default function PosPortalPage() {
               loading={searchLoading}
             />
             <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 py-1.5 [scrollbar-width:thin]">
+              {/* Static "Favorites" tab — always first, ahead of All
+                  Categories, and its own gold theme so it reads as a
+                  shortcut rather than just another category. */}
               <button
                 onClick={() => {
+                  setShowingFavorites(true);
+                  setSelectedCategoryId("");
+                  setActiveFolder(null);
+                  setOfferingSearch("");
+                }}
+                className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border px-3.5 text-[12.5px] font-semibold shadow-sm transition-[box-shadow,background-color,color,border-color] duration-200 hover:shadow-[0_6px_16px_-4px_rgba(217,119,6,0.45)] sm:h-12 ${
+                  showingFavorites ? POS_BTN_FAVORITE_ON : POS_BTN_FAVORITE_OFF
+                }`}
+              >
+                <StarIcon filled className="h-4 w-4" />
+                Favorites ({favoriteCount})
+              </button>
+              <button
+                onClick={() => {
+                  setShowingFavorites(false);
                   setSelectedCategoryId("");
                   setActiveFolder(null);
                 }}
                 className={`inline-flex h-11 shrink-0 items-center rounded-xl border px-3.5 text-[12.5px] font-medium shadow-sm transition-[box-shadow,background-color,color,border-color] duration-200 hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.4)] sm:h-12 ${
-                  !selectedCategoryId ? POS_BTN_ON : POS_BTN_OFF
+                  !showingFavorites && !selectedCategoryId ? POS_BTN_ON : POS_BTN_OFF
                 }`}
               >
                 All Categories ({totalOfferingCount})
@@ -2244,11 +2356,12 @@ export default function PosPortalPage() {
                   <button
                     key={c._id}
                     onClick={() => {
+                      setShowingFavorites(false);
                       setSelectedCategoryId(c._id);
                       setActiveFolder(null);
                     }}
                     className={`inline-flex h-11 shrink-0 items-center gap-2.5 rounded-xl border py-1 pl-1.5 pr-3.5 text-[12.5px] font-medium shadow-sm transition-[box-shadow,background-color,color,border-color] duration-200 hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.4)] sm:h-12 ${
-                      selectedCategoryId === c._id ? POS_BTN_ON : POS_BTN_OFF
+                      !showingFavorites && selectedCategoryId === c._id ? POS_BTN_ON : POS_BTN_OFF
                     }`}
                   >
                     {catImg ? (
@@ -2270,9 +2383,15 @@ export default function PosPortalPage() {
           <div
             className="flex min-h-0 flex-1 flex-col overflow-visible p-4 pt-3 transition-colors duration-300"
             style={{
-              backgroundColor: selectedCategory?.color
-                ? `${selectedCategory.color}18`
-                : "transparent",
+              // Same flat single-tone tint every category tab gets off its
+              // own colour (`${color}18`) — Favorites uses its own yellow-gold
+              // tone instead of a category colour, at the same strength.
+              backgroundColor:
+                !showingSearch && showingFavorites
+                  ? "#fcd34d18"
+                  : selectedCategory?.color
+                    ? `${selectedCategory.color}18`
+                    : "transparent",
             }}
           >
             {catalogueLoading && (
@@ -2303,8 +2422,36 @@ export default function PosPortalPage() {
               </>
             )}
 
+            {!catalogueLoading && !showingSearch && showingFavorites && (
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div className="mb-4 flex shrink-0 items-center gap-2 text-[12.5px]">
+                  <span className="flex items-center gap-1.5 font-accent text-[16px] font-extrabold tracking-tight text-amber-600">
+                    <StarIcon filled className="h-4 w-4" /> Favorites
+                  </span>
+                  <span className="text-ink-500">— quick-access picks across every category</span>
+                </div>
+                {favoritesLoading ? (
+                  <div className="flex justify-center py-8">
+                    <EmblemLoader size="sm" label="Loading favorites…" />
+                  </div>
+                ) : (
+                  <CatalogueGrid
+                    descriptors={favoriteCatalogueDescriptors}
+                    page={cataloguePage}
+                    onPageChange={setCataloguePage}
+                    pageSize={cataloguePageSize}
+                    onPageSizeChange={setCataloguePageSize}
+                    onPickOffering={openAddModal}
+                    onOpenFolder={openFolder}
+                    emptyMessage="No favorites yet — mark items or services as Favorite in their master screen."
+                  />
+                )}
+              </div>
+            )}
+
             {!catalogueLoading &&
               !showingSearch &&
+              !showingFavorites &&
               showingFolder &&
               activeFolder && (
                 <div className="flex min-h-0 flex-1 flex-col">
@@ -2350,7 +2497,7 @@ export default function PosPortalPage() {
                 </div>
               )}
 
-            {!catalogueLoading && !showingSearch && !showingFolder && (
+            {!catalogueLoading && !showingSearch && !showingFavorites && !showingFolder && (
               <CatalogueGrid
                 descriptors={defaultCatalogueDescriptors}
                 page={cataloguePage}
@@ -2432,7 +2579,9 @@ export default function PosPortalPage() {
                           onEdit={() => openEditModal(line)}
                           onRemove={() => removeCartLine(line.id)}
                           onIncrement={() => adjustCartLineQuantity(line.id, 1)}
-                          onDecrement={() => adjustCartLineQuantity(line.id, -1)}
+                          onDecrement={() =>
+                            adjustCartLineQuantity(line.id, -1)
+                          }
                           nakshatraOptions={nakshatraOptions}
                           onUpdateDevotee={(idx, devotee) =>
                             updateCartLineDevotee(line.id, idx, devotee)
@@ -4568,6 +4717,15 @@ function PaymentModeBoxes({
   );
 }
 
+/** Black or white, whichever reads better on the given #rrggbb background. */
+function readableTextColor(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#1f2937" : "#ffffff";
+}
+
 type CatalogueCardTheme = {
   banner: string;
   border: string;
@@ -4822,7 +4980,7 @@ function CatalogueGrid({
           so it's never scrolled out of view regardless of viewport height. */}
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-1 pt-2">
         <div
-          className="grid content-start auto-rows-auto gap-2 sm:gap-2.5"
+          className="grid content-start auto-rows-auto gap-3 sm:gap-4"
           style={{
             gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
           }}
@@ -4936,6 +5094,7 @@ function OfferingCard({
       tamilName={offering.tamilName}
       theme={theme}
       imageUrl={offering.image}
+      accentColor={offering.color || null}
       rowIcon={<PriceTagRowIcon className={theme.rowText} />}
       rowLabel={formatCurrency(offering.salePrice)}
       extraBadges={
@@ -5008,15 +5167,20 @@ function CartLineRow({
   const hasFamilyMembers = line.offering
     ? Boolean(line.offering.isFamilyMembersRequired)
     : line.devotees.length > 0;
-  const showStepper = !hasDeityChoices;
-  const showEditButton = !!line.offering && (hasDeityChoices || hasFamilyMembers);
-  const maxFamilyMembers = line.offering?.maxFamilyMembers ?? line.devotees.length;
+  const showStepper = !hasDeityChoices && !hasFamilyMembers;
+  const showEditButton =
+    !!line.offering && (hasDeityChoices || hasFamilyMembers);
+  const maxFamilyMembers =
+    line.offering?.maxFamilyMembers ?? line.devotees.length;
   // Placeholder rows so an offering that requires family-member details but
   // was added with some (or all) of them left blank still shows every slot
   // — not just the ones that happen to be filled in — so staff can see at a
   // glance what's missing and tap Edit to fill it in.
   const devoteeSlots = hasFamilyMembers
-    ? Array.from({ length: Math.max(maxFamilyMembers, line.devotees.length) }, (_, i) => line.devotees[i])
+    ? Array.from(
+        { length: Math.max(maxFamilyMembers, line.devotees.length) },
+        (_, i) => line.devotees[i],
+      )
     : [];
   const filledDevoteeCount = line.devotees.filter((d) => d.name.trim()).length;
 
@@ -5295,7 +5459,7 @@ function AddToCartModal({
     <PosFlipModal
       open={open}
       onBackdrop={onCancel}
-      panelClassName="flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]"
+      panelClassName={`flex max-h-full w-full ${offering?.isDeityMappingRequired && deityOptions.length > 0 ? "max-w-3xl" : "max-w-lg"} flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_30px_80px_-20px_rgba(179,39,63,0.4)]`}
     >
       {offering && (
         <>
@@ -5337,16 +5501,34 @@ function AddToCartModal({
             {offering.isDeityMappingRequired && deityOptions.length > 0 && (
               <div>
                 <p className={`${FORM_LABEL} mb-2`}>Deities (Multi-Select) *</p>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
                   {deityOptions.map((d) => {
                     const selected = deities.includes(d._id);
+                    // Master-configured colour → card background; none → the
+                    // existing POS on/off button look.
+                    const hasColor = /^#[0-9A-Fa-f]{6}$/.test(d.color ?? "");
                     return (
                       <button
                         key={d._id}
                         type="button"
                         onClick={() => toggleDeity(d._id)}
-                        className={`flex items-center gap-1.5 rounded-md border px-3.5 py-1.5 text-[13px] font-medium transition-[transform,box-shadow,background-color,color,border-color] duration-200 hover:-translate-y-0.5 ${
-                          selected ? POS_BTN_ON : POS_BTN_OFF
+                        style={{
+                          ...(hasColor
+                            ? {
+                                backgroundColor: d.color,
+                                borderColor: d.color,
+                                color: readableTextColor(d.color as string),
+                              }
+                            : undefined),
+                        }}
+                        className={`flex h-11 w-full min-w-0 items-center justify-center gap-1.5 rounded-md border px-2.5 py-1 text-center text-[13px] font-medium leading-tight transition-[transform,box-shadow,background-color,color,border-color] duration-200 hover:-translate-y-0.5 ${
+                          hasColor
+                            ? selected
+                              ? "shadow-[0_0_0_2px_#fff,0_0_0_4px_#7c1527]"
+                              : "opacity-80 hover:opacity-100"
+                            : selected
+                              ? POS_BTN_ON
+                              : POS_BTN_OFF
                         }`}
                       >
                         <AnimatePresence initial={false}>
@@ -5374,7 +5556,12 @@ function AddToCartModal({
                             </motion.span>
                           )}
                         </AnimatePresence>
-                        {d.name}
+                        <span
+                          className="line-clamp-2 min-w-0 break-words"
+                          title={d.name}
+                        >
+                          {d.name}
+                        </span>
                       </button>
                     );
                   })}
@@ -5386,7 +5573,8 @@ function AddToCartModal({
               </div>
             )}
 
-            {!(offering.isDeityMappingRequired && deityOptions.length > 0) && (
+            {!(offering.isDeityMappingRequired && deityOptions.length > 0) &&
+              !offering.isFamilyMembersRequired && (
               <div>
                 <p className={`${FORM_LABEL} mb-2`}>Quantity</p>
                 <div className="inline-flex items-center gap-3 rounded-xl border border-gold-500/30 bg-white px-2 py-1.5">
@@ -5419,6 +5607,16 @@ function AddToCartModal({
                 </div>
               </div>
             )}
+
+            {!(offering.isDeityMappingRequired && deityOptions.length > 0) &&
+              offering.isFamilyMembersRequired && (
+                <div>
+                  <p className={`${FORM_LABEL} mb-2`}>Quantity</p>
+                  <span className="inline-flex min-w-12 items-center justify-center rounded-xl border border-gold-500/30 bg-ivory-50 px-4 py-1.5 font-body text-[16px] font-semibold text-ink-100">
+                    1
+                  </span>
+                </div>
+              )}
 
             {offering.isFamilyMembersRequired && devoteeRows > 0 && (
               <div className="space-y-3">

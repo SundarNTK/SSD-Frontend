@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, FavoriteToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import ImportExportBar from "./ImportExportBar";
@@ -14,6 +14,7 @@ import DivineTextarea from "../divine/DivineTextarea";
 import DivineColorPicker from "../divine/DivineColorPicker";
 import DivineMasterImageUpload from "../divine/DivineMasterImageUpload";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
+import DivineFavoriteToggle from "../divine/DivineFavoriteToggle";
 import DivineVisibilitySelect from "../divine/DivineVisibilitySelect";
 import DivineButton from "../divine/DivineButton";
 import TamilNameField from "./TamilNameField";
@@ -23,6 +24,7 @@ import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
 import { withOptionalImage } from "../../lib/withOptionalImage";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { patchMasterFavorite } from "../../lib/patchMasterFavorite";
 import { DEFAULT_VISIBILITY, flagsToVisibility, visibilityToFlags } from "../../lib/visibility";
 import VisibilityPills from "./VisibilityPills";
 import { usePageSize } from "../../lib/usePageSize";
@@ -38,6 +40,7 @@ export type Category = {
   image: string | null;
   posVisibility: boolean;
   customerPortalVisibility: boolean;
+  favorite: boolean;
   status: number;
 };
 
@@ -49,6 +52,7 @@ const schema = z.object({
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Enter a valid hex colour"),
   description: z.string().trim().max(300),
   visibility: z.array(z.string()),
+  favorite: z.boolean(),
   status: z.number(),
 });
 
@@ -88,7 +92,7 @@ export default function CategoryPage() {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", tamilName: "", code: "", displayOrder: 0, color: "#942237", description: "", visibility: DEFAULT_VISIBILITY, status: 1 },
+    defaultValues: { name: "", tamilName: "", code: "", displayOrder: 0, color: "#942237", description: "", visibility: DEFAULT_VISIBILITY, favorite: false, status: 1 },
   });
   const nameValue = watch("name") ?? "";
   const tamilNameValue = watch("tamilName") ?? "";
@@ -104,7 +108,7 @@ export default function CategoryPage() {
 
   function openCreate() {
     setEditing(null);
-    reset({ name: "", tamilName: "", code: "", displayOrder: 0, color: "#942237", description: "", visibility: DEFAULT_VISIBILITY, status: 1 });
+    reset({ name: "", tamilName: "", code: "", displayOrder: 0, color: "#942237", description: "", visibility: DEFAULT_VISIBILITY, favorite: false, status: 1 });
     setCreateImage(null);
     setImageRemoved(false);
     create.setError(null);
@@ -121,6 +125,7 @@ export default function CategoryPage() {
       color: category.color,
       description: category.description,
       visibility: flagsToVisibility(category.posVisibility, category.customerPortalVisibility),
+      favorite: category.favorite,
       status: category.status,
     });
     setEditImage(null);
@@ -167,6 +172,17 @@ export default function CategoryPage() {
       key: "visibility",
       label: "Visibility",
       render: (c) => <VisibilityPills pos={c.posVisibility} portal={c.customerPortalVisibility} />,
+    },
+    {
+      key: "favorite",
+      label: "Favorite",
+      render: (c) => (
+        <FavoriteToggleCell
+          favorite={c.favorite}
+          canEdit={canEdit}
+          onChange={(favorite) => patchMasterFavorite(update, c._id, favorite, "Category")}
+        />
+      ),
     },
     {
       key: "status",
@@ -326,6 +342,13 @@ export default function CategoryPage() {
             />
           </div>
           <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
+          <Controller
+            control={control}
+            name="favorite"
+            render={({ field }) => (
+              <DivineFavoriteToggle value={field.value} onChange={field.onChange} />
+            )}
+          />
           <DivineMasterImageUpload
             label="Category Image"
             value={editing?.image}

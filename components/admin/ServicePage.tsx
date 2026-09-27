@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, FavoriteToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import ImportExportBar from "./ImportExportBar";
@@ -16,9 +16,11 @@ import DivineMultiSelect from "../divine/DivineMultiSelect";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
+import DivineFavoriteToggle from "../divine/DivineFavoriteToggle";
 import DivineVisibilitySelect from "../divine/DivineVisibilitySelect";
 import DivineButton from "../divine/DivineButton";
 import DivineMasterImageUpload from "../divine/DivineMasterImageUpload";
+import DivineColorPicker from "../divine/DivineColorPicker";
 import { PlusIcon, CloseIcon } from "../divine/icons";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
 import { useApiResource } from "../../lib/useApiResource";
@@ -27,6 +29,7 @@ import { toast } from "../../lib/toastStore";
 import TamilNameField from "./TamilNameField";
 import { withOptionalImage } from "../../lib/withOptionalImage";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { patchMasterFavorite } from "../../lib/patchMasterFavorite";
 import { usePageSize } from "../../lib/usePageSize";
 import { DEFAULT_VISIBILITY, flagsToVisibility, visibilityToFlags } from "../../lib/visibility";
 import VisibilityPills from "./VisibilityPills";
@@ -54,8 +57,10 @@ export type Service = {
   bookingCutoffDate: string | null;
   isPosAvailable: boolean;
   publicAvailability: boolean;
+  favorite: boolean;
   status: number;
   image: string | null;
+  color?: string;
 };
 
 const categoryDetailSchema = z.object({
@@ -85,7 +90,9 @@ const schema = z
     thresholdCount: z.number().int().min(0),
     bookingCutoffDate: z.string(),
     visibility: z.array(z.string()),
+    favorite: z.boolean(),
     status: z.number(),
+    color: z.string().regex(/^(#[0-9A-Fa-f]{6})?$/, "Enter a valid hex colour"),
   })
   .superRefine((data, ctx) => {
     if (data.isDeityMappingRequired) {
@@ -117,7 +124,9 @@ const DEFAULT_VALUES: FormValues = {
   thresholdCount: 0,
   bookingCutoffDate: "",
   visibility: DEFAULT_VISIBILITY,
+  favorite: false,
   status: 1,
+  color: "",
 };
 
 async function fetchOptions(path: string, labelField = "name"): Promise<ListboxOption[]> {
@@ -231,7 +240,9 @@ export default function ServicePage() {
       thresholdCount: service.thresholdCount,
       bookingCutoffDate: service.bookingCutoffDate ? service.bookingCutoffDate.slice(0, 10) : "",
       visibility: flagsToVisibility(service.isPosAvailable, service.publicAvailability),
+      favorite: service.favorite,
       status: service.status,
+      color: service.color ?? "",
     });
     setEditImage(null);
     setImageRemoved(false);
@@ -268,6 +279,16 @@ export default function ServicePage() {
     { key: "code", label: "Code", render: (s) => <span className="font-medium tabular-nums text-amber-700">{s.code}</span> },
     { key: "name", label: "Name", render: (s) => s.name },
     {
+      key: "color",
+      label: "Color",
+      render: (s) =>
+        s.color ? (
+          <span className="inline-flex h-5 w-5 rounded-full border border-gold-500/25" style={{ backgroundColor: s.color }} />
+        ) : (
+          <span className="text-ink-400">—</span>
+        ),
+    },
+    {
       key: "gl",
       label: "GL Account",
       render: (s) => <span className="text-ink-500">{s.generalLedger?.name ?? "—"}</span>,
@@ -282,6 +303,17 @@ export default function ServicePage() {
       key: "visibility",
       label: "Visibility",
       render: (s) => <VisibilityPills pos={s.isPosAvailable} portal={s.publicAvailability} />,
+    },
+    {
+      key: "favorite",
+      label: "Favorite",
+      render: (s) => (
+        <FavoriteToggleCell
+          favorite={s.favorite}
+          canEdit={canEdit}
+          onChange={(favorite) => patchMasterFavorite(update, s._id, favorite, "Service")}
+        />
+      ),
     },
     {
       key: "status",
@@ -656,6 +688,28 @@ export default function ServicePage() {
               name="status"
               render={({ field }) => (
                 <DivineStatusSelect value={field.value} onChange={field.onChange} />
+              )}
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Controller
+              control={control}
+              name="color"
+              render={({ field }) => (
+                <DivineColorPicker
+                  optional
+                  label="Service Card Colour (optional)"
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={errors.color?.message}
+                />
+              )}
+            />
+            <Controller
+              control={control}
+              name="favorite"
+              render={({ field }) => (
+                <DivineFavoriteToggle value={field.value} onChange={field.onChange} />
               )}
             />
           </div>

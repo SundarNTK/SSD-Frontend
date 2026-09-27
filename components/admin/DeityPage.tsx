@@ -13,6 +13,7 @@ import DivineInput from "../divine/DivineInput";
 import DivineListbox, { type ListboxOption } from "../divine/DivineListbox";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
 import DivineMasterImageUpload from "../divine/DivineMasterImageUpload";
+import DivineColorPicker from "../divine/DivineColorPicker";
 import DivineButton from "../divine/DivineButton";
 import TamilNameField from "./TamilNameField";
 import { api, unwrap, type ApiEnvelope } from "../../lib/api";
@@ -32,6 +33,7 @@ export type Deity = {
   tamilName: string;
   printingGroup: Ref | null;
   image: string | null;
+  color?: string;
   status: number;
   // Lower sorts first; deities sharing the same value fall back to
   // alphabetical by name (the backend does this sort, not the frontend —
@@ -50,6 +52,7 @@ const schema = z.object({
   status: z.number(),
   displayOrder: z.number().int("Must be a whole number").min(0, "Must be 0 or greater"),
   printOrder: z.number().int("Must be a whole number").min(0, "Must be 0 or greater"),
+  color: z.string().regex(/^(#[0-9A-Fa-f]{6})?$/, "Enter a valid hex colour"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -101,7 +104,7 @@ export default function DeityPage() {
 
   function openCreate() {
     setEditing(null);
-    reset({ code: "", name: "", tamilName: "", printingGroup: "", status: 1, displayOrder: 0, printOrder: 0 });
+    reset({ code: "", name: "", tamilName: "", printingGroup: "", status: 1, displayOrder: 0, printOrder: 0, color: "" });
     setCreateImage(null);
     setImageRemoved(false);
     create.setError(null);
@@ -118,6 +121,7 @@ export default function DeityPage() {
       status: deity.status,
       displayOrder: deity.displayOrder ?? 0,
       printOrder: deity.printOrder ?? 0,
+      color: deity.color ?? "",
     });
     setEditImage(null);
     setImageRemoved(false);
@@ -143,6 +147,16 @@ export default function DeityPage() {
       key: "image",
       label: "Image",
       render: (d) => <MasterImageCell src={d.image} alt={d.name} />,
+    },
+    {
+      key: "color",
+      label: "Color",
+      render: (d) =>
+        d.color ? (
+          <span className="inline-flex h-5 w-5 rounded-full border border-gold-500/25" style={{ backgroundColor: d.color }} />
+        ) : (
+          <span className="text-ink-400">—</span>
+        ),
     },
     {
       key: "displayOrder",
@@ -327,6 +341,19 @@ export default function DeityPage() {
               {...register("printOrder", { valueAsNumber: true })}
             />
           </div>
+          <Controller
+            control={control}
+            name="color"
+            render={({ field }) => (
+              <DivineColorPicker
+                optional
+                label="Deity Card Colour (optional)"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.color?.message}
+              />
+            )}
+          />
           <DivineMasterImageUpload
             label="Deity Image"
             value={editing?.image}
