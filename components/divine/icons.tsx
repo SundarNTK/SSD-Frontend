@@ -313,3 +313,14 @@ export function DownloadIcon({ className = "h-[16px] w-[16px]" }: { className?: 
     </svg>
   );
 }
+
+/** Five-point star — the Favorite field/toggle glyph across every master (see
+ *  DivineFavoriteToggle, FavoriteToggleCell) and the POS Portal's Favorites
+ *  tab. `filled` swaps a solid gold star for an outline. */
+export function StarIcon({ filled = false, className = "h-4 w-4" }: { filled?: boolean; className?: string } = {}) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.6">
+      <path d="M12 3.4l2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 17.2l-5.4 3-1.1-6.1-4.5-4.3 6.1-.8L12 3.4z" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}

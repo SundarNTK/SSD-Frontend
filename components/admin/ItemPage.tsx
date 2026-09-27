@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, FavoriteToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import ImportExportBar from "./ImportExportBar";
@@ -16,6 +16,7 @@ import DivineMultiSelect from "../divine/DivineMultiSelect";
 import DivineDatePicker from "../divine/DivineDatePicker";
 import DivineRadioGroup from "../divine/DivineRadioGroup";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
+import DivineFavoriteToggle from "../divine/DivineFavoriteToggle";
 import DivineVisibilitySelect from "../divine/DivineVisibilitySelect";
 import DivineButton from "../divine/DivineButton";
 import DivineMasterImageUpload from "../divine/DivineMasterImageUpload";
@@ -34,6 +35,7 @@ import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
 import TamilNameField from "./TamilNameField";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { patchMasterFavorite } from "../../lib/patchMasterFavorite";
 import { DEFAULT_VISIBILITY, flagsToVisibility, visibilityToFlags } from "../../lib/visibility";
 import VisibilityPills from "./VisibilityPills";
 import { usePageSize } from "../../lib/usePageSize";
@@ -64,6 +66,7 @@ export type Item = {
   maxFamilyMembers: number;
   posAvailability: boolean;
   customerPortalAvailability: boolean;
+  favorite: boolean;
   status: number;
   image: string | null;
   color?: string;
@@ -112,6 +115,7 @@ const schema = z
     isFamilyMembersRequired: z.boolean(),
     maxFamilyMembers: z.number().int().min(1),
     visibility: z.array(z.string()),
+    favorite: z.boolean(),
     status: z.number(),
     color: z.string().regex(/^(#[0-9A-Fa-f]{6})?$/, "Enter a valid hex colour"),
   })
@@ -148,6 +152,7 @@ const DEFAULT_VALUES: FormValues = {
   isFamilyMembersRequired: false,
   maxFamilyMembers: 2,
   visibility: DEFAULT_VISIBILITY,
+  favorite: false,
   status: 1,
   color: "",
 };
@@ -268,6 +273,7 @@ export default function ItemPage() {
       isFamilyMembersRequired: item.isFamilyMembersRequired,
       maxFamilyMembers: item.maxFamilyMembers,
       visibility: flagsToVisibility(item.posAvailability, item.customerPortalAvailability),
+      favorite: item.favorite,
       status: item.status,
       color: item.color ?? "",
     });
@@ -326,6 +332,17 @@ export default function ItemPage() {
       key: "visibility",
       label: "Visibility",
       render: (i) => <VisibilityPills pos={i.posAvailability} portal={i.customerPortalAvailability} />,
+    },
+    {
+      key: "favorite",
+      label: "Favorite",
+      render: (i) => (
+        <FavoriteToggleCell
+          favorite={i.favorite}
+          canEdit={canEdit}
+          onChange={(favorite) => patchMasterFavorite(update, i._id, favorite, "Item")}
+        />
+      ),
     },
     {
       key: "status",
@@ -754,19 +771,28 @@ export default function ItemPage() {
               )}
             />
           </div>
-          <Controller
-            control={control}
-            name="color"
-            render={({ field }) => (
-              <DivineColorPicker
-                optional
-                label="Item Card Colour (optional)"
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.color?.message}
-              />
-            )}
-          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Controller
+              control={control}
+              name="color"
+              render={({ field }) => (
+                <DivineColorPicker
+                  optional
+                  label="Item Card Colour (optional)"
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={errors.color?.message}
+                />
+              )}
+            />
+            <Controller
+              control={control}
+              name="favorite"
+              render={({ field }) => (
+                <DivineFavoriteToggle value={field.value} onChange={field.onChange} />
+              )}
+            />
+          </div>
           <DivineMasterImageUpload
             label="Item Image"
             hint="Recommended: 400 × 400 px square, WebP or JPEG · shown as the card banner in the POS offering grid · up to 100 KB"

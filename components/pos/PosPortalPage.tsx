@@ -82,6 +82,7 @@ import {
   RefreshIcon,
   CheckIcon,
   CloseIcon,
+  StarIcon,
 } from "../divine/icons";
 
 // Shared by every text/select/date field on the counter screen — search
@@ -95,6 +96,19 @@ const POS_BTN_ON =
   "border-[#7c1527] bg-[#7c1527] text-white hover:bg-[#681221]";
 const POS_BTN_OFF =
   "border-[#7c1527]/30 bg-white text-ink-100 hover:border-[#7c1527]/55 hover:bg-[#faf6f1] hover:text-[#7c1527]";
+
+// Gold-themed variant of the pair above, just for the static Favorites tab —
+// keeps it visually distinct from every real category pill (which stay
+// maroon on/off, same as All Categories) while still sharing the same
+// pill shape/height/hover-lift, and the same flat-fill/outline treatment,
+// as the rest of the tab strip. A light, bright yellow-gold (Tailwind's
+// amber-300/400) rather than a deep solid amber — reads as an airy
+// highlight instead of a heavy block, with dark maroon text on top for
+// contrast.
+const POS_BTN_FAVORITE_ON =
+  "border-amber-400 bg-amber-300 text-[#5b1020] hover:bg-amber-400";
+const POS_BTN_FAVORITE_OFF =
+  "border-amber-400/50 bg-white text-amber-700 hover:border-amber-500/70 hover:bg-amber-50";
 
 const POS_PANEL =
   "overflow-hidden rounded-2xl border border-[#7c1527]/30 shadow-[0_16px_36px_-12px_rgba(0,0,0,0.28),0_6px_16px_-6px_rgba(124,21,39,0.32)]";
@@ -186,6 +200,8 @@ type PosItem = {
    *  unfiltered "All Categories" view and inside that one category's
    *  filtered view, without a folder to sit in. */
   categoryId?: string | null;
+  /** Admin-flagged quick-access favourite — powers the Favorites tab. */
+  favorite?: boolean;
 };
 
 type PosService = {
@@ -204,6 +220,8 @@ type PosService = {
   inventory: InventoryInfo;
   /** Same as PosItem.categoryId — see above. */
   categoryId?: string | null;
+  /** Admin-flagged quick-access favourite — powers the Favorites tab. */
+  favorite?: boolean;
 };
 
 type Offering =
@@ -552,6 +570,14 @@ export default function PosPortalPage() {
   const [catalogueLoading, setCatalogueLoading] = useState(true);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [activeFolder, setActiveFolder] = useState<Folder | null>(null);
+  // Static "Favorites" tab — sits before "All Categories" and, unlike a real
+  // category tab, isn't keyed off any categoryId. Its own flat item+service
+  // list (favoriteItems/favoriteServices below) cuts across every category,
+  // so it's tracked independently rather than folded into selectedCategoryId.
+  const [showingFavorites, setShowingFavorites] = useState(false);
+  const [favoriteItems, setFavoriteItems] = useState<PosItem[]>([]);
+  const [favoriteServices, setFavoriteServices] = useState<PosService[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
 
   // Derived: the full CategoryTab record for the active tab (null = "All Categories")
   const selectedCategory =
@@ -597,6 +623,41 @@ export default function PosPortalPage() {
     loadCatalogue();
   }, []);
 
+  // Same flat, cross-category item+service shape as a search result, since a
+  // favourite can belong to any category or none. Loaded once up front (so
+  // the tab's own count badge is accurate before it's ever opened, the same
+  // way All Categories' and every category pill's counts are) and re-fetched
+  // every time the tab is (re)opened, since a favourite flag can change in
+  // the master screens between visits.
+  async function loadFavorites() {
+    setFavoritesLoading(true);
+    try {
+      const [itemsRes, servicesRes] = await Promise.all([
+        api.get<ApiEnvelope<{ items: PosItem[] }>>("/pos/booking/items", {
+          params: { favorite: true, pageSize: 100 },
+        }),
+        api.get<ApiEnvelope<{ items: PosService[] }>>("/pos/booking/services", {
+          params: { favorite: true, pageSize: 100 },
+        }),
+      ]);
+      setFavoriteItems(unwrap(itemsRes).items);
+      setFavoriteServices(unwrap(servicesRes).items);
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setFavoritesLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadFavorites();
+  }, []);
+
+  useEffect(() => {
+    if (showingFavorites) loadFavorites();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showingFavorites]);
+
   const visibleFolders = useMemo(
     () =>
       selectedCategoryId
@@ -616,11 +677,11 @@ export default function PosPortalPage() {
     : uncategorizedServices;
 
   // ── catalogue pagination ────────────────────────────────────────────────
-  // One page number + page size shared by whichever of the three views
-  // (default / folder / search) is currently showing — only one is ever
-  // visible at a time, and the reset effect below keys off exactly the same
-  // switches that decide which view that is (plus the page size itself,
-  // since changing it changes how many pages there are).
+  // One page number + page size shared by whichever of the four views
+  // (default / folder / favorites / search) is currently showing — only one
+  // is ever visible at a time, and the reset effect below keys off exactly
+  // the same switches that decide which view that is (plus the page size
+  // itself, since changing it changes how many pages there are).
   const [cataloguePage, setCataloguePage] = useState(1);
   const [cataloguePageSize, setCataloguePageSize] = useState(CARDS_PER_PAGE);
   useEffect(() => {
@@ -629,6 +690,7 @@ export default function PosPortalPage() {
     selectedCategoryId,
     activeFolder?.subCategoryId,
     offeringSearch,
+    showingFavorites,
     cataloguePageSize,
   ]);
 
@@ -656,10 +718,16 @@ export default function PosPortalPage() {
     () => offeringDescriptors(searchItems, searchServices),
     [searchItems, searchServices],
   );
+  const favoriteCatalogueDescriptors = useMemo(
+    () => offeringDescriptors(favoriteItems, favoriteServices),
+    [favoriteItems, favoriteServices],
+  );
+  const favoriteCount = favoriteItems.length + favoriteServices.length;
 
   function openFolder(folder: Folder) {
     setActiveFolder(folder);
     setOfferingSearch("");
+    setShowingFavorites(false);
   }
 
   useEffect(() => {
@@ -1787,6 +1855,7 @@ export default function PosPortalPage() {
     setActiveFolder(null);
     setOfferingSearch("");
     setSelectedCategoryId("");
+    setShowingFavorites(false);
     setStep("cart");
     setConfirmation(null);
     setPaymentAmountInput("");
@@ -1928,7 +1997,7 @@ export default function PosPortalPage() {
   }
 
   const showingSearch = offeringSearch.trim().length > 0;
-  const showingFolder = !showingSearch && activeFolder;
+  const showingFolder = !showingSearch && !showingFavorites && activeFolder;
 
   return (
     <PosShell
@@ -2252,13 +2321,31 @@ export default function PosPortalPage() {
               loading={searchLoading}
             />
             <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 py-1.5 [scrollbar-width:thin]">
+              {/* Static "Favorites" tab — always first, ahead of All
+                  Categories, and its own gold theme so it reads as a
+                  shortcut rather than just another category. */}
               <button
                 onClick={() => {
+                  setShowingFavorites(true);
+                  setSelectedCategoryId("");
+                  setActiveFolder(null);
+                  setOfferingSearch("");
+                }}
+                className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border px-3.5 text-[12.5px] font-semibold shadow-sm transition-[box-shadow,background-color,color,border-color] duration-200 hover:shadow-[0_6px_16px_-4px_rgba(217,119,6,0.45)] sm:h-12 ${
+                  showingFavorites ? POS_BTN_FAVORITE_ON : POS_BTN_FAVORITE_OFF
+                }`}
+              >
+                <StarIcon filled className="h-4 w-4" />
+                Favorites ({favoriteCount})
+              </button>
+              <button
+                onClick={() => {
+                  setShowingFavorites(false);
                   setSelectedCategoryId("");
                   setActiveFolder(null);
                 }}
                 className={`inline-flex h-11 shrink-0 items-center rounded-xl border px-3.5 text-[12.5px] font-medium shadow-sm transition-[box-shadow,background-color,color,border-color] duration-200 hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.4)] sm:h-12 ${
-                  !selectedCategoryId ? POS_BTN_ON : POS_BTN_OFF
+                  !showingFavorites && !selectedCategoryId ? POS_BTN_ON : POS_BTN_OFF
                 }`}
               >
                 All Categories ({totalOfferingCount})
@@ -2269,11 +2356,12 @@ export default function PosPortalPage() {
                   <button
                     key={c._id}
                     onClick={() => {
+                      setShowingFavorites(false);
                       setSelectedCategoryId(c._id);
                       setActiveFolder(null);
                     }}
                     className={`inline-flex h-11 shrink-0 items-center gap-2.5 rounded-xl border py-1 pl-1.5 pr-3.5 text-[12.5px] font-medium shadow-sm transition-[box-shadow,background-color,color,border-color] duration-200 hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.4)] sm:h-12 ${
-                      selectedCategoryId === c._id ? POS_BTN_ON : POS_BTN_OFF
+                      !showingFavorites && selectedCategoryId === c._id ? POS_BTN_ON : POS_BTN_OFF
                     }`}
                   >
                     {catImg ? (
@@ -2295,9 +2383,15 @@ export default function PosPortalPage() {
           <div
             className="flex min-h-0 flex-1 flex-col overflow-visible p-4 pt-3 transition-colors duration-300"
             style={{
-              backgroundColor: selectedCategory?.color
-                ? `${selectedCategory.color}18`
-                : "transparent",
+              // Same flat single-tone tint every category tab gets off its
+              // own colour (`${color}18`) — Favorites uses its own yellow-gold
+              // tone instead of a category colour, at the same strength.
+              backgroundColor:
+                !showingSearch && showingFavorites
+                  ? "#fcd34d18"
+                  : selectedCategory?.color
+                    ? `${selectedCategory.color}18`
+                    : "transparent",
             }}
           >
             {catalogueLoading && (
@@ -2328,8 +2422,36 @@ export default function PosPortalPage() {
               </>
             )}
 
+            {!catalogueLoading && !showingSearch && showingFavorites && (
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div className="mb-4 flex shrink-0 items-center gap-2 text-[12.5px]">
+                  <span className="flex items-center gap-1.5 font-accent text-[16px] font-extrabold tracking-tight text-amber-600">
+                    <StarIcon filled className="h-4 w-4" /> Favorites
+                  </span>
+                  <span className="text-ink-500">— quick-access picks across every category</span>
+                </div>
+                {favoritesLoading ? (
+                  <div className="flex justify-center py-8">
+                    <EmblemLoader size="sm" label="Loading favorites…" />
+                  </div>
+                ) : (
+                  <CatalogueGrid
+                    descriptors={favoriteCatalogueDescriptors}
+                    page={cataloguePage}
+                    onPageChange={setCataloguePage}
+                    pageSize={cataloguePageSize}
+                    onPageSizeChange={setCataloguePageSize}
+                    onPickOffering={openAddModal}
+                    onOpenFolder={openFolder}
+                    emptyMessage="No favorites yet — mark items or services as Favorite in their master screen."
+                  />
+                )}
+              </div>
+            )}
+
             {!catalogueLoading &&
               !showingSearch &&
+              !showingFavorites &&
               showingFolder &&
               activeFolder && (
                 <div className="flex min-h-0 flex-1 flex-col">
@@ -2375,7 +2497,7 @@ export default function PosPortalPage() {
                 </div>
               )}
 
-            {!catalogueLoading && !showingSearch && !showingFolder && (
+            {!catalogueLoading && !showingSearch && !showingFavorites && !showingFolder && (
               <CatalogueGrid
                 descriptors={defaultCatalogueDescriptors}
                 page={cataloguePage}

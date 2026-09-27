@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import DataTable, { StatusToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
+import DataTable, { StatusToggleCell, FavoriteToggleCell, EditIconButton, DeleteIconButton, MasterImageCell, type DataTableColumn } from "./DataTable";
 import FormDrawer from "./FormDrawer";
 import ConfirmDialog from "./ConfirmDialog";
 import ImportExportBar from "./ImportExportBar";
@@ -13,6 +13,7 @@ import DivineInput from "../divine/DivineInput";
 import DivineTextarea from "../divine/DivineTextarea";
 import DivineColorPicker from "../divine/DivineColorPicker";
 import DivineStatusSelect from "../divine/DivineStatusSelect";
+import DivineFavoriteToggle from "../divine/DivineFavoriteToggle";
 import DivineVisibilitySelect from "../divine/DivineVisibilitySelect";
 import DivineButton from "../divine/DivineButton";
 import DivineMasterImageUpload from "../divine/DivineMasterImageUpload";
@@ -24,6 +25,7 @@ import { MODULES, usePermissions } from "../../lib/permissions";
 import { toast } from "../../lib/toastStore";
 import { withOptionalImage } from "../../lib/withOptionalImage";
 import { patchMasterStatus } from "../../lib/patchMasterStatus";
+import { patchMasterFavorite } from "../../lib/patchMasterFavorite";
 import { DEFAULT_VISIBILITY, flagsToVisibility, visibilityToFlags } from "../../lib/visibility";
 import VisibilityPills from "./VisibilityPills";
 import { usePageSize } from "../../lib/usePageSize";
@@ -40,6 +42,7 @@ export type SubCategory = {
   image: string | null;
   posVisibility: boolean;
   customerPortalVisibility: boolean;
+  favorite: boolean;
   category?: { _id: string; name: string } | null;
 };
 
@@ -52,6 +55,7 @@ const schema = z.object({
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Enter a valid hex colour"),
   description: z.string().trim().max(300),
   visibility: z.array(z.string()),
+  favorite: z.boolean(),
   status: z.number(),
 });
 
@@ -106,14 +110,14 @@ export default function SubCategoryPage() {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", tamilName: "", code: "", category: "", displayOrder: 0, color: "#942237", description: "", visibility: DEFAULT_VISIBILITY, status: 1 },
+    defaultValues: { name: "", tamilName: "", code: "", category: "", displayOrder: 0, color: "#942237", description: "", visibility: DEFAULT_VISIBILITY, favorite: false, status: 1 },
   });
   const nameValue = watch("name") ?? "";
   const tamilNameValue = watch("tamilName") ?? "";
 
   function openCreate() {
     setEditing(null);
-    reset({ name: "", tamilName: "", code: "", category: "", displayOrder: 0, color: "#942237", description: "", visibility: DEFAULT_VISIBILITY, status: 1 });
+    reset({ name: "", tamilName: "", code: "", category: "", displayOrder: 0, color: "#942237", description: "", visibility: DEFAULT_VISIBILITY, favorite: false, status: 1 });
     setCreateImage(null);
     setImageRemoved(false);
     create.setError(null);
@@ -131,6 +135,7 @@ export default function SubCategoryPage() {
       color: sub.color,
       description: sub.description,
       visibility: flagsToVisibility(sub.posVisibility, sub.customerPortalVisibility),
+      favorite: sub.favorite,
       status: sub.status,
     });
     setEditImage(null);
@@ -184,6 +189,17 @@ export default function SubCategoryPage() {
       key: "visibility",
       label: "Visibility",
       render: (s) => <VisibilityPills pos={s.posVisibility} portal={s.customerPortalVisibility} />,
+    },
+    {
+      key: "favorite",
+      label: "Favorite",
+      render: (s) => (
+        <FavoriteToggleCell
+          favorite={s.favorite}
+          canEdit={canEdit}
+          onChange={(favorite) => patchMasterFavorite(update, s._id, favorite, "Sub category")}
+        />
+      ),
     },
     {
       key: "status",
@@ -358,6 +374,13 @@ export default function SubCategoryPage() {
             />
           </div>
           <DivineTextarea staticLabel label="Description" error={errors.description?.message} {...register("description")} />
+          <Controller
+            control={control}
+            name="favorite"
+            render={({ field }) => (
+              <DivineFavoriteToggle value={field.value} onChange={field.onChange} />
+            )}
+          />
           <DivineMasterImageUpload
             label="Sub Category Image"
             hint="Recommended: 400 × 400 px square, WebP or JPEG · shown as the card banner in the POS offering grid · up to 100 KB"
