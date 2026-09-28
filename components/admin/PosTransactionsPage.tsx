@@ -63,7 +63,7 @@ type BookingDetail = {
   orderId: { _id: string; orderNumber: string; orderStatus: string } | null;
   customer: { _id: string; customerCode: string; name: string; email: string; mobileNumber: string | null } | null;
   lines: {
-    refType: "Item" | "Service";
+    refType: "Item" | "Service" | "GeneralItem";
     refId: string;
     name: string;
     code: string;

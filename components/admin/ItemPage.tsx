@@ -66,6 +66,7 @@ export type Item = {
   maxFamilyMembers: number;
   posAvailability: boolean;
   customerPortalAvailability: boolean;
+  adminBookingVisibility: boolean;
   favorite: boolean;
   status: number;
   image: string | null;
@@ -272,7 +273,7 @@ export default function ItemPage() {
       futureBookingCutOffDate: item.futureBookingCutOffDate ? item.futureBookingCutOffDate.slice(0, 10) : "",
       isFamilyMembersRequired: item.isFamilyMembersRequired,
       maxFamilyMembers: item.maxFamilyMembers,
-      visibility: flagsToVisibility(item.posAvailability, item.customerPortalAvailability),
+      visibility: flagsToVisibility(item.posAvailability, item.customerPortalAvailability, item.adminBookingVisibility),
       favorite: item.favorite,
       status: item.status,
       color: item.color ?? "",
@@ -284,7 +285,7 @@ export default function ItemPage() {
   }
 
   const submit = handleSubmit(async (values) => {
-    const { pos, portal } = visibilityToFlags(values.visibility);
+    const { pos, portal, adminBooking } = visibilityToFlags(values.visibility);
     const payload = withOptionalImage(
       {
         ...values,
@@ -295,6 +296,7 @@ export default function ItemPage() {
         categoryDetails: values.categoryDetails.map((c) => ({ ...c, subCategory: c.subCategory || null })),
         posAvailability: pos,
         customerPortalAvailability: portal,
+        adminBookingVisibility: adminBooking,
         visibility: undefined,
       },
       editing ? editImage : createImage,
@@ -331,7 +333,7 @@ export default function ItemPage() {
     {
       key: "visibility",
       label: "Visibility",
-      render: (i) => <VisibilityPills pos={i.posAvailability} portal={i.customerPortalAvailability} />,
+      render: (i) => <VisibilityPills pos={i.posAvailability} portal={i.customerPortalAvailability} adminBooking={i.adminBookingVisibility} />,
     },
     {
       key: "favorite",

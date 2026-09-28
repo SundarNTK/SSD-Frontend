@@ -9,16 +9,16 @@ import { usePageSize } from "../../lib/usePageSize";
 
 export type StockRow = {
   _id: string;
-  refType: "Item" | "Service";
+  refType: "Item" | "Service" | "GeneralItem";
   name: string;
   code: string;
   availableQuantity: number;
 };
 
-function TypePill({ type }: { type: "Item" | "Service" }) {
+function TypePill({ type }: { type: "Item" | "Service" | "GeneralItem" }) {
   return (
     <span className="inline-flex items-center rounded-md border border-gold-500/30 bg-gold-500/10 px-2 py-0.5 text-[11.5px] font-medium text-amber-700">
-      {type}
+      {type === "GeneralItem" ? "General Item" : type}
     </span>
   );
 }
@@ -27,6 +27,7 @@ const TYPE_OPTIONS: ListboxOption[] = [
   { value: "", label: "All Types" },
   { value: "Item", label: "Item" },
   { value: "Service", label: "Service" },
+  { value: "GeneralItem", label: "General Item" },
 ];
 
 /**

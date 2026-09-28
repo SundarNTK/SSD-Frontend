@@ -21,6 +21,7 @@ export const MODULES = {
   subCategories: "sub-categories",
   items: "items",
   services: "services",
+  generalItems: "general-items",
   events: "events",
   nakshathirams: "nakshathirams",
   paymentModes: "payment-modes",

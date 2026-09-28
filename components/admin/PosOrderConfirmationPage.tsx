@@ -32,7 +32,7 @@ type PendingListItem = {
 };
 
 type LineDetail = {
-  refType: "Item" | "Service";
+  refType: "Item" | "Service" | "GeneralItem";
   name: string;
   code: string;
   quantity: number;

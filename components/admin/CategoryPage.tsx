@@ -40,6 +40,7 @@ export type Category = {
   image: string | null;
   posVisibility: boolean;
   customerPortalVisibility: boolean;
+  adminBookingVisibility: boolean;
   favorite: boolean;
   status: number;
 };
@@ -98,9 +99,9 @@ export default function CategoryPage() {
   const tamilNameValue = watch("tamilName") ?? "";
 
   function toPayload(values: FormValues, image: File | null): WriteBody {
-    const { pos, portal } = visibilityToFlags(values.visibility);
+    const { pos, portal, adminBooking } = visibilityToFlags(values.visibility);
     return withOptionalImage(
-      { ...values, posVisibility: pos, customerPortalVisibility: portal, visibility: undefined },
+      { ...values, posVisibility: pos, customerPortalVisibility: portal, adminBookingVisibility: adminBooking, visibility: undefined },
       image,
       { existingValue: editing?.image ?? null, imageRemoved }
     );
@@ -124,7 +125,7 @@ export default function CategoryPage() {
       displayOrder: category.displayOrder,
       color: category.color,
       description: category.description,
-      visibility: flagsToVisibility(category.posVisibility, category.customerPortalVisibility),
+      visibility: flagsToVisibility(category.posVisibility, category.customerPortalVisibility, category.adminBookingVisibility),
       favorite: category.favorite,
       status: category.status,
     });
@@ -171,7 +172,7 @@ export default function CategoryPage() {
     {
       key: "visibility",
       label: "Visibility",
-      render: (c) => <VisibilityPills pos={c.posVisibility} portal={c.customerPortalVisibility} />,
+      render: (c) => <VisibilityPills pos={c.posVisibility} portal={c.customerPortalVisibility} adminBooking={c.adminBookingVisibility} />,
     },
     {
       key: "favorite",

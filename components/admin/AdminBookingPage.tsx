@@ -96,13 +96,22 @@ type PosService = {
   inventory: InventoryInfo;
 };
 
+// General Items carry no master price — the cashier types the amount in
+// here, and never carry a deity/family-member concept.
+type PosGeneralItem = {
+  _id: string;
+  code: string;
+  name: string;
+  inventory: InventoryInfo;
+};
+
 type PaymentMode = { _id: string; name: string };
 
 type Devotee = { name: string; nakshatra: string };
 
 type CartLine = {
   id: string; // local key only
-  refType: "Item" | "Service";
+  refType: "Item" | "Service" | "GeneralItem";
   refId: string;
   name: string;
   code: string;
@@ -218,18 +227,22 @@ export default function AdminBookingPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   // ── catalogue ───────────────────────────────────────────────────────────────
-  const [refType, setRefType] = useState<"Item" | "Service">("Item");
+  const [refType, setRefType] = useState<"Item" | "Service" | "GeneralItem">("Item");
   const [itemSearch, setItemSearch] = useState("");
   const [items, setItems] = useState<PosItem[]>([]);
   const [services, setServices] = useState<PosService[]>([]);
+  const [generalItems, setGeneralItems] = useState<PosGeneralItem[]>([]);
   const [catalogueLoading, setCatalogueLoading] = useState(false);
 
   // ── add-to-cart form ────────────────────────────────────────────────────────
   const [selectedItemId, setSelectedItemId] = useState("");
   const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [selectedGeneralItemId, setSelectedGeneralItemId] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [selectedDeities, setSelectedDeities] = useState<string[]>([]);
   const [devotees, setDevotees] = useState<Devotee[]>([{ name: "", nakshatra: "" }]);
+  // Only meaningful for a General Item line — the amount typed in here.
+  const [manualPrice, setManualPrice] = useState(0);
 
   // ── cart ────────────────────────────────────────────────────────────────────
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -260,7 +273,14 @@ export default function AdminBookingPage() {
   const cartSignature = useMemo(
     () =>
       JSON.stringify(
-        cart.map((l) => ({ refType: l.refType, refId: l.refId, quantity: l.quantity, deities: l.deities, devotees: l.devotees }))
+        cart.map((l) => ({
+          refType: l.refType,
+          refId: l.refId,
+          quantity: l.quantity,
+          deities: l.deities,
+          devotees: l.devotees,
+          manualUnitPrice: l.refType === "GeneralItem" ? l.unitPrice : undefined,
+        }))
       ),
     [cart]
   );
@@ -305,11 +325,16 @@ export default function AdminBookingPage() {
           params: { search: itemSearch || undefined, pageSize: 100 },
         });
         setItems(unwrap(r).items);
-      } else {
+      } else if (refType === "Service") {
         const r = await api.get<ApiEnvelope<{ items: PosService[] }>>("/pos/admin/booking/services", {
           params: { search: itemSearch || undefined, pageSize: 100 },
         });
         setServices(unwrap(r).items);
+      } else {
+        const r = await api.get<ApiEnvelope<{ items: PosGeneralItem[] }>>("/pos/admin/booking/general-items", {
+          params: { search: itemSearch || undefined, pageSize: 100 },
+        });
+        setGeneralItems(unwrap(r).items);
       }
     } catch {
       // silent — catalogue failing shouldn't block the rest of the UI
@@ -327,9 +352,11 @@ export default function AdminBookingPage() {
   useEffect(() => {
     setSelectedItemId("");
     setSelectedServiceId("");
+    setSelectedGeneralItemId("");
     setQuantity(1);
     setSelectedDeities([]);
     setDevotees([{ name: "", nakshatra: "" }]);
+    setManualPrice(0);
   }, [refType]);
 
   // ─── customer search ─────────────────────────────────────────────────────
@@ -389,6 +416,7 @@ export default function AdminBookingPage() {
             quantity: l.quantity,
             deities: l.deities,
             devotees: l.devotees,
+            ...(l.refType === "GeneralItem" ? { manualUnitPrice: l.unitPrice } : {}),
           })),
         });
         const data = unwrap(r);
@@ -440,25 +468,38 @@ export default function AdminBookingPage() {
   // ─── derived values for add-to-cart form ─────────────────────────────────
   const selectedItem = items.find((i) => i._id === selectedItemId) ?? null;
   const selectedService = services.find((s) => s._id === selectedServiceId) ?? null;
-  const currentRef = refType === "Item" ? selectedItem : selectedService;
+  const selectedGeneralItem = generalItems.find((g) => g._id === selectedGeneralItemId) ?? null;
+  const currentRef =
+    refType === "Item" ? selectedItem : refType === "Service" ? selectedService : selectedGeneralItem;
+  // General Items carry no master price — the cashier's typed amount is
+  // used instead of a selectedItem/selectedService field.
   const unitPrice =
-    refType === "Item" ? (selectedItem?.salePrice ?? 0) : (selectedService?.defaultSalePrice ?? 0);
+    refType === "Item"
+      ? (selectedItem?.salePrice ?? 0)
+      : refType === "Service"
+        ? (selectedService?.defaultSalePrice ?? 0)
+        : manualPrice;
 
-  const curatedDeityMapping = refType === "Item" ? selectedItem?.deityMapping : selectedService?.deityMapping;
+  const curatedDeityMapping = refType === "Item" ? selectedItem?.deityMapping : refType === "Service" ? selectedService?.deityMapping : undefined;
   const deityOptions: ListboxOption[] = curatedDeityMapping?.map((d) => ({ value: d._id, label: d.name })) ?? [];
 
+  // General Items never carry a deity or family-member concept.
   const needsDeity =
     refType === "Item"
       ? (selectedItem?.isDeityMappingRequired ?? false)
-      : (selectedService?.isDeityMappingRequired ?? false);
+      : refType === "Service"
+        ? (selectedService?.isDeityMappingRequired ?? false)
+        : false;
 
   const needsDevotees =
     refType === "Item"
       ? (selectedItem?.isFamilyMembersRequired ?? false)
-      : (selectedService?.isFamilyMembersRequired ?? false);
+      : refType === "Service"
+        ? (selectedService?.isFamilyMembersRequired ?? false)
+        : false;
 
   const maxFamilyMembers =
-    (refType === "Item" ? selectedItem?.maxFamilyMembers : selectedService?.maxFamilyMembers) ?? 1;
+    (refType === "Item" ? selectedItem?.maxFamilyMembers : refType === "Service" ? selectedService?.maxFamilyMembers : 0) ?? 1;
 
   // Deity-mapped lines are priced (and reserved) per selected deity, not a
   // separately-typed quantity — the backend enforces this too
@@ -496,8 +537,9 @@ export default function AdminBookingPage() {
     setSelectedDeities([]);
     const startRows = needsDevotees ? Math.max(1, maxFamilyMembers) : 1;
     setDevotees(Array.from({ length: startRows }, () => ({ name: "", nakshatra: "" })));
+    setManualPrice(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedItemId, selectedServiceId]);
+  }, [selectedItemId, selectedServiceId, selectedGeneralItemId]);
 
   // ─── add to cart ──────────────────────────────────────────────────────────
   function addToCart() {
@@ -505,9 +547,10 @@ export default function AdminBookingPage() {
       toast.error("Please select a customer first.");
       return;
     }
-    const refId = refType === "Item" ? selectedItemId : selectedServiceId;
+    const refId =
+      refType === "Item" ? selectedItemId : refType === "Service" ? selectedServiceId : selectedGeneralItemId;
     if (!refId) {
-      toast.error(`Please select an ${refType.toLowerCase()}.`);
+      toast.error(refType === "GeneralItem" ? "Please select a general item." : `Please select an ${refType.toLowerCase()}.`);
       return;
     }
     if (quantity < 1) {
@@ -518,8 +561,14 @@ export default function AdminBookingPage() {
       toast.error("Please select at least one deity.");
       return;
     }
-    const name = refType === "Item" ? (selectedItem?.name ?? "") : (selectedService?.name ?? "");
-    const code = refType === "Item" ? (selectedItem?.code ?? "") : (selectedService?.code ?? "");
+    if (refType === "GeneralItem" && manualPrice <= 0) {
+      toast.error("Please enter an amount.");
+      return;
+    }
+    const name =
+      refType === "Item" ? (selectedItem?.name ?? "") : refType === "Service" ? (selectedService?.name ?? "") : (selectedGeneralItem?.name ?? "");
+    const code =
+      refType === "Item" ? (selectedItem?.code ?? "") : refType === "Service" ? (selectedService?.code ?? "") : (selectedGeneralItem?.code ?? "");
 
     // Devotee name is optional, not required — the row count reflects the
     // offering's configured max as a cap, not a mandatory headcount. Blank
@@ -546,9 +595,11 @@ export default function AdminBookingPage() {
     // Reset form
     setSelectedItemId("");
     setSelectedServiceId("");
+    setSelectedGeneralItemId("");
     setQuantity(1);
     setSelectedDeities([]);
     setDevotees([{ name: "", nakshatra: "" }]);
+    setManualPrice(0);
   }
 
   function removeCartLine(id: string) {
@@ -586,6 +637,7 @@ export default function AdminBookingPage() {
           quantity: l.quantity,
           deities: l.deities,
           devotees: l.devotees,
+          ...(l.refType === "GeneralItem" ? { manualUnitPrice: l.unitPrice } : {}),
         })),
         paymentModeId: selectedPaymentModeId,
         paidAmount: paymentAmount,
@@ -629,6 +681,12 @@ export default function AdminBookingPage() {
   const serviceOptions: ListboxOption[] = services.map((s) => ({
     value: s._id,
     label: `${s.name} — ${formatCurrency(s.defaultSalePrice)}`,
+  }));
+
+  // No master price to show — the cashier types it in after selecting.
+  const generalItemOptions: ListboxOption[] = generalItems.map((g) => ({
+    value: g._id,
+    label: g.name,
   }));
 
   const hasStockIssues = cart.some((l) => l.quantityExceedsStock);
@@ -747,8 +805,8 @@ export default function AdminBookingPage() {
           {/* Item / Service selector */}
           <Section title="Select Item / Service and Add to Cart">
             {/* Type toggle */}
-            <div className="flex gap-4">
-              {(["Item", "Service"] as const).map((t) => (
+            <div className="flex flex-wrap gap-4">
+              {(["Item", "Service", "GeneralItem"] as const).map((t) => (
                 <label key={t} className="flex cursor-pointer items-center gap-2 text-[13.5px] text-ink-200">
                   <input
                     type="radio"
@@ -758,15 +816,21 @@ export default function AdminBookingPage() {
                     onChange={() => setRefType(t)}
                     className="accent-amber-600"
                   />
-                  {t}
+                  {t === "GeneralItem" ? "General Item" : t}
                 </label>
               ))}
             </div>
 
-            {/* Item / service search */}
+            {/* Item / service / general item search */}
             <div className="relative">
               <DivineInput
-                label={refType === "Item" ? "Search items…" : "Search services…"}
+                label={
+                  refType === "Item"
+                    ? "Search items…"
+                    : refType === "Service"
+                      ? "Search services…"
+                      : "Search general items…"
+                }
                 icon={<SearchIcon />}
                 value={itemSearch}
                 onChange={(e) => setItemSearch(e.target.value)}
@@ -797,6 +861,30 @@ export default function AdminBookingPage() {
                 onChange={setSelectedServiceId}
                 options={serviceOptions}
                 placeholder="— Choose a service —"
+              />
+            )}
+
+            {/* General Item dropdown */}
+            {refType === "GeneralItem" && (
+              <DivineListbox
+                label="Select General Item"
+                value={selectedGeneralItemId}
+                onChange={setSelectedGeneralItemId}
+                options={generalItemOptions}
+                placeholder="— Choose a general item —"
+              />
+            )}
+
+            {/* Amount — General Items carry no master price */}
+            {refType === "GeneralItem" && currentRef && (
+              <DivineInput
+                label="Amount (S$) *"
+                type="number"
+                min={0}
+                step="0.01"
+                value={manualPrice ? String(manualPrice) : ""}
+                onChange={(e) => setManualPrice(Math.max(0, Number(e.target.value) || 0))}
+                placeholder="0.00"
               />
             )}
 
@@ -907,9 +995,12 @@ export default function AdminBookingPage() {
 
             {/* Stock warning for selected ref */}
             {currentRef && (() => {
-              const inv = refType === "Item"
-                ? selectedItem?.inventory
-                : selectedService?.inventory;
+              const inv =
+                refType === "Item"
+                  ? selectedItem?.inventory
+                  : refType === "Service"
+                    ? selectedService?.inventory
+                    : selectedGeneralItem?.inventory;
               if (!inv?.isApplicable) return null;
               const avail = inv.availableQty ?? 0;
               if (effectiveQuantity <= avail) return null;
@@ -925,7 +1016,12 @@ export default function AdminBookingPage() {
               <button
                 type="button"
                 onClick={addToCart}
-                disabled={!canBook || !selectedCustomer || !(selectedItemId || selectedServiceId)}
+                disabled={
+                  !canBook ||
+                  !selectedCustomer ||
+                  !(selectedItemId || selectedServiceId || selectedGeneralItemId) ||
+                  (refType === "GeneralItem" && manualPrice <= 0)
+                }
                 className="flex items-center gap-2 rounded-md border border-maroon/30 bg-maroon px-4 py-2.5 font-accent text-[13.5px] font-semibold text-white transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-maroon-hover hover:shadow-[0_8px_20px_-6px_rgba(124,21,39,0.55)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <CartIcon />
