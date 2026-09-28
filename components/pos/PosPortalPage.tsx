@@ -83,6 +83,7 @@ import {
   CheckIcon,
   CloseIcon,
   StarIcon,
+  BoxIcon,
 } from "../divine/icons";
 
 // Shared by every text/select/date field on the counter screen — search
@@ -109,6 +110,15 @@ const POS_BTN_FAVORITE_ON =
   "border-amber-400 bg-amber-300 text-[#5b1020] hover:bg-amber-400";
 const POS_BTN_FAVORITE_OFF =
   "border-amber-400/50 bg-white text-amber-700 hover:border-amber-500/70 hover:bg-amber-50";
+
+// Indigo-themed variant of the pair above, for the static General Items
+// tab — same reasoning as Favorites' own pair, so this tab reads as its
+// own distinct "style" rather than a category, matching its indigo card
+// theme (see CATALOGUE_CARD_THEME.generalItem).
+const POS_BTN_GENERAL_ON =
+  "border-[#3730A3] bg-[#3730A3] text-white hover:bg-[#312e81]";
+const POS_BTN_GENERAL_OFF =
+  "border-[#3730A3]/40 bg-white text-[#3730A3] hover:border-[#3730A3]/60 hover:bg-indigo-50";
 
 const POS_PANEL =
   "overflow-hidden rounded-2xl border border-[#7c1527]/30 shadow-[0_16px_36px_-12px_rgba(0,0,0,0.28),0_6px_16px_-6px_rgba(124,21,39,0.32)]";
@@ -224,10 +234,33 @@ type PosService = {
   favorite?: boolean;
 };
 
+// General Items carry no master price — the cashier types the amount in at
+// add-to-cart time (see AddToCartModal's Amount field / modalManualPrice).
+// Never deity-mapped or family-member-tracked, so those flags are always
+// fixed to their "off" value rather than fields on the wire.
+type PosGeneralItem = {
+  _id: string;
+  code: string;
+  name: string;
+  tamilName: string;
+  image?: string | null;
+  color?: string;
+  inventory: InventoryInfo;
+  categoryId?: string | null;
+  favorite?: boolean;
+};
+
 type Offering =
   | ({ refType: "Item" } & PosItem)
   | ({ refType: "Service" } & Omit<PosService, "defaultSalePrice"> & {
         salePrice: number;
+      })
+  | ({ refType: "GeneralItem" } & PosGeneralItem & {
+        salePrice: null;
+        isDeityMappingRequired: false;
+        deityMapping: DeityOption[];
+        isFamilyMembersRequired: false;
+        maxFamilyMembers: number;
       });
 
 // One entry in a paginated catalogue grid — either a Folder tile or an
@@ -259,6 +292,29 @@ function offeringDescriptors(
       }),
     ),
   ];
+}
+
+// General Items get their own descriptor builder (not folded into
+// offeringDescriptors above) — they're never mixed into the same grid as
+// Item/Service, only shown on their own standalone tab.
+function generalItemDescriptors(
+  generalItems: PosGeneralItem[],
+): CatalogueCardDescriptor[] {
+  return generalItems.map(
+    (g): CatalogueCardDescriptor => ({
+      kind: "offering",
+      key: `general-item-${g._id}`,
+      offering: {
+        refType: "GeneralItem",
+        ...g,
+        salePrice: null,
+        isDeityMappingRequired: false,
+        deityMapping: [],
+        isFamilyMembersRequired: false,
+        maxFamilyMembers: 0,
+      },
+    }),
+  );
 }
 
 // auto-fill grid — default fits ~3 rows at a typical 5-column width; larger
@@ -303,7 +359,7 @@ const LATIN_NAME_RE = /^[a-zA-Z\s.'-]+$/;
 
 type CartLine = {
   id: string;
-  refType: "Item" | "Service";
+  refType: "Item" | "Service" | "GeneralItem";
   refId: string;
   name: string;
   code: string;
@@ -346,7 +402,7 @@ type SummaryResponse = {
 type PaymentMode = { _id: string; name: string };
 
 type RecentBookingLine = {
-  refType: "Item" | "Service";
+  refType: "Item" | "Service" | "GeneralItem";
   refId: string;
   name: string;
   code: string;
@@ -369,7 +425,7 @@ type RecentBooking = {
 /** One line's outcome from POST /pos/booking/recheck-lines — `available`
  *  decides whether it can be re-added to the cart as-is. */
 type RecheckedLine = {
-  refType: "Item" | "Service";
+  refType: "Item" | "Service" | "GeneralItem";
   refId: string;
   quantity: number;
   deities: string[];
@@ -516,6 +572,10 @@ function newLineId() {
 // cart row itself gets its own +/- stepper instead of only a pencil button
 // that reopens the modal (see confirmAddToCart / CartLineRow).
 function isSimpleQuantityOffering(offering: Offering): boolean {
+  // General Items are never topped up onto an existing line — each add can
+  // carry its own manually-typed amount (e.g. two sarees sold at different
+  // prices), so they always become their own new cart line.
+  if (offering.refType === "GeneralItem") return false;
   const hasDeityChoices =
     Boolean(offering.isDeityMappingRequired) &&
     (offering.deityMapping?.length ?? 0) > 0;
@@ -578,6 +638,13 @@ export default function PosPortalPage() {
   const [favoriteItems, setFavoriteItems] = useState<PosItem[]>([]);
   const [favoriteServices, setFavoriteServices] = useState<PosService[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
+  // Static "General Items" tab — same standalone treatment as Favorites
+  // above, not folded into folder/category browsing: priceless-at-setup
+  // goods (sarees, old deity photos, etc.) get their own flat, cross-
+  // category list and their own indigo theme (see CATALOGUE_CARD_THEME).
+  const [showingGeneralItems, setShowingGeneralItems] = useState(false);
+  const [generalItems, setGeneralItems] = useState<PosGeneralItem[]>([]);
+  const [generalItemsLoading, setGeneralItemsLoading] = useState(false);
 
   // Derived: the full CategoryTab record for the active tab (null = "All Categories")
   const selectedCategory =
@@ -658,6 +725,32 @@ export default function PosPortalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showingFavorites]);
 
+  // Same reasoning as loadFavorites — a flat list fetched up front (for the
+  // tab's own count badge) and re-fetched whenever the tab is (re)opened.
+  async function loadGeneralItems() {
+    setGeneralItemsLoading(true);
+    try {
+      const r = await api.get<ApiEnvelope<{ items: PosGeneralItem[] }>>(
+        "/pos/booking/general-items",
+        { params: { pageSize: 100 } },
+      );
+      setGeneralItems(unwrap(r).items);
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setGeneralItemsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadGeneralItems();
+  }, []);
+
+  useEffect(() => {
+    if (showingGeneralItems) loadGeneralItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showingGeneralItems]);
+
   const visibleFolders = useMemo(
     () =>
       selectedCategoryId
@@ -691,6 +784,7 @@ export default function PosPortalPage() {
     activeFolder?.subCategoryId,
     offeringSearch,
     showingFavorites,
+    showingGeneralItems,
     cataloguePageSize,
   ]);
 
@@ -723,11 +817,16 @@ export default function PosPortalPage() {
     [favoriteItems, favoriteServices],
   );
   const favoriteCount = favoriteItems.length + favoriteServices.length;
+  const generalItemCatalogueDescriptors = useMemo(
+    () => generalItemDescriptors(generalItems),
+    [generalItems],
+  );
 
   function openFolder(folder: Folder) {
     setActiveFolder(folder);
     setOfferingSearch("");
     setShowingFavorites(false);
+    setShowingGeneralItems(false);
   }
 
   useEffect(() => {
@@ -870,6 +969,9 @@ export default function PosPortalPage() {
           quantity: l.quantity,
           deities: l.deities,
           devotees: l.devotees,
+          // Not part of Item/Service lines, but a General Item's typed
+          // amount changing (via the Edit modal) IS a reason to re-summarize.
+          manualUnitPrice: l.refType === "GeneralItem" ? l.unitPrice : undefined,
         })),
       ),
     [cart],
@@ -902,6 +1004,7 @@ export default function PosPortalPage() {
               quantity: l.quantity,
               deities: l.deities,
               devotees: l.devotees,
+              ...(l.refType === "GeneralItem" ? { manualUnitPrice: l.unitPrice } : {}),
             })),
           },
         );
@@ -1097,6 +1200,10 @@ export default function PosPortalPage() {
             quantity: l.quantity,
             deities: l.deities.map((d) => d._id),
             devotees: l.devotees,
+            // General Items carry no master price to re-derive — replay the
+            // amount this past booking line actually charged; staff can
+            // still edit it via the cart line's Edit modal afterward.
+            ...(l.refType === "GeneralItem" ? { manualUnitPrice: l.unitPrice } : {}),
           })),
         },
       );
@@ -1183,6 +1290,9 @@ export default function PosPortalPage() {
     { name: "", nakshatra: "" },
   ]);
   const [modalQuantity, setModalQuantity] = useState(1);
+  // General Items carry no master price — the cashier types it here. Unused
+  // (stays 0) for Item/Service offerings, which price from offering.salePrice.
+  const [modalManualPrice, setModalManualPrice] = useState(0);
   // Set while editing an existing cart line instead of adding a new one —
   // confirmAddToCart() branches on this to update in place rather than append.
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
@@ -1219,6 +1329,7 @@ export default function PosPortalPage() {
       Array.from({ length: startRows }, () => ({ name: "", nakshatra: "" })),
     );
     setModalQuantity(1);
+    setModalManualPrice(0);
   }
 
   // Reopens the same modal pre-filled with what's already on this cart
@@ -1239,6 +1350,7 @@ export default function PosPortalPage() {
     );
     setModalDevotees(rows);
     setModalQuantity(line.quantity);
+    setModalManualPrice(offering.refType === "GeneralItem" ? line.unitPrice : 0);
   }
 
   const modalDevoteeRows = modalOffering?.isFamilyMembersRequired
@@ -1330,9 +1442,12 @@ export default function PosPortalPage() {
     : modalFixedQty
       ? 1
       : modalQuantity;
-  const modalTotal = modalOffering
-    ? modalOffering.salePrice * modalEffectiveQty
+  const modalUnitPrice = modalOffering
+    ? modalOffering.refType === "GeneralItem"
+      ? modalManualPrice
+      : modalOffering.salePrice
     : 0;
+  const modalTotal = modalOffering ? modalUnitPrice * modalEffectiveQty : 0;
 
   // Fire-and-forget: appends any devotee typed into this booking who isn't
   // already one of the selected customer's known family members onto their
@@ -1396,6 +1511,10 @@ export default function PosPortalPage() {
       toast.error("Please select at least one deity.");
       return;
     }
+    if (modalOffering.refType === "GeneralItem" && modalManualPrice <= 0) {
+      toast.error("Please enter an amount.");
+      return;
+    }
     // A blank row (an unused slot) is fine — the row count is a cap, not a
     // mandatory headcount. A name entered without its Nakshatra is caught
     // by AddToCartModal before onConfirm (this function) is ever called.
@@ -1415,8 +1534,8 @@ export default function PosPortalPage() {
             ? {
                 ...l,
                 quantity: modalEffectiveQty || 1,
-                unitPrice: modalOffering.salePrice,
-                lineTotal: modalOffering.salePrice * (modalEffectiveQty || 1),
+                unitPrice: modalUnitPrice,
+                lineTotal: modalUnitPrice * (modalEffectiveQty || 1),
                 deities: modalDeities,
                 devotees: modalOffering.isFamilyMembersRequired
                   ? filledDevotees
@@ -1456,8 +1575,8 @@ export default function PosPortalPage() {
             ? {
                 ...l,
                 quantity: nextQty,
-                unitPrice: modalOffering.salePrice,
-                lineTotal: modalOffering.salePrice * nextQty,
+                unitPrice: modalUnitPrice,
+                lineTotal: modalUnitPrice * nextQty,
                 offering: modalOffering,
               }
             : l,
@@ -1475,8 +1594,8 @@ export default function PosPortalPage() {
       name: modalOffering.name,
       code: modalOffering.code,
       quantity: addedQty,
-      unitPrice: modalOffering.salePrice,
-      lineTotal: modalOffering.salePrice * addedQty,
+      unitPrice: modalUnitPrice,
+      lineTotal: modalUnitPrice * addedQty,
       deities: modalDeities,
       devotees: modalOffering.isFamilyMembersRequired ? filledDevotees : [],
       offering: modalOffering,
@@ -1695,6 +1814,7 @@ export default function PosPortalPage() {
             quantity: l.quantity,
             deities: l.deities,
             devotees: l.devotees,
+            ...(l.refType === "GeneralItem" ? { manualUnitPrice: l.unitPrice } : {}),
           })),
           paymentModeId: selectedPaymentModeId,
           paidAmount: paymentAmount,
@@ -1997,7 +2117,8 @@ export default function PosPortalPage() {
   }
 
   const showingSearch = offeringSearch.trim().length > 0;
-  const showingFolder = !showingSearch && !showingFavorites && activeFolder;
+  const showingFolder =
+    !showingSearch && !showingFavorites && !showingGeneralItems && activeFolder;
 
   return (
     <PosShell
@@ -2327,6 +2448,7 @@ export default function PosPortalPage() {
               <button
                 onClick={() => {
                   setShowingFavorites(true);
+                  setShowingGeneralItems(false);
                   setSelectedCategoryId("");
                   setActiveFolder(null);
                   setOfferingSearch("");
@@ -2338,14 +2460,34 @@ export default function PosPortalPage() {
                 <StarIcon filled className="h-4 w-4" />
                 Favorites ({favoriteCount})
               </button>
+              {/* Static "General Items" tab — same standalone treatment as
+                  Favorites, its own indigo theme so priceless-at-setup goods
+                  (sarees, old deity photos, etc.) read as their own style,
+                  never mixed into the Item/Service folder browser. */}
+              <button
+                onClick={() => {
+                  setShowingGeneralItems(true);
+                  setShowingFavorites(false);
+                  setSelectedCategoryId("");
+                  setActiveFolder(null);
+                  setOfferingSearch("");
+                }}
+                className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border px-3.5 text-[12.5px] font-semibold shadow-sm transition-[box-shadow,background-color,color,border-color] duration-200 hover:shadow-[0_6px_16px_-4px_rgba(55,48,163,0.35)] sm:h-12 ${
+                  showingGeneralItems ? POS_BTN_GENERAL_ON : POS_BTN_GENERAL_OFF
+                }`}
+              >
+                <BoxIcon />
+                General Items ({generalItems.length})
+              </button>
               <button
                 onClick={() => {
                   setShowingFavorites(false);
+                  setShowingGeneralItems(false);
                   setSelectedCategoryId("");
                   setActiveFolder(null);
                 }}
                 className={`inline-flex h-11 shrink-0 items-center rounded-xl border px-3.5 text-[12.5px] font-medium shadow-sm transition-[box-shadow,background-color,color,border-color] duration-200 hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.4)] sm:h-12 ${
-                  !showingFavorites && !selectedCategoryId ? POS_BTN_ON : POS_BTN_OFF
+                  !showingFavorites && !showingGeneralItems && !selectedCategoryId ? POS_BTN_ON : POS_BTN_OFF
                 }`}
               >
                 All Categories ({totalOfferingCount})
@@ -2357,11 +2499,12 @@ export default function PosPortalPage() {
                     key={c._id}
                     onClick={() => {
                       setShowingFavorites(false);
+                      setShowingGeneralItems(false);
                       setSelectedCategoryId(c._id);
                       setActiveFolder(null);
                     }}
                     className={`inline-flex h-11 shrink-0 items-center gap-2.5 rounded-xl border py-1 pl-1.5 pr-3.5 text-[12.5px] font-medium shadow-sm transition-[box-shadow,background-color,color,border-color] duration-200 hover:shadow-[0_6px_16px_-4px_rgba(124,21,39,0.4)] sm:h-12 ${
-                      !showingFavorites && selectedCategoryId === c._id ? POS_BTN_ON : POS_BTN_OFF
+                      !showingFavorites && !showingGeneralItems && selectedCategoryId === c._id ? POS_BTN_ON : POS_BTN_OFF
                     }`}
                   >
                     {catImg ? (
@@ -2389,9 +2532,11 @@ export default function PosPortalPage() {
               backgroundColor:
                 !showingSearch && showingFavorites
                   ? "#fcd34d18"
-                  : selectedCategory?.color
-                    ? `${selectedCategory.color}18`
-                    : "transparent",
+                  : !showingSearch && showingGeneralItems
+                    ? "#3730A318"
+                    : selectedCategory?.color
+                      ? `${selectedCategory.color}18`
+                      : "transparent",
             }}
           >
             {catalogueLoading && (
@@ -2449,9 +2594,37 @@ export default function PosPortalPage() {
               </div>
             )}
 
+            {!catalogueLoading && !showingSearch && showingGeneralItems && (
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div className="mb-4 flex shrink-0 items-center gap-2 text-[12.5px]">
+                  <span className="flex items-center gap-1.5 font-accent text-[16px] font-extrabold tracking-tight text-[#3730A3]">
+                    <BoxIcon /> General Items
+                  </span>
+                  <span className="text-ink-500">— sarees, old deity photos, and other goods priced at the counter</span>
+                </div>
+                {generalItemsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <EmblemLoader size="sm" label="Loading general items…" />
+                  </div>
+                ) : (
+                  <CatalogueGrid
+                    descriptors={generalItemCatalogueDescriptors}
+                    page={cataloguePage}
+                    onPageChange={setCataloguePage}
+                    pageSize={cataloguePageSize}
+                    onPageSizeChange={setCataloguePageSize}
+                    onPickOffering={openAddModal}
+                    onOpenFolder={openFolder}
+                    emptyMessage="No General Items yet — add one from the General Item master."
+                  />
+                )}
+              </div>
+            )}
+
             {!catalogueLoading &&
               !showingSearch &&
               !showingFavorites &&
+              !showingGeneralItems &&
               showingFolder &&
               activeFolder && (
                 <div className="flex min-h-0 flex-1 flex-col">
@@ -2497,7 +2670,11 @@ export default function PosPortalPage() {
                 </div>
               )}
 
-            {!catalogueLoading && !showingSearch && !showingFavorites && !showingFolder && (
+            {!catalogueLoading &&
+              !showingSearch &&
+              !showingFavorites &&
+              !showingGeneralItems &&
+              !showingFolder && (
               <CatalogueGrid
                 descriptors={defaultCatalogueDescriptors}
                 page={cataloguePage}
@@ -2775,6 +2952,8 @@ export default function PosPortalPage() {
         devoteeNameSuggestions={devoteeNameSuggestions}
         quantity={modalQuantity}
         onQuantityChange={setModalQuantity}
+        manualPrice={modalManualPrice}
+        onManualPriceChange={setModalManualPrice}
         total={modalTotal}
         isEditing={!!editingLineId}
         onCancel={() => {
@@ -3581,7 +3760,8 @@ type IconColor =
   | "white"
   | "brown"
   | "darkPink"
-  | "darkGreen";
+  | "darkGreen"
+  | "indigo";
 const ICON_COLOR_CLASS: Record<IconColor, string> = {
   flame: "text-flame-600",
   crimson: "text-[#E11D2E]",
@@ -3590,6 +3770,7 @@ const ICON_COLOR_CLASS: Record<IconColor, string> = {
   brown: "text-[#5D4037]",
   darkPink: "text-[#9D174D]",
   darkGreen: "text-[#166534]",
+  indigo: "text-[#3730A3]",
 };
 
 function FolderIcon({
@@ -4736,7 +4917,7 @@ type CatalogueCardTheme = {
 };
 
 const CATALOGUE_CARD_THEME: Record<
-  "folder" | "item" | "service",
+  "folder" | "item" | "service" | "generalItem",
   CatalogueCardTheme
 > = {
   folder: {
@@ -4763,6 +4944,17 @@ const CATALOGUE_CARD_THEME: Record<
     bodyBg: "bg-[#f0fdf4]",
     iconColor: "darkGreen",
   },
+  // Its own accent (indigo) — General Items are a visibly distinct "style"
+  // from Item (rose) and Service (green), matching how the POS tab that
+  // lists them is its own separate tab, not folded into either.
+  generalItem: {
+    banner: "bg-[#3730A3]",
+    border: "border-[#3730A3]",
+    rowBg: "bg-[#c7d2fe]",
+    rowText: "text-[#3730A3]",
+    bodyBg: "bg-[#eef2ff]",
+    iconColor: "indigo",
+  },
 };
 
 /**
@@ -4787,7 +4979,7 @@ function CatalogueCard({
 }: {
   onClick: () => void;
   disabled?: boolean;
-  iconKind: "folder" | "item" | "service";
+  iconKind: "folder" | "item" | "service" | "generalItem";
   title: string;
   tamilName?: string;
   theme: CatalogueCardTheme;
@@ -5077,26 +5269,33 @@ function OfferingCard({
     (offering.inventory.availableQty ?? 0) <=
       (offering.inventory.threshold ?? 0) + 1;
 
-  // Item and Service each get their own accent family (rose vs. gold)
-  // instead of sharing one look, matching Folder's orange — three offering
-  // "types" throughout the catalogue now read as visibly distinct.
+  // Item, Service, and General Item each get their own accent family (rose /
+  // green / indigo) instead of sharing one look, matching Folder's orange —
+  // every offering "type" throughout the catalogue reads as visibly
+  // distinct, and General Item's own colour keeps it reading as its own
+  // separate style rather than a variant of Item.
   const isService = offering.refType === "Service";
-  const theme = isService
-    ? CATALOGUE_CARD_THEME.service
-    : CATALOGUE_CARD_THEME.item;
+  const isGeneralItem = offering.refType === "GeneralItem";
+  const theme = isGeneralItem
+    ? CATALOGUE_CARD_THEME.generalItem
+    : isService
+      ? CATALOGUE_CARD_THEME.service
+      : CATALOGUE_CARD_THEME.item;
 
   return (
     <CatalogueCard
       onClick={() => onPick(offering)}
       disabled={outOfStock}
-      iconKind={isService ? "service" : "item"}
+      iconKind={isGeneralItem ? "generalItem" : isService ? "service" : "item"}
       title={offering.name}
       tamilName={offering.tamilName}
       theme={theme}
       imageUrl={offering.image}
       accentColor={offering.color || null}
       rowIcon={<PriceTagRowIcon className={theme.rowText} />}
-      rowLabel={formatCurrency(offering.salePrice)}
+      // General Items carry no master price — the card invites a tap to
+      // type the amount in, rather than showing a price it doesn't have.
+      rowLabel={offering.refType === "GeneralItem" ? "Enter amount" : formatCurrency(offering.salePrice)}
       extraBadges={
         <>
           {outOfStock && (
@@ -5168,8 +5367,12 @@ function CartLineRow({
     ? Boolean(line.offering.isFamilyMembersRequired)
     : line.devotees.length > 0;
   const showStepper = !hasDeityChoices && !hasFamilyMembers;
+  // A General Item's Edit modal is also how its manually-typed Amount gets
+  // corrected after the fact — always offer it, not just for deity/family
+  // offerings.
   const showEditButton =
-    !!line.offering && (hasDeityChoices || hasFamilyMembers);
+    !!line.offering &&
+    (hasDeityChoices || hasFamilyMembers || line.offering.refType === "GeneralItem");
   const maxFamilyMembers =
     line.offering?.maxFamilyMembers ?? line.devotees.length;
   // Placeholder rows so an offering that requires family-member details but
@@ -5194,7 +5397,7 @@ function CartLineRow({
             {line.name}
           </p>
           <p className="text-[11.5px] text-ink-500">
-            {line.refType}
+            {line.refType === "GeneralItem" ? "General Item" : line.refType}
             {!showStepper && ` · Qty ${line.quantity}`}
           </p>
           {line.quantityExceedsStock && (
@@ -5376,6 +5579,8 @@ function AddToCartModal({
   devoteeNameSuggestions,
   quantity,
   onQuantityChange,
+  manualPrice,
+  onManualPriceChange,
   total,
   isEditing,
   onCancel,
@@ -5395,6 +5600,9 @@ function AddToCartModal({
   devoteeNameSuggestions?: DevoteeSuggestion[];
   quantity: number;
   onQuantityChange: (v: number) => void;
+  /** Only meaningful for a GeneralItem offering — see the Amount field below. */
+  manualPrice: number;
+  onManualPriceChange: (v: number) => void;
   total: number;
   isEditing?: boolean;
   onCancel: () => void;
@@ -5573,6 +5781,30 @@ function AddToCartModal({
               </div>
             )}
 
+            {offering.refType === "GeneralItem" && (
+              <div>
+                <p className={`${FORM_LABEL} mb-2`}>Amount *</p>
+                <div className="flex items-center gap-2 rounded-xl border border-gold-500/30 bg-white px-3 py-1.5">
+                  <span className="text-[16px] font-semibold text-ink-500">$</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    autoFocus
+                    value={manualPrice || ""}
+                    onChange={(e) =>
+                      onManualPriceChange(Math.max(0, Number(e.target.value) || 0))
+                    }
+                    placeholder="0.00"
+                    className="w-full bg-transparent font-body text-[16px] font-semibold text-ink-100 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                </div>
+                <p className="mt-1.5 pl-1 text-[11.5px] text-ink-500">
+                  This product has no fixed price — enter the amount for this sale.
+                </p>
+              </div>
+            )}
+
             {!(offering.isDeityMappingRequired && deityOptions.length > 0) &&
               !offering.isFamilyMembersRequired && (
               <div>
@@ -5706,9 +5938,10 @@ function AddToCartModal({
                 chevron={false}
                 onClick={handleConfirm}
                 disabled={
-                  offering.isDeityMappingRequired &&
-                  deityOptions.length > 0 &&
-                  deities.length === 0
+                  (offering.isDeityMappingRequired &&
+                    deityOptions.length > 0 &&
+                    deities.length === 0) ||
+                  (offering.refType === "GeneralItem" && manualPrice <= 0)
                 }
               >
                 {isEditing ? "Save Changes" : "Add to Cart"}

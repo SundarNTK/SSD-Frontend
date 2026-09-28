@@ -42,6 +42,7 @@ export type SubCategory = {
   image: string | null;
   posVisibility: boolean;
   customerPortalVisibility: boolean;
+  adminBookingVisibility: boolean;
   favorite: boolean;
   category?: { _id: string; name: string } | null;
 };
@@ -134,7 +135,7 @@ export default function SubCategoryPage() {
       displayOrder: sub.displayOrder,
       color: sub.color,
       description: sub.description,
-      visibility: flagsToVisibility(sub.posVisibility, sub.customerPortalVisibility),
+      visibility: flagsToVisibility(sub.posVisibility, sub.customerPortalVisibility, sub.adminBookingVisibility),
       favorite: sub.favorite,
       status: sub.status,
     });
@@ -145,9 +146,9 @@ export default function SubCategoryPage() {
   }
 
   const submit = handleSubmit(async (values) => {
-    const { pos, portal } = visibilityToFlags(values.visibility);
+    const { pos, portal, adminBooking } = visibilityToFlags(values.visibility);
     const payload = withOptionalImage(
-      { ...values, posVisibility: pos, customerPortalVisibility: portal, visibility: undefined },
+      { ...values, posVisibility: pos, customerPortalVisibility: portal, adminBookingVisibility: adminBooking, visibility: undefined },
       editing ? editImage : createImage,
       { existingValue: editing?.image ?? null, imageRemoved }
     );
@@ -188,7 +189,7 @@ export default function SubCategoryPage() {
     {
       key: "visibility",
       label: "Visibility",
-      render: (s) => <VisibilityPills pos={s.posVisibility} portal={s.customerPortalVisibility} />,
+      render: (s) => <VisibilityPills pos={s.posVisibility} portal={s.customerPortalVisibility} adminBooking={s.adminBookingVisibility} />,
     },
     {
       key: "favorite",

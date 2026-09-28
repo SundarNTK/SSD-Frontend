@@ -8,6 +8,7 @@ type DivineVisibilitySelectProps = {
   onChange: (values: string[]) => void;
   error?: string;
   label?: string;
+  options?: { value: string; label: string }[];
 };
 
 export default function DivineVisibilitySelect({
@@ -15,13 +16,14 @@ export default function DivineVisibilitySelect({
   onChange,
   error,
   label = "Visibility",
+  options = VISIBILITY_OPTIONS,
 }: DivineVisibilitySelectProps) {
   return (
     <DivineMultiSelect
       label={label}
       values={values}
       onChange={onChange}
-      options={VISIBILITY_OPTIONS}
+      options={options}
       placeholder="Select where this appears…"
       error={error}
     />
