@@ -32,6 +32,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { api, unwrap, extractErrorMessage, type ApiEnvelope } from "../../lib/api";
+import netsSocketService from "../../lib/netsSocketService";
 import { toast } from "../../lib/toastStore";
 import { MODULES, usePermissions } from "../../lib/permissions";
 import DivineInput from "../divine/DivineInput";
@@ -170,6 +171,7 @@ type BookingConfirmation = {
 // enough to patch a BookingConfirmation in place after collecting another
 // installment (see BookingSuccessView's "Pay Again").
 type RecordPaymentResult = {
+  paymentModeName: string;
   paymentStatus: "paid" | "partial" | "pending";
   amountPaid: number;
   balanceAmount: number;
@@ -212,6 +214,53 @@ function newLineId() {
 
 function formatCurrency(v: number) {
   return `$${v.toFixed(2)}`;
+}
+
+// Print the ticket for a confirmed, FULLY PAID booking — never for a
+// partial one; the ticket is the customer's proof the WHOLE booking is
+// settled, not just this one installment. Fire-and-forget and silent on
+// failure (EXE not running, no printer yet, socket not connected) — the
+// booking itself already succeeded and must never be blocked or alarmed by
+// a printing hiccup.
+//
+// `modeNames`, when given, is every payment mode that actually landed money
+// on this booking (e.g. Cash collected as a partial payment, then topped up
+// later) — deduped/joined into the ticket's single "Payment Mode" line
+// instead of just `booking.paymentModeName`, which only ever records the
+// FIRST payment. Omitted for the common case of a booking paid in full in
+// one shot.
+function printTicketForBooking(
+  booking: BookingConfirmation,
+  modeNames?: string[],
+) {
+  void (async () => {
+    try {
+      const res = await api.get<ApiEnvelope<unknown>>(
+        `/pos/admin/booking/bookings/${booking._id}/ticket-groups`,
+      );
+      const ticketData = unwrap(res);
+      const modes = modeNames?.length
+        ? [...new Set(modeNames.map((m) => m.toUpperCase()))]
+        : [booking.paymentModeName.toUpperCase()];
+      netsSocketService.printTicket(
+        {
+          orderId: booking.orderNumber,
+          ticketData,
+          paymentMethod: modes.join(", "),
+        },
+        (ack) => {
+          if (ack.status !== "success") {
+            console.warn(
+              "Ticket print request was not accepted by the Nets-Service EXE:",
+              ack.error || ack.message,
+            );
+          }
+        },
+      );
+    } catch (err) {
+      console.warn("Could not fetch ticket data for printing:", err);
+    }
+  })();
 }
 
 // ─── main component ───────────────────────────────────────────────────────────
@@ -652,6 +701,12 @@ export default function AdminBookingPage() {
           ? `Booking ${booking.bookingNumber} confirmed!`
           : `Booking ${booking.bookingNumber} confirmed with a partial payment — ${formatCurrency(booking.balanceAmount)} still due.`
       );
+      // Never print on a partial first payment — the eventual "fully paid"
+      // print happens once the remaining balance is collected, see
+      // BookingSuccessView's submitPayAgain -> onFullyPaid below.
+      if (booking.paymentStatus === "paid") {
+        printTicketForBooking(booking);
+      }
     } catch (err) {
       toast.error(extractErrorMessage(err));
     } finally {
@@ -700,6 +755,7 @@ export default function AdminBookingPage() {
         paymentModes={paymentModes}
         onNewBooking={startNewBooking}
         onPaymentRecorded={(result) => setConfirmation((prev) => (prev ? { ...prev, ...result } : prev))}
+        onFullyPaid={(modeNames) => printTicketForBooking(confirmation, modeNames)}
       />
     );
   }
@@ -1307,11 +1363,18 @@ function BookingSuccessView({
   paymentModes,
   onNewBooking,
   onPaymentRecorded,
+  onFullyPaid,
 }: {
   confirmation: BookingConfirmation;
   paymentModes: PaymentMode[];
   onNewBooking: () => void;
   onPaymentRecorded: (result: RecordPaymentResult) => void;
+  // Fires exactly once, the moment a top-up installment brings the
+  // balance to $0.00 — every payment mode collected against this booking
+  // this session (Cash first, Cash again for the balance, etc.), deduped,
+  // oldest first, so the ticket can print "CASH" (or, once other modes are
+  // wired up here, "CASH, NETS") instead of just the first payment's mode.
+  onFullyPaid: (modeNames: string[]) => void;
 }) {
   // Until the booking is fully paid, the only action is collecting the
   // remaining balance. Booking success (and New Booking) appear only after
@@ -1323,6 +1386,12 @@ function BookingSuccessView({
     paymentModes.find((m) => m.name.toLowerCase() === "cash")?._id || "",
   );
   const [submitting, setSubmitting] = useState(false);
+  // Session-local — the first payment from `confirmation` itself, then one
+  // more appended each time submitPayAgain lands another installment. See
+  // onFullyPaid's own comment above.
+  const [paymentHistory, setPaymentHistory] = useState<string[]>(() => [
+    confirmation.paymentModeName,
+  ]);
 
   useEffect(() => {
     if (!stillDue) return;
@@ -1363,12 +1432,15 @@ function BookingSuccessView({
       );
       const result = unwrap(r);
       onPaymentRecorded(result);
+      const nextHistory = [...paymentHistory, result.paymentModeName];
+      setPaymentHistory(nextHistory);
       if (result.balanceAmount > 0.005) {
         toast.created(`Payment recorded — ${formatCurrency(result.balanceAmount)} still due.`);
         setAmountInput(result.balanceAmount.toFixed(2));
       } else {
         toast.created("Payment recorded — booking is now fully paid!");
         setPayAgainOpen(false);
+        onFullyPaid([...new Set(nextHistory.map((m) => m.toUpperCase()))]);
       }
     } catch (err) {
       toast.error(extractErrorMessage(err));

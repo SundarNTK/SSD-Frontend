@@ -1696,6 +1696,12 @@ export default function PosPortalPage() {
     publish: publishCustomerDisplay,
   } = usePosDisplayPublisher();
 
+  // The POS Portal frontend is the single trigger for ticket printing, for
+  // every payment mode — Cash, PayNow, NETS, Credit Card alike. Never print
+  // on a partial first payment: the ticket is proof the WHOLE booking is
+  // settled, not just this one installment. The eventual "fully paid" print
+  // happens once the remaining balance is collected — see
+  // BookingSuccessView's applyPayAgainResult -> onFullyPaid.
   function finalizeBooking(booking: BookingConfirmation) {
     setConfirmation(booking);
     setStep("done");
@@ -1704,27 +1710,43 @@ export default function PosPortalPage() {
         ? `Booking ${booking.bookingNumber} confirmed!`
         : `Booking ${booking.bookingNumber} confirmed with a partial payment — ${formatCurrency(booking.balanceAmount)} still due.`,
     );
-    printTicketForBooking(booking);
+    if (booking.paymentStatus === "paid") {
+      printTicketForBooking(booking);
+    }
   }
 
-  // Print the ticket for any confirmed booking regardless of payment mode.
-  // Fire-and-forget and silent on failure (EXE not running, no printer yet,
-  // socket not connected) — the booking itself already succeeded and must
-  // never be blocked or alarmed by a printing hiccup; the EXE's own
-  // pending-print queue picks up a "no printer configured" case
-  // automatically once one is set up.
-  function printTicketForBooking(booking: BookingConfirmation) {
+  // Print the ticket for a confirmed, FULLY PAID booking. Fire-and-forget
+  // and silent on failure (EXE not running, no printer yet, socket not
+  // connected) — the booking itself already succeeded and must never be
+  // blocked or alarmed by a printing hiccup; the EXE's own pending-print
+  // queue picks up a "no printer configured" case automatically once one is
+  // set up.
+  //
+  // `modeNames`, when given, is every payment mode that actually landed
+  // money on this booking (Cash first, NETS for the balance, etc.) —
+  // deduped/joined into the ticket's single "Payment Mode" line (e.g.
+  // "CASH, NETS") instead of just `booking.paymentModeName`, which only
+  // ever records the FIRST payment. Omitted for the common case of a
+  // booking paid in full in one shot, where `booking.paymentModeName`
+  // already is the whole story.
+  function printTicketForBooking(
+    booking: BookingConfirmation,
+    modeNames?: string[],
+  ) {
     void (async () => {
       try {
         const res = await api.get<ApiEnvelope<unknown>>(
           `/pos/booking/bookings/${booking._id}/ticket-groups`,
         );
         const ticketData = unwrap(res);
+        const modes = modeNames?.length
+          ? [...new Set(modeNames.map((m) => m.toUpperCase()))]
+          : [booking.paymentModeName.toUpperCase()];
         netsSocketService.printTicket(
           {
             orderId: booking.referenceId,
             ticketData,
-            paymentMethod: booking.paymentModeName.toUpperCase(),
+            paymentMethod: modes.join(", "),
           },
           (ack) => {
             if (ack.status !== "success") {
@@ -2110,6 +2132,9 @@ export default function PosPortalPage() {
           onDisplayState={setSuccessDisplay}
           onPaymentRecorded={(result) =>
             setConfirmation((prev) => (prev ? { ...prev, ...result } : prev))
+          }
+          onFullyPaid={(modeNames) =>
+            printTicketForBooking(confirmation, modeNames)
           }
         />
       </PosShell>
@@ -6358,12 +6383,19 @@ function BookingSuccessView({
   onNewTransaction,
   onPaymentRecorded,
   onDisplayState,
+  onFullyPaid,
 }: {
   confirmation: BookingConfirmation;
   paymentModes: PaymentMode[];
   onNewTransaction: () => void;
   onPaymentRecorded: (result: RecordPaymentResult) => void;
   onDisplayState?: (payload: PosDisplayPayload) => void;
+  // Fires exactly once, the moment a top-up installment brings the balance
+  // to $0.00 — every payment mode collected against this booking this
+  // session (Cash first, NETS for the balance, etc.), deduped, oldest
+  // first, so the ticket can print "CASH, NETS" instead of just the first
+  // payment's mode.
+  onFullyPaid: (modeNames: string[]) => void;
 }) {
   // Until the booking is fully paid, the only action is "Pay Again" —
   // cashiers cannot skip a remaining balance from this screen. Booking
@@ -6533,10 +6565,11 @@ function BookingSuccessView({
 
   function applyPayAgainResult(result: RecordPaymentResult) {
     onPaymentRecorded(result);
-    setPaymentHistory((prev) => [
-      ...prev,
+    const nextHistory = [
+      ...paymentHistory,
       { mode: result.paymentModeName, amount: result.amount },
-    ]);
+    ];
+    setPaymentHistory(nextHistory);
     if (result.balanceAmount > 0.005) {
       setPaymentPopup(result);
       setAmountInput(result.balanceAmount.toFixed(2));
@@ -6544,6 +6577,7 @@ function BookingSuccessView({
       setPaymentPopup(null);
       setPayAgainOpen(false);
       setGrandOpen(true);
+      onFullyPaid([...new Set(nextHistory.map((p) => p.mode.toUpperCase()))]);
     }
   }
 
