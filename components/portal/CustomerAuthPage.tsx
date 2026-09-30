@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import CustomerLoginBackground from "../divine/CustomerLoginBackground";
 import DivineInput from "../divine/DivineInput";
 import StatusBanner from "../divine/StatusBanner";
 import { LockIcon, MailIcon, UserIcon } from "../divine/icons";
@@ -70,11 +71,8 @@ export default function CustomerAuthPage({ initialTab, next, logo }: { initialTa
   }
 
   return (
-    <div className="relative isolate flex min-h-[100dvh] w-full items-center justify-center overflow-hidden bg-gradient-to-br from-[#fff6e0] via-[#fde9c4] to-[#f8d3ad] px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))]">
-      {/* A plain, warm backdrop — just two soft colour washes so the glass card
-          has something gentle to frost over. */}
-      <div className="pointer-events-none absolute -left-32 -top-32 -z-10 h-[28rem] w-[28rem] rounded-full bg-gold-400/35 blur-3xl" aria-hidden="true" />
-      <div className="pointer-events-none absolute -bottom-40 -right-32 -z-10 h-[30rem] w-[30rem] rounded-full bg-crimson-500/20 blur-3xl" aria-hidden="true" />
+    <div className="relative isolate flex min-h-[100dvh] w-full items-center justify-center overflow-hidden bg-[#2a1408] px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))]">
+      <CustomerLoginBackground />
 
       <motion.div
         initial={{ opacity: 0, y: 30, scale: 0.97 }}
@@ -170,7 +168,12 @@ export default function CustomerAuthPage({ initialTab, next, logo }: { initialTa
           </div>
         </div>
 
-        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }} className="mt-5 text-center text-[13px] font-medium text-maroon">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.7 }}
+          className="mt-5 text-center text-[13px] font-semibold text-maroon drop-shadow-[0_1px_10px_rgba(255,247,224,0.85)]"
+        >
           <Link href="/customer" className="underline-offset-4 hover:underline">
             ← Back to the temple website
           </Link>
